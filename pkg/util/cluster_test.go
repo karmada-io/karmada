@@ -550,3 +550,129 @@ func TestObtainClusterID(t *testing.T) {
 		})
 	}
 }
+
+func TestIsClusterReady(t *testing.T) {
+	tests := []struct {
+		name          string
+		clusterStatus *clusterv1alpha1.ClusterStatus
+		want          bool
+	}{
+		{
+			name:          "no conditions",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{},
+			want:          false,
+		},
+		{
+			name: "Ready condition is True",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "Ready condition is False",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionFalse,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Ready condition is Unknown",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionUnknown,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "Ready condition absent but other conditions present",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   "SomeOtherCondition",
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsClusterReady(tt.clusterStatus); got != tt.want {
+				t.Errorf("IsClusterReady() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClusterAccessCredentialChanged(t *testing.T) {
+	tests := []struct {
+		name    string
+		newSpec clusterv1alpha1.ClusterSpec
+		oldSpec clusterv1alpha1.ClusterSpec
+		want    bool
+	}{
+		{
+			name:    "identical specs — no change",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://k8s.example.com"},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://k8s.example.com"},
+			want:    false,
+		},
+		{
+			name:    "APIEndpoint changed",
+			newSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://new.example.com"},
+			oldSpec: clusterv1alpha1.ClusterSpec{APIEndpoint: "https://old.example.com"},
+			want:    true,
+		},
+		{
+			name:    "InsecureSkipTLSVerification changed",
+			newSpec: clusterv1alpha1.ClusterSpec{InsecureSkipTLSVerification: true},
+			oldSpec: clusterv1alpha1.ClusterSpec{InsecureSkipTLSVerification: false},
+			want:    true,
+		},
+		{
+			name:    "ProxyURL changed",
+			newSpec: clusterv1alpha1.ClusterSpec{ProxyURL: "http://proxy.new.example.com"},
+			oldSpec: clusterv1alpha1.ClusterSpec{ProxyURL: "http://proxy.old.example.com"},
+			want:    true,
+		},
+		{
+			name: "ProxyHeader changed",
+			newSpec: clusterv1alpha1.ClusterSpec{
+				ProxyHeader: map[string]string{"X-Auth": "new-token"},
+			},
+			oldSpec: clusterv1alpha1.ClusterSpec{
+				ProxyHeader: map[string]string{"X-Auth": "old-token"},
+			},
+			want: true,
+		},
+		{
+			name:    "empty specs — no change",
+			newSpec: clusterv1alpha1.ClusterSpec{},
+			oldSpec: clusterv1alpha1.ClusterSpec{},
+			want:    false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterAccessCredentialChanged(tt.newSpec, tt.oldSpec); got != tt.want {
+				t.Errorf("ClusterAccessCredentialChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
