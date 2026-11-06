@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 )
 
 func TestNewResource(t *testing.T) {
@@ -590,6 +591,207 @@ func TestResource_AddPodTemplateRequest(t *testing.T) {
 			r := EmptyResource()
 			if got := r.AddPodTemplateRequest(tt.args.podSpec); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("AddPodTemplateRequest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_AddPodRequest(t *testing.T) {
+	npu := corev1.ResourceName("huawei.com/Ascend910")
+
+	tests := []struct {
+		name     string
+		podSpecs []*corev1.PodSpec
+		want     *Resource
+	}{
+		{
+			name: "three Pods with ordinary containers",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+				{
+					Containers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+				{
+					Containers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+			},
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{npu: 3},
+			},
+		},
+		{
+			name: "three Pods with ordinary init containers",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+						}},
+					},
+				},
+			},
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{npu: 3},
+			},
+		},
+		{
+			name: "three Pods with restartable init sidecars",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+							},
+						},
+					},
+				},
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+							},
+						},
+					},
+				},
+				{
+					Containers: []corev1.Container{{Name: "runner"}},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{npu: resource.MustParse("1")},
+							},
+						},
+					},
+				},
+			},
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{npu: 3},
+			},
+		},
+		{
+			name: "multiple Pods with mixed resources and overhead",
+			podSpecs: []*corev1.PodSpec{
+				{
+					Containers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("300m"),
+								corev1.ResourceMemory: resource.MustParse("256Mi"),
+								npu:                   resource.MustParse("1"),
+							},
+						}},
+					},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("64Mi"),
+									npu:                   resource.MustParse("1"),
+								},
+							},
+						},
+						{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("700m"),
+									corev1.ResourceMemory: resource.MustParse("1024Mi"),
+									npu:                   resource.MustParse("2"),
+								},
+							},
+						},
+					},
+					Overhead: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("50m"),
+						corev1.ResourceMemory: resource.MustParse("32Mi"),
+					},
+				},
+				{
+					Containers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("250m"),
+								corev1.ResourceMemory: resource.MustParse("128Mi"),
+								npu:                   resource.MustParse("1"),
+							},
+						}},
+					},
+					InitContainers: []corev1.Container{
+						{Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("100m"),
+								corev1.ResourceMemory: resource.MustParse("512Mi"),
+								npu:                   resource.MustParse("1"),
+							},
+						}},
+					},
+					Overhead: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("25m"),
+						corev1.ResourceMemory: resource.MustParse("32Mi"),
+					},
+				},
+			},
+			want: &Resource{
+				MilliCPU:        1125,
+				Memory:          1664 * 1024 * 1024,
+				ScalarResources: map[corev1.ResourceName]int64{npu: 4},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := EmptyResource()
+			originals := make([]*corev1.PodSpec, len(tt.podSpecs))
+			for i, podSpec := range tt.podSpecs {
+				originals[i] = podSpec.DeepCopy()
+				r.AddPodRequest(podSpec)
+			}
+			if !reflect.DeepEqual(r, tt.want) {
+				t.Errorf("AddPodRequest() = %+v, want %+v", r, tt.want)
+			}
+			for i, podSpec := range tt.podSpecs {
+				if !reflect.DeepEqual(podSpec, originals[i]) {
+					t.Errorf("AddPodRequest() modified PodSpec %d", i)
+				}
 			}
 		})
 	}
