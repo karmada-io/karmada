@@ -76,7 +76,11 @@ func (c *ClusterTaintPolicyController) Reconcile(ctx context.Context, req contro
 	// Sorting ensures a deterministic processing order and ensures consistent taint generation for Clusters.
 	// This prevents repeated taint addition/removal cycles when conflicting policies exist.
 	policies := clusterTaintPolicyList.Items
+	// Creation timestamps have one-second precision, so use the name as a tie breaker.
 	sort.Slice(policies, func(i, j int) bool {
+		if policies[i].CreationTimestamp.Equal(&policies[j].CreationTimestamp) {
+			return policies[i].Name < policies[j].Name
+		}
 		return policies[i].CreationTimestamp.Before(&policies[j].CreationTimestamp)
 	})
 
