@@ -104,6 +104,26 @@ func TestValidateOverrideSpec(t *testing.T) {
 			expectError: true,
 		},
 		{
+			name: "overrideRules and fieldOverrider can't co-exist",
+			overrideSpec: policyv1alpha1.OverrideSpec{
+				OverrideRules: []policyv1alpha1.RuleWithCluster{
+					{
+						TargetCluster: &policyv1alpha1.ClusterAffinity{
+							ClusterNames: []string{"cluster-name"},
+						},
+					},
+				},
+				Overriders: policyv1alpha1.Overriders{
+					FieldOverrider: []policyv1alpha1.FieldOverrider{
+						{
+							FieldPath: "/data/config.yaml",
+						},
+					},
+				},
+			},
+			expectError: true,
+		},
+		{
 			name: "overrideRules, targetCluster and overriders can't co-exist",
 			overrideSpec: policyv1alpha1.OverrideSpec{
 				OverrideRules: []policyv1alpha1.RuleWithCluster{
@@ -437,6 +457,17 @@ func TestEmptyOverrides(t *testing.T) {
 			name:       "empty overrides",
 			overriders: policyv1alpha1.Overriders{},
 			want:       true,
+		},
+		{
+			name: "non-empty overrides with only fieldOverrider",
+			overriders: policyv1alpha1.Overriders{
+				FieldOverrider: []policyv1alpha1.FieldOverrider{
+					{
+						FieldPath: "/data/config.yaml",
+					},
+				},
+			},
+			want: false,
 		},
 		{
 			name: "non-empty overrides",
