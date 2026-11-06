@@ -37,6 +37,7 @@ type LuaScriptAccessor interface {
 	GetStatusAggregationLuaScript() string
 	GetHealthInterpretationLuaScript() string
 	GetDependencyInterpretationLuaScripts() []string
+	GetSchedulingResultInterpretationLuaScript() string
 }
 
 // CustomAccessor provides a common interface to get custom interpreter configuration.
@@ -45,14 +46,15 @@ type CustomAccessor interface {
 }
 
 type resourceCustomAccessor struct {
-	retention                 *configv1alpha1.LocalValueRetention
-	replicaResource           *configv1alpha1.ReplicaResourceRequirement
-	componentResource         *configv1alpha1.ComponentResourceRequirement
-	replicaRevision           *configv1alpha1.ReplicaRevision
-	statusReflection          *configv1alpha1.StatusReflection
-	statusAggregation         *configv1alpha1.StatusAggregation
-	healthInterpretation      *configv1alpha1.HealthInterpretation
-	dependencyInterpretations []*configv1alpha1.DependencyInterpretation
+	retention                        *configv1alpha1.LocalValueRetention
+	replicaResource                  *configv1alpha1.ReplicaResourceRequirement
+	componentResource                *configv1alpha1.ComponentResourceRequirement
+	replicaRevision                  *configv1alpha1.ReplicaRevision
+	statusReflection                 *configv1alpha1.StatusReflection
+	statusAggregation                *configv1alpha1.StatusAggregation
+	healthInterpretation             *configv1alpha1.HealthInterpretation
+	schedulingResultInterpretation    *configv1alpha1.SchedulingResultInterpretation
+	dependencyInterpretations        []*configv1alpha1.DependencyInterpretation
 }
 
 // NewResourceCustomAccessor creates an accessor for resource interpreter customization.
@@ -82,6 +84,9 @@ func (a *resourceCustomAccessor) Merge(rules configv1alpha1.CustomizationRules) 
 	}
 	if rules.HealthInterpretation != nil {
 		a.setHealthInterpretation(rules.HealthInterpretation)
+	}
+	if rules.SchedulingResultInterpretation != nil {
+		a.setSchedulingResultInterpretation(rules.SchedulingResultInterpretation)
 	}
 	if rules.DependencyInterpretation != nil {
 		a.appendDependencyInterpretation(rules.DependencyInterpretation)
@@ -135,6 +140,13 @@ func (a *resourceCustomAccessor) GetHealthInterpretationLuaScript() string {
 		return ""
 	}
 	return a.healthInterpretation.LuaScript
+}
+
+func (a *resourceCustomAccessor) GetSchedulingResultInterpretationLuaScript() string {
+	if a.schedulingResultInterpretation == nil {
+		return ""
+	}
+	return a.schedulingResultInterpretation.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetDependencyInterpretationLuaScripts() []string {
@@ -225,6 +237,17 @@ func (a *resourceCustomAccessor) setHealthInterpretation(healthInterpretation *c
 
 	if healthInterpretation.LuaScript != "" && a.healthInterpretation.LuaScript == "" {
 		a.healthInterpretation.LuaScript = healthInterpretation.LuaScript
+	}
+}
+
+func (a *resourceCustomAccessor) setSchedulingResultInterpretation(schedulingResultInterpretation *configv1alpha1.SchedulingResultInterpretation) {
+	if a.schedulingResultInterpretation == nil {
+		a.schedulingResultInterpretation = schedulingResultInterpretation
+		return
+	}
+
+	if schedulingResultInterpretation.LuaScript != "" && a.schedulingResultInterpretation.LuaScript == "" {
+		a.schedulingResultInterpretation.LuaScript = schedulingResultInterpretation.LuaScript
 	}
 }
 
