@@ -66,8 +66,7 @@ export KUBECONFIG="${MAIN_KUBECONFIG}"
 "${REPO_ROOT}"/hack/deploy-karmada.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}"
 
 # step3. join push mode member clusters and install scheduler-estimator
-GOPATH=$(go env GOPATH | awk -F ':' '{print $1}')
-KARMADACTL_BIN="${GOPATH}/bin/karmadactl"
+KARMADACTL_BIN="$(which karmadactl)"
 ${KARMADACTL_BIN} join --karmada-context="${KARMADA_APISERVER_CLUSTER_NAME}" ${MEMBER_CLUSTER_1_NAME} --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" --cluster-context="${MEMBER_CLUSTER_1_NAME}"
 "${REPO_ROOT}"/hack/deploy-scheduler-estimator.sh "${MAIN_KUBECONFIG}" "${HOST_CLUSTER_NAME}" "${MEMBER_CLUSTER_KUBECONFIG}" "${MEMBER_CLUSTER_1_NAME}"
 ${KARMADACTL_BIN} join --karmada-context="${KARMADA_APISERVER_CLUSTER_NAME}" ${MEMBER_CLUSTER_2_NAME} --cluster-kubeconfig="${MEMBER_CLUSTER_KUBECONFIG}" --cluster-context="${MEMBER_CLUSTER_2_NAME}"
