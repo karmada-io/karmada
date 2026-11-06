@@ -27,11 +27,13 @@ import (
 
 func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 	tests := []struct {
-		name    string
-		option  CommandInitOption
-		nodes   []string
-		labels  map[string]string
-		wantErr bool
+		name          string
+		option        CommandInitOption
+		nodes         []string
+		labels        map[string]string
+		addresses     []corev1.NodeAddress
+		nodeAddresses [][]corev1.NodeAddress
+		wantErr       bool
 	}{
 		{
 			name: "KarmadaAPIServerAdvertiseAddress is not empty",
@@ -62,6 +64,31 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "node without addresses",
+			option: CommandInitOption{
+				KubeClientSet: fake.NewClientset(),
+			},
+			nodes:     []string{"node1"},
+			labels:    map[string]string{},
+			addresses: []corev1.NodeAddress{},
+			wantErr:   true,
+		},
+		{
+			name: "skip nodes without addresses",
+			option: CommandInitOption{
+				KubeClientSet: fake.NewClientset(),
+			},
+			nodes:  []string{"node1", "node2", "node3", "node4"},
+			labels: map[string]string{},
+			nodeAddresses: [][]corev1.NodeAddress{
+				{},
+				{},
+				{},
+				{{Address: "127.0.0.4"}},
+			},
+			wantErr: false,
+		},
+		{
 			name: "no nodes",
 			option: CommandInitOption{
 				KubeClientSet: fake.NewClientset(),
@@ -71,16 +98,22 @@ func TestCommandInitOption_getKarmadaAPIServerIP(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, v := range tt.nodes {
+			addresses := tt.addresses
+			if addresses == nil {
+				addresses = []corev1.NodeAddress{{Address: "127.0.0.1"}}
+			}
+			for i, v := range tt.nodes {
+				nodeAddresses := addresses
+				if len(tt.nodeAddresses) > i {
+					nodeAddresses = tt.nodeAddresses[i]
+				}
 				_, err := tt.option.KubeClientSet.CoreV1().Nodes().Create(context.Background(), &corev1.Node{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:   v,
 						Labels: tt.labels,
 					},
 					Status: corev1.NodeStatus{
-						Addresses: []corev1.NodeAddress{
-							{Address: "127.0.0.1"},
-						},
+						Addresses: nodeAddresses,
 					},
 				}, metav1.CreateOptions{})
 				if err != nil {
