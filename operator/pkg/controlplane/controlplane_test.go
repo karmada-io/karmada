@@ -20,6 +20,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 
 	operatorv1alpha1 "github.com/karmada-io/karmada/operator/pkg/apis/operator/v1alpha1"
@@ -362,6 +363,233 @@ func TestGetKarmadaDeschedulerManifest(t *testing.T) {
 	err = verifySecrets(deployment, expectedSecrets)
 	if err != nil {
 		t.Errorf("failed to verify karmada descheduler secrets: %v", err)
+	}
+}
+
+func TestGetKubeControllerManagerManifestWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	name, namespace := "karmada-demo", "test"
+	image, imageTag := "registry.k8s.io/kube-controller-manager", "latest"
+	imagePullPolicy := corev1.PullIfNotPresent
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "kube-controller-manager",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KubeControllerManager{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	deployment, err := getKubeControllerManagerManifest(name, namespace, cfg)
+	if err != nil {
+		t.Fatalf("failed to get kube controller manager manifest: %v", err)
+	}
+
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "kube-controller-manager" {
+		t.Errorf("expected topology spread labelSelector to match kube-controller-manager, but got %#v", got[0].LabelSelector)
+	}
+}
+
+func TestGetKarmadaControllerManagerManifestWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	name, namespace := "karmada-demo", "test"
+	image, imageTag := "docker.io/karmada/karmada-controller-manager", "latest"
+	imagePullPolicy := corev1.PullIfNotPresent
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-controller-manager",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaControllerManager{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	deployment, err := getKarmadaControllerManagerManifest(name, namespace, map[string]bool{}, cfg)
+	if err != nil {
+		t.Fatalf("failed to get karmada controller manager manifest: %v", err)
+	}
+
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-controller-manager" {
+		t.Errorf("expected topology spread labelSelector to match karmada-controller-manager, but got %#v", got[0].LabelSelector)
+	}
+}
+
+func TestGetKarmadaSchedulerManifestWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	name, namespace := "karmada-demo", "test"
+	image, imageTag := "docker.io/karmada/karmada-scheduler", "latest"
+	imagePullPolicy := corev1.PullIfNotPresent
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-scheduler",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaScheduler{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	deployment, err := getKarmadaSchedulerManifest(name, namespace, map[string]bool{}, cfg)
+	if err != nil {
+		t.Fatalf("failed to get karmada scheduler manifest: %v", err)
+	}
+
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-scheduler" {
+		t.Errorf("expected topology spread labelSelector to match karmada-scheduler, but got %#v", got[0].LabelSelector)
+	}
+}
+
+func TestGetKarmadaDeschedulerManifestWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	name, namespace := "karmada-demo", "test"
+	image, imageTag := "docker.io/karmada/karmada-descheduler", "latest"
+	imagePullPolicy := corev1.PullIfNotPresent
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-descheduler",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaDescheduler{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	deployment, err := getKarmadaDeschedulerManifest(name, namespace, map[string]bool{}, cfg)
+	if err != nil {
+		t.Fatalf("failed to get karmada descheduler manifest: %v", err)
+	}
+
+	got := deployment.Spec.Template.Spec.TopologySpreadConstraints
+	if len(got) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(got))
+	}
+	if got[0].MaxSkew != 1 {
+		t.Errorf("expected maxSkew %d, but got %d", 1, got[0].MaxSkew)
+	}
+	if got[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", got[0].TopologyKey)
+	}
+	if got[0].WhenUnsatisfiable != corev1.DoNotSchedule {
+		t.Errorf("expected whenUnsatisfiable %q, but got %q", corev1.DoNotSchedule, got[0].WhenUnsatisfiable)
+	}
+	if got[0].LabelSelector == nil || got[0].LabelSelector.MatchLabels["app"] != "karmada-descheduler" {
+		t.Errorf("expected topology spread labelSelector to match karmada-descheduler, but got %#v", got[0].LabelSelector)
 	}
 }
 
