@@ -435,6 +435,30 @@ func TestNewClusterClientSet(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "ProxyURL and ProxyHeader are set",
+			args: args{
+				clusterName: "test",
+				client: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "test"},
+						Spec: clusterv1alpha1.ClusterSpec{
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "http://1.1.1.1",
+							ProxyHeader: map[string]string{
+								"Proxy-Authorization": "Basic token",
+							},
+						},
+					},
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+					}).Build(),
+				clientOption: &ClientOption{},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -637,6 +661,29 @@ func TestNewClusterDynamicClientSet(t *testing.T) {
 							APIEndpoint: "https://127.0.0.1",
 							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
 							ProxyURL:    "http://1.1.1.1",
+						},
+					},
+					&corev1.Secret{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret1"},
+						Data:       map[string][]byte{clusterv1alpha1.SecretTokenKey: []byte("token"), clusterv1alpha1.SecretCADataKey: testCA},
+					}).Build(),
+			},
+			wantErr: false,
+		},
+		{
+			name: "ProxyURL and ProxyHeader are set",
+			args: args{
+				clusterName: "test",
+				client: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+					&clusterv1alpha1.Cluster{
+						ObjectMeta: metav1.ObjectMeta{Name: "test"},
+						Spec: clusterv1alpha1.ClusterSpec{
+							APIEndpoint: "https://127.0.0.1",
+							SecretRef:   &clusterv1alpha1.LocalSecretReference{Namespace: "ns1", Name: "secret1"},
+							ProxyURL:    "http://1.1.1.1",
+							ProxyHeader: map[string]string{
+								"Proxy-Authorization": "Basic token",
+							},
 						},
 					},
 					&corev1.Secret{
