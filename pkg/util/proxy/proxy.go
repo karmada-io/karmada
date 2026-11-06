@@ -141,7 +141,13 @@ func GetTLSConfigForCluster(ctx context.Context, cluster *clusterapis.Cluster, s
 	caBundle := getClusterCABundle(caSecret)
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caBundle)
+	// A missing CA bundle is allowed (see #4370), but a bundle that is set and holds no
+	// valid PEM certificate would leave the pool empty, and every request would then fail
+	// with an "unknown authority" error. Report the bad bundle instead.
+	if !caCertPool.AppendCertsFromPEM(caBundle) && len(caBundle) > 0 && !cluster.Spec.InsecureSkipTLSVerification {
+		return nil, fmt.Errorf("the CA bundle in secret %s/%s of cluster %s contains no valid PEM certificate",
+			cluster.Spec.SecretRef.Namespace, cluster.Spec.SecretRef.Name, cluster.Name)
+	}
 	return &tls.Config{
 		RootCAs:    caCertPool,
 		MinVersion: tls.VersionTLS13,
