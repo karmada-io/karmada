@@ -768,6 +768,8 @@ func Test_getAllDefaultHealthInterpreter(t *testing.T) {
 		{Group: "", Version: "v1", Kind: "PersistentVolumeClaim"},
 		{Group: "", Version: "v1", Kind: "Pod"},
 		{Group: "policy", Version: "v1", Kind: "PodDisruptionBudget"},
+		{Group: "batch", Version: "v1", Kind: "Job"},
+		{Group: "batch", Version: "v1", Kind: "CronJob"},
 	}
 
 	got := getAllDefaultHealthInterpreter()
