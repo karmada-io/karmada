@@ -25,6 +25,30 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 )
 
+func TestOverrideTaggedDigest(t *testing.T) {
+	digest := "sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c"
+	image := "registry.example/team/app:v1@" + digest
+	for _, tt := range []struct {
+		name      string
+		component policyv1alpha1.ImageComponent
+		operator  policyv1alpha1.OverriderOperator
+		value     string
+		want      string
+	}{
+		{"registry", policyv1alpha1.Registry, policyv1alpha1.OverriderOpReplace, "mirror.example", "mirror.example/team/app:v1@" + digest},
+		{"repository", policyv1alpha1.Repository, policyv1alpha1.OverriderOpReplace, "other/app", "registry.example/other/app:v1@" + digest},
+		{"replace tag", policyv1alpha1.Tag, policyv1alpha1.OverriderOpReplace, "v2", "registry.example/team/app:v2"},
+		{"remove version", policyv1alpha1.Tag, policyv1alpha1.OverriderOpRemove, "", "registry.example/team/app"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := overrideImage(image, &policyv1alpha1.ImageOverrider{Component: tt.component, Operator: tt.operator, Value: tt.value})
+			if err != nil || got != tt.want {
+				t.Fatalf("overrideImage() = %q, %v; want %q", got, err, tt.want)
+			}
+		})
+	}
+}
+
 func generateDeploymentYaml() *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]any{

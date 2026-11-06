@@ -23,6 +23,22 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
+func TestParseTaggedDigest(t *testing.T) {
+	digest := "sha256:50d858e0985ecc7f60418aaf0cc5ab587f42c2570a884095a9e8ccacd0f6545c"
+	image := "registry.example/team/app:v1@" + digest
+	components, err := Parse(image)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if components.Tag() != "v1" || components.Digest() != digest || components.String() != image {
+		t.Fatalf("tag/digest reference did not survive parsing: %s", components.String())
+	}
+	components.RemoveTagOrDigest()
+	if got := components.String(); got != "registry.example/team/app" {
+		t.Fatalf("removing version left %s", got)
+	}
+}
+
 func TestParse(t *testing.T) {
 	tests := []struct {
 		name             string
