@@ -113,29 +113,23 @@ func TestRunJoinCluster(t *testing.T) {
 			joinOpts:            &CommandJoinOption{},
 			controlPlaneRestCfg: &rest.Config{},
 			clusterCfg:          &rest.Config{},
+			controlKubeClient:   fakeclientset.NewClientset(),
 			clusterKubeClient:   fakeclientset.NewClientset(),
 			karmadaClient:       fakekarmadaclient.NewClientset(),
 			clusterID:           types.UID(uuid.New().String()),
-			prep: func(karmadaClient karmadaclientset.Interface, _, clusterKubeClient kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID, clusterName string) error {
-				opts.ClusterName = clusterName
-				if err := createNamespace(metav1.NamespaceSystem, clusterID, clusterKubeClient); err != nil {
+			prep: func(karmadaClient karmadaclientset.Interface, controlKubeClient, clusterKubeClient kubeclient.Interface, opts *CommandJoinOption, clusterID types.UID, clusterName string) error {
+				if err := prepJoinCluster(karmadaClient, controlKubeClient, clusterKubeClient, opts, clusterID, clusterName); err != nil {
 					return err
 				}
 				if err := createCluster(clusterName, clusterID, karmadaClient); err != nil {
 					return err
-				}
-				clusterKubeClientBuilder = func(*rest.Config) kubeclient.Interface {
-					return clusterKubeClient
-				}
-				karmadaClientBuilder = func(*rest.Config) karmadaclientset.Interface {
-					return karmadaClient
 				}
 				return nil
 			},
 			verify: func(karmadaclientset.Interface, kubeclient.Interface, kubeclient.Interface, *CommandJoinOption, types.UID) error {
 				return nil
 			},
-			wantErr: true,
+			wantErr: false,
 			errMsg: func(opts *CommandJoinOption, clusterID types.UID) string {
 				return fmt.Sprintf("the cluster ID %s or the cluster name %s has been registered", clusterID, opts.ClusterName)
 			},
