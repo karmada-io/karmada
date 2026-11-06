@@ -590,6 +590,38 @@ func TestParseJSONPatchesByImageOverrider(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "imageOverrider with predicate, path index out of range",
+			args: args{
+				rawObj: generateDeploymentYaml(),
+				imageOverrider: &policyv1alpha1.ImageOverrider{
+					Predicate: &policyv1alpha1.ImagePredicate{
+						Path: "/spec/template/spec/containers/5/image",
+					},
+					Component: "Repository",
+					Operator:  policyv1alpha1.OverriderOpReplace,
+					Value:     "nginx",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "imageOverrider with predicate, negative path index",
+			args: args{
+				rawObj: generateDeploymentYaml(),
+				imageOverrider: &policyv1alpha1.ImageOverrider{
+					Predicate: &policyv1alpha1.ImagePredicate{
+						Path: "/spec/template/spec/containers/-1/image",
+					},
+					Component: "Repository",
+					Operator:  policyv1alpha1.OverriderOpReplace,
+					Value:     "nginx",
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
