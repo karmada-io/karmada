@@ -55,6 +55,7 @@ const ControllerName = "binding-controller"
 // ResourceBindingController is to sync ResourceBinding.
 type ResourceBindingController struct {
 	client.Client                                                   // used to operate ClusterResourceBinding resources.
+	APIReader           client.Reader                               // used to read resources directly from the API server.
 	DynamicClient       dynamic.Interface                           // used to fetch arbitrary resources from api server.
 	InformerManager     genericmanager.SingleClusterInformerManager // used to fetch arbitrary resources from cache.
 	EventRecorder       record.EventRecorder
@@ -82,7 +83,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 
 	if !binding.DeletionTimestamp.IsZero() {
 		klog.V(4).InfoS("Begin deleting works owned by ResourceBinding", "binding", req.NamespacedName.String())
-		if err := helper.DeleteWorks(ctx, c.Client, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]); err != nil {
+		if err := helper.DeleteWorks(ctx, c.Client, c.APIReader, req.Namespace, req.Name, binding.Labels[workv1alpha2.ResourceBindingPermanentIDLabel]); err != nil {
 			klog.ErrorS(err, "Failed deleting works owned by ResourceBinding", "namespace", binding.GetNamespace(), "binding", binding.GetName())
 			return controllerruntime.Result{}, err
 		}
@@ -184,6 +185,7 @@ func (c *ResourceBindingController) checkDirectPurgeOrphanWorks(ctx context.Cont
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
+	c.APIReader = mgr.GetAPIReader()
 	return controllerruntime.NewControllerManagedBy(mgr).
 		Named(ControllerName).
 		For(&workv1alpha2.ResourceBinding{}).
