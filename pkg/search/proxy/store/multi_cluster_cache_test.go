@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -787,6 +788,116 @@ func TestMultiClusterCache_List_CacheSourceAnnotation(t *testing.T) {
 	}
 	if !reflect.DeepEqual(items, expect) {
 		t.Errorf("list items diff: %v", cmp.Diff(expect, items))
+	}
+}
+
+var parallelListClusters = []string{"cluster1", "cluster2", "cluster3", "cluster4"}
+
+// newParallelListClients returns clients of parallelListClusters, each with two pods, and of cluster0, which has no pods.
+// The pod lists from MultiClusterCache.List (with label selector) go through reaction first; the cacher's lists don't.
+func newParallelListClients(reaction func(cluster string) (bool, runtime.Object, error)) map[string]dynamic.Interface {
+	clients := map[string]dynamic.Interface{
+		"cluster0": fakedynamic.NewSimpleDynamicClient(scheme),
+	}
+	for i, cluster := range parallelListClusters {
+		client := NewEnhancedFakeDynamicClientWithResourceVersion(scheme, fmt.Sprintf("%d", 1000*(i+1)),
+			newUnstructuredObject(podGVK, fmt.Sprintf("pod%d1", i+1), withDefaultNamespace(), withLabel("app", "foo")),
+			newUnstructuredObject(podGVK, fmt.Sprintf("pod%d2", i+1), withDefaultNamespace(), withLabel("app", "foo")),
+		)
+		client.PrependReactor("list", "pods", func(act kubetesting.Action) (bool, runtime.Object, error) {
+			if action, ok := act.(kubetesting.ListActionImpl); !ok || action.ListOptions.LabelSelector == "" {
+				return false, nil, nil
+			}
+			return reaction(cluster)
+		})
+		clients[cluster] = client
+	}
+	return clients
+}
+
+// listPodsWithoutLimit lists pods with Limit=0 from a MultiClusterCache of the given clients.
+func listPodsWithoutLimit(clients map[string]dynamic.Interface) (runtime.Object, error) {
+	newClientFunc := func(cluster string) (dynamic.Interface, error) {
+		if client, ok := clients[cluster]; ok {
+			return client, nil
+		}
+		return nil, fmt.Errorf("unknown cluster %v", cluster)
+	}
+	resources := map[string]map[schema.GroupVersionResource]*MultiNamespace{
+		// cluster0 doesn't cache pods, and is skipped.
+		"cluster0": resourceSet(nodeGVR),
+	}
+	for _, cluster := range parallelListClusters {
+		resources[cluster] = resourceSet(podGVR)
+	}
+
+	cache := NewMultiClusterCache(newClientFunc, restMapper)
+	defer cache.Stop()
+	if err := cache.UpdateCache(resources, map[schema.GroupVersionResource]struct{}{podGVR: {}, nodeGVR: {}}); err != nil {
+		return nil, err
+	}
+	return cache.List(request.WithNamespace(context.TODO(), metav1.NamespaceDefault), podGVR,
+		&metainternalversion.ListOptions{LabelSelector: asLabelSelector("app=foo")})
+}
+
+func TestMultiClusterCache_List_Parallel(t *testing.T) {
+	// Each cluster waits until all clusters have started listing, which never happens when listing serially.
+	var started atomic.Int64
+	allStarted := make(chan struct{})
+	clients := newParallelListClients(func(string) (bool, runtime.Object, error) {
+		if started.Add(1) == int64(len(parallelListClusters)) {
+			close(allStarted)
+		}
+		select {
+		case <-allStarted:
+			return false, nil, nil
+		case <-time.After(wait.ForeverTestTimeout):
+			return true, nil, fmt.Errorf("clusters are not listed in parallel")
+		}
+	})
+
+	obj, err := listPodsWithoutLimit(clients)
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
+	accessor, err := meta.ListAccessor(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRV := buildMultiClusterRV("cluster1", "1000", "cluster2", "2000", "cluster3", "3000", "cluster4", "4000")
+	if got := accessor.GetResourceVersion(); got != wantRV {
+		t.Errorf("ResourceVersion want=%v, actual=%v", wantRV, got)
+	}
+
+	items, err := meta.ExtractList(obj)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make([]string, 0, len(items))
+	for _, item := range items {
+		a, err := meta.Accessor(item)
+		if err != nil {
+			t.Fatal(err)
+		}
+		names = append(names, a.GetName())
+	}
+	wantNames := []string{"pod11", "pod12", "pod21", "pod22", "pod31", "pod32", "pod41", "pod42"}
+	if !reflect.DeepEqual(names, wantNames) {
+		t.Errorf("List items want=%v, actual=%v", wantNames, names)
+	}
+}
+
+func TestMultiClusterCache_List_ParallelError(t *testing.T) {
+	clients := newParallelListClients(func(cluster string) (bool, runtime.Object, error) {
+		if cluster == "cluster2" || cluster == "cluster4" {
+			return true, nil, fmt.Errorf("list from %v failed", cluster)
+		}
+		return false, nil, nil
+	})
+
+	_, err := listPodsWithoutLimit(clients)
+	if err == nil || !strings.Contains(err.Error(), "list from cluster2 failed") {
+		t.Errorf("want error from cluster2, actual=%v", err)
 	}
 }
 
