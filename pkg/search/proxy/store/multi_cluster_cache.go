@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -231,6 +232,58 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		klog.V(5).Infof("Response list %v with rv=%#v continue=%#v", gvr.String(), responseResourceVersion, responseContinue)
 	}()
 
+	// listCluster lists the resource from the given cluster's cache with opts. It doesn't change any
+	// shared state, so it's safe to call concurrently. A nil object means the cluster doesn't cache the resource.
+	listCluster := func(cluster string, opts *metainternalversion.ListOptions) (runtime.Object, []runtime.Object, error) {
+		cache := c.cacheForClusterResource(cluster, gvr)
+		if cache == nil {
+			klog.V(4).Infof("cluster %v does not cache resource %v", cluster, gvr.String())
+			return nil, nil, nil
+		}
+
+		if opts.Continue != "" {
+			// specifying resource version is not allowed when using continue
+			opts.ResourceVersion = ""
+		} else {
+			opts.ResourceVersion = requestResourceVersion.get(cluster)
+		}
+		defer trace.Step("list from member cluster",
+			utiltrace.Field{Key: "cluster", Value: cluster},
+			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", opts)},
+		)
+		obj, err := cache.List(ctx, opts)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		var clusterItems []runtime.Object
+		err = meta.EachListItem(obj, func(o runtime.Object) error {
+			clone := o.DeepCopyObject()
+			addCacheSourceAnnotation(clone, cluster)
+			clusterItems = append(clusterItems, clone)
+			return nil
+		})
+		if err != nil {
+			return nil, nil, err
+		}
+		return obj, clusterItems, nil
+	}
+
+	// mergeCluster adds the list result of a cluster to the response. Call it in cluster order.
+	mergeCluster := func(cluster string, obj runtime.Object, clusterItems []runtime.Object) (string, error) {
+		list, err := meta.ListAccessor(obj)
+		if err != nil {
+			return "", err
+		}
+
+		if resultObject == nil {
+			resultObject = obj
+		}
+		items = append(items, clusterItems...)
+		responseResourceVersion.set(cluster, list.GetResourceVersion())
+		return list.GetContinue(), nil
+	}
+
 	listFunc := func(cluster string) (int, string, error) {
 		if requestCluster != "" && requestCluster != cluster {
 			return 0, "", nil
@@ -241,56 +294,53 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 			options.Continue = ""
 		}()
 
-		cache := c.cacheForClusterResource(cluster, gvr)
-		if cache == nil {
-			klog.V(4).Infof("cluster %v does not cache resource %v", cluster, gvr.String())
-			return 0, "", nil
-		}
-
-		if options.Continue != "" {
-			// specifying resource version is not allowed when using continue
-			options.ResourceVersion = ""
-		} else {
-			options.ResourceVersion = requestResourceVersion.get(cluster)
-		}
-		defer trace.Step("list from member cluster",
-			utiltrace.Field{Key: "cluster", Value: cluster},
-			utiltrace.Field{Key: "options", Value: fmt.Sprintf("%#v", options)},
-		)
-		obj, err := cache.List(ctx, options)
-		if err != nil {
+		obj, clusterItems, err := listCluster(cluster, options)
+		if err != nil || obj == nil {
 			return 0, "", err
 		}
 
-		list, err := meta.ListAccessor(obj)
+		cont, err := mergeCluster(cluster, obj, clusterItems)
 		if err != nil {
 			return 0, "", err
 		}
-
-		if resultObject == nil {
-			resultObject = obj
-		}
-
-		cnt := 0
-		err = meta.EachListItem(obj, func(o runtime.Object) error {
-			clone := o.DeepCopyObject()
-			addCacheSourceAnnotation(clone, cluster)
-			items = append(items, clone)
-			cnt++
-			return nil
-		})
-		if err != nil {
-			return 0, "", err
-		}
-
-		responseResourceVersion.set(cluster, list.GetResourceVersion())
-		return cnt, list.GetContinue(), nil
+		return len(clusterItems), cont, nil
 	}
 
 	if options.Limit == 0 {
-		for _, cluster := range clusters {
-			_, _, err := listFunc(cluster)
-			if err != nil {
+		// Without limit, every cluster is listed in full, so list them in parallel and
+		// merge the results in cluster order.
+		listClusters := clusters
+		if requestCluster != "" {
+			// continue from requestCluster, skipping the clusters before it
+			listClusters = nil
+			if idx := slices.Index(clusters, requestCluster); idx >= 0 {
+				listClusters = clusters[idx:]
+			}
+		}
+
+		objs := make([]runtime.Object, len(listClusters))
+		clusterItems := make([][]runtime.Object, len(listClusters))
+		errs := make([]error, len(listClusters))
+		var wg sync.WaitGroup
+		for i, cluster := range listClusters {
+			opts := options.DeepCopy()
+			if cluster != requestCluster {
+				opts.Continue = ""
+			}
+			wg.Go(func() {
+				objs[i], clusterItems[i], errs[i] = listCluster(cluster, opts)
+			})
+		}
+		wg.Wait()
+
+		for i, cluster := range listClusters {
+			if errs[i] != nil {
+				return nil, errs[i]
+			}
+			if objs[i] == nil {
+				continue
+			}
+			if _, err := mergeCluster(cluster, objs[i], clusterItems[i]); err != nil {
 				return nil, err
 			}
 		}
