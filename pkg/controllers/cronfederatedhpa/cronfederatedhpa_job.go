@@ -166,6 +166,10 @@ func (c *ScalingJob) ScaleFHPA(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) e
 
 // ScaleWorkloads scales workload's replicas directly
 func (c *ScalingJob) ScaleWorkloads(cronFHPA *autoscalingv1alpha1.CronFederatedHPA) error {
+	if c.rule.TargetReplicas == nil {
+		return fmt.Errorf("the targetReplicas of rule %s is nil", c.rule.Name)
+	}
+
 	ctx := context.Background()
 
 	scaleClient := c.client.SubResource("scale")

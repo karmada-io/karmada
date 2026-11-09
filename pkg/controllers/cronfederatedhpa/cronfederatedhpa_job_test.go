@@ -310,3 +310,63 @@ func TestFindExecutionHistory(t *testing.T) {
 		})
 	}
 }
+
+func TestScaleWorkloads(t *testing.T) {
+	tests := []struct {
+		name        string
+		cronFHPA    *autoscalingv1alpha1.CronFederatedHPA
+		rule        autoscalingv1alpha1.CronFederatedHPARule
+		expectedErr bool
+		errMsg      string
+	}{
+		{
+			name: "TargetReplicas is nil",
+			cronFHPA: &autoscalingv1alpha1.CronFederatedHPA{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-cron-fhpa",
+					Namespace: "default",
+				},
+				Spec: autoscalingv1alpha1.CronFederatedHPASpec{
+					ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+						Name:       "test-deployment",
+					},
+				},
+			},
+			rule: autoscalingv1alpha1.CronFederatedHPARule{
+				Name:           "test-rule",
+				TargetReplicas: nil,
+			},
+			expectedErr: true,
+			errMsg:      "the targetReplicas of rule test-rule is nil",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scheme := runtime.NewScheme()
+			_ = autoscalingv1alpha1.Install(scheme)
+			client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+			job := &ScalingJob{
+				client: client,
+				rule:   tt.rule,
+			}
+
+			var err error
+			assert.NotPanics(t, func() {
+				err = job.ScaleWorkloads(tt.cronFHPA)
+			})
+
+			if tt.expectedErr {
+				assert.Error(t, err)
+				if tt.errMsg != "" {
+					assert.EqualError(t, err, tt.errMsg)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
