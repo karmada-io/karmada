@@ -115,57 +115,77 @@ func Test_nodeStatus(t *testing.T) {
 			isHealth: false,
 		},
 		{
-			name: "node's memory pressure is true",
+			name:           "node without conditions is unhealthy",
+			nodeConditions: []corev1.NodeCondition{},
+			isHealth:       false,
+		},
+		{
+			name: "node without ready condition is unhealthy",
 			nodeConditions: []corev1.NodeCondition{
-				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionTrue},
+				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: false,
 		},
 		{
-			name: "node's memory pressure is false",
+			name: "node is ready and memory pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
 		},
 		{
-			name: "node's disk pressure is true",
+			name: "node is ready but memory pressure is true",
 			nodeConditions: []corev1.NodeCondition{
-				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionTrue},
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				{Type: corev1.NodeMemoryPressure, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
 		},
 		{
-			name: "node's disk pressure is false",
+			name: "node is ready and disk pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
 		},
 		{
-			name: "node's network unavailable is false",
+			name: "node is ready but disk pressure is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
+				{Type: corev1.NodeDiskPressure, Status: corev1.ConditionTrue},
+			},
+			isHealth: false,
+		},
+		{
+			name: "node is ready and network unavailable is false",
+			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
 		},
 		{
-			name: "node's network unavailable is true",
+			name: "node is ready but network unavailable is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodeNetworkUnavailable, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
 		},
 		{
-			name: "node's pid pressure is false",
+			name: "node is ready and pid pressure is false",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodePIDPressure, Status: corev1.ConditionFalse},
 			},
 			isHealth: true,
 		},
 		{
-			name: "node's pid pressure is true",
+			name: "node is ready but pid pressure is true",
 			nodeConditions: []corev1.NodeCondition{
+				{Type: corev1.NodeReady, Status: corev1.ConditionTrue},
 				{Type: corev1.NodePIDPressure, Status: corev1.ConditionTrue},
 			},
 			isHealth: false,
