@@ -58,7 +58,7 @@ jobs:
           version: ${{ env.HELM_VERSION }}
 
       - name: Set up Kustomize
-        uses: syntaqx/setup-kustomize@4331ea02eec887906c9adbf7f431ca3db09908fd # v1.0.3
+        uses: syntaqx/setup-kustomize@be3ca13ed52a4c42f99a846f22362b10ae0790eb # v2.0.0
         with:
           kustomize-version: ${{ env.KUSTOMIZE_VERSION }}
         env:
