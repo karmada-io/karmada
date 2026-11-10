@@ -772,6 +772,86 @@ func TestClusterMatches(t *testing.T) {
 	}
 }
 
+func TestClusterNamesMatches(t *testing.T) {
+	cluster := &clusterv1alpha1.Cluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "member1",
+		},
+	}
+
+	tests := []struct {
+		name         string
+		cluster      *clusterv1alpha1.Cluster
+		clusterNames []string
+		want         bool
+	}{
+		{
+			name:         "empty clusterNames slice matches any cluster",
+			cluster:      cluster,
+			clusterNames: []string{},
+			want:         true,
+		},
+		{
+			name:         "nil clusterNames slice matches any cluster",
+			cluster:      cluster,
+			clusterNames: nil,
+			want:         true,
+		},
+		{
+			name:         "cluster name exists in clusterNames slice",
+			cluster:      cluster,
+			clusterNames: []string{"member1", "member2"},
+			want:         true,
+		},
+		{
+			name:         "single matching cluster in clusterNames",
+			cluster:      cluster,
+			clusterNames: []string{"member1"},
+			want:         true,
+		},
+		{
+			name:         "cluster name does not exist in clusterNames slice",
+			cluster:      cluster,
+			clusterNames: []string{"member2", "member3"},
+			want:         false,
+		},
+		{
+			name:         "cluster name with case sensitivity mismatch",
+			cluster:      cluster,
+			clusterNames: []string{"Member1"},
+			want:         false,
+		},
+		{
+			name: "cluster with empty name matching empty string in clusterNames",
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "",
+				},
+			},
+			clusterNames: []string{""},
+			want:         true,
+		},
+		{
+			name: "cluster with empty name not matching non-empty clusterNames",
+			cluster: &clusterv1alpha1.Cluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "",
+				},
+			},
+			clusterNames: []string{"member1"},
+			want:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterNamesMatches(tt.cluster, tt.clusterNames); got != tt.want {
+				t.Errorf("ClusterNamesMatches() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestResourceMatchSelectors(t *testing.T) {
 	resource := &unstructured.Unstructured{
 		Object: map[string]any{
