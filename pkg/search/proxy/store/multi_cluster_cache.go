@@ -464,32 +464,47 @@ func (c *MultiClusterCache) clientForClusterFunc(cluster string) func() (dynamic
 }
 
 func (c *MultiClusterCache) fillMissingClusterResourceVersion(ctx context.Context, mcv *multiClusterResourceVersion, clusters []string, gvr schema.GroupVersionResource) error {
-	errChan := make(chan error)
 	var lock sync.Mutex
-	var wg sync.WaitGroup
-
-	for _, cluster := range clusters {
+	return waitAllOrFirstError(clusters, func(cluster string) error {
 		if _, ok := mcv.rvs[cluster]; ok {
-			continue
+			return nil
 		}
 
-		wg.Add(1)
-		go func(cluster string) {
-			defer wg.Done()
-			klog.V(5).Infof("fillMissingClusterResourceVersion gvr=%v cluster=%v", gvr, cluster)
-			rv, err := c.getClusterResourceVersion(ctx, cluster, gvr)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			if rv == "" {
-				return
-			}
+		klog.V(5).Infof("fillMissingClusterResourceVersion gvr=%v cluster=%v", gvr, cluster)
+		rv, err := c.getClusterResourceVersion(ctx, cluster, gvr)
+		if err != nil {
+			return err
+		}
+		if rv == "" {
+			return nil
+		}
 
-			lock.Lock()
-			defer lock.Unlock()
-			mcv.set(cluster, rv)
-		}(cluster)
+		lock.Lock()
+		defer lock.Unlock()
+		mcv.set(cluster, rv)
+		return nil
+	})
+}
+
+// waitAllOrFirstError runs fn for every item concurrently and returns as soon
+// as either every goroutine has finished, or one of them returns an error -
+// whichever happens first. errChan is sized to len(items) so a goroutine
+// whose error isn't the one received by the select never blocks forever on
+// its send waiting for a receiver that has already moved on - that used to
+// leak one goroutine permanently for every item beyond the first to fail
+// concurrently.
+func waitAllOrFirstError(items []string, fn func(item string) error) error {
+	errChan := make(chan error, len(items))
+	var wg sync.WaitGroup
+
+	for _, item := range items {
+		wg.Add(1)
+		go func(item string) {
+			defer wg.Done()
+			if err := fn(item); err != nil {
+				errChan <- err
+			}
+		}(item)
 	}
 
 	waitChan := make(chan struct{}, 1)
