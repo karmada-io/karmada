@@ -42,18 +42,20 @@ type store struct {
 	// newClientFunc returns a resource client for member cluster apiserver
 	newClientFunc func() (dynamic.NamespaceableResourceInterface, error)
 
-	gvr     schema.GroupVersionResource
-	multiNS *MultiNamespace
+	gvr        schema.GroupVersionResource
+	namespaced bool
+	multiNS    *MultiNamespace
 }
 
 var _ storage.Interface = &store{}
 
-func newStore(gvr schema.GroupVersionResource, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner, prefix string) *store {
+func newStore(gvr schema.GroupVersionResource, namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner, prefix string) *store {
 	return &store{
 		newClientFunc: newClientFunc,
 		versioner:     versioner,
 		prefix:        prefix,
 		gvr:           gvr,
+		namespaced:    namespaced,
 		multiNS:       multiNS,
 	}
 }
@@ -101,9 +103,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 
 // List implements storage.Interface.
 func (s *store) List(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
-	// For cluster scope resources, key is /prefix. Parts are ["", ""]
-	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
-	namespace, _ := s.splitKey(key)
+	namespace := s.namespaceFromListKey(key)
 
 	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, namespace)
 	if shortCircuit {
@@ -145,9 +145,7 @@ func (s *store) WatchList(ctx context.Context, key string, opts storage.ListOpti
 
 // Watch implements storage.Interface.
 func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions) (watch.Interface, error) {
-	// For cluster scope resources, key is /prefix. Parts are ["", ""]
-	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
-	namespace, _ := s.splitKey(key)
+	namespace := s.namespaceFromListKey(key)
 
 	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, namespace)
 	if shortCircuit {
@@ -268,6 +266,18 @@ func (s *store) client(namespace string) (dynamic.ResourceInterface, error) {
 		return client.Namespace(namespace), nil
 	}
 	return client, nil
+}
+
+// namespaceFromListKey extracts the namespace from the key of a List or Watch request.
+//   - For cluster scope resources, the key is /prefix, or /prefix/name when the request
+//     is optimized by an exact metadata.name match. There is no namespace in either case.
+//   - For namespace scope resources, the key is /prefix or /prefix/namespace.
+func (s *store) namespaceFromListKey(key string) string {
+	if !s.namespaced {
+		return metav1.NamespaceAll
+	}
+	namespace, _ := s.splitKey(key)
+	return namespace
 }
 
 func (s *store) splitKey(key string) (string, string) {
