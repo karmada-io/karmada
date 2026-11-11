@@ -943,7 +943,8 @@ func (s *Scheduler) handleErr(err error, bindingInfo *internalqueue.QueuedBindin
 	}
 
 	var unschedulableErr *framework.UnschedulableError
-	if errors.As(err, &unschedulableErr) {
+	var insufficientCapacityErr *framework.InsufficientCapacityError
+	if errors.As(err, &unschedulableErr) || errors.As(err, &insufficientCapacityErr) {
 		s.priorityQueue.PushUnschedulableIfNotPresent(bindingInfo)
 	} else {
 		s.priorityQueue.PushBackoffIfNotPresent(bindingInfo)

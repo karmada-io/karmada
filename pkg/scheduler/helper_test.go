@@ -461,7 +461,7 @@ func Test_getConditionByError(t *testing.T) {
 		{
 			name:              "no error",
 			err:               nil,
-			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonSuccess, Status: metav1.ConditionTrue},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonSuccess, Status: metav1.ConditionTrue, Message: successfulSchedulingMessage},
 			ignoreErr:         true,
 		},
 		{
@@ -473,13 +473,13 @@ func Test_getConditionByError(t *testing.T) {
 		{
 			name:              "no cluster fit",
 			err:               &framework.FitError{},
-			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse, Message: "0/0 clusters are available: no cluster exists."},
 			ignoreErr:         true,
 		},
 		{
 			name:              "aggregated fit error",
 			err:               utilerrors.NewAggregate([]error{&framework.FitError{}, errors.New("")}),
-			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonNoClusterFit, Status: metav1.ConditionFalse, Message: "[0/0 clusters are available: no cluster exists., ]"},
 			ignoreErr:         false,
 		},
 		{
@@ -491,7 +491,19 @@ func Test_getConditionByError(t *testing.T) {
 		{
 			name:              "wrapped unschedulable error",
 			err:               fmt.Errorf("failed to assign replicas: %w", fmt.Errorf("failed to scale up: %w", &framework.UnschedulableError{Message: "insufficient replicas"})),
-			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse, Message: "failed to assign replicas: failed to scale up: insufficient replicas"},
+			ignoreErr:         false,
+		},
+		{
+			name:              "insufficient capacity error",
+			err:               &framework.InsufficientCapacityError{Message: "insufficient cluster capacity"},
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse, Message: "insufficient cluster capacity"},
+			ignoreErr:         false,
+		},
+		{
+			name:              "wrapped insufficient capacity error",
+			err:               fmt.Errorf("failed to schedule: %w", fmt.Errorf("failed to select clusters: %w", &framework.InsufficientCapacityError{Message: "insufficient cluster capacity"})),
+			expectedCondition: metav1.Condition{Type: workv1alpha2.Scheduled, Reason: workv1alpha2.BindingReasonUnschedulable, Status: metav1.ConditionFalse, Message: "failed to schedule: failed to select clusters: insufficient cluster capacity"},
 			ignoreErr:         false,
 		},
 	}
@@ -503,6 +515,9 @@ func Test_getConditionByError(t *testing.T) {
 				condition.Status != tt.expectedCondition.Status {
 				t.Errorf("expected condition: (%s, %s, %s), but got (%s, %s, %s)",
 					tt.expectedCondition.Type, tt.expectedCondition.Reason, tt.expectedCondition.Status, condition.Type, condition.Reason, condition.Status)
+			}
+			if condition.Message != tt.expectedCondition.Message {
+				t.Errorf("expected condition message: %q, but got %q", tt.expectedCondition.Message, condition.Message)
 			}
 
 			if ignoreErr != tt.ignoreErr {
