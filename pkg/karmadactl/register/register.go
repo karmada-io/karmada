@@ -283,7 +283,18 @@ func (o *CommandRegisterOption) Complete(args []string) error {
 			return err
 		}
 
-		o.ClusterName = config.Contexts[config.CurrentContext].Cluster
+		// Resolve the same context that RestConfig above used, so that --context is
+		// honoured here too. Contexts is a map of pointers, so an unknown name would
+		// otherwise yield a nil *api.Context and panic on the field access.
+		contextName := config.CurrentContext
+		if o.Context != "" {
+			contextName = o.Context
+		}
+		kubeContext, ok := config.Contexts[contextName]
+		if !ok {
+			return fmt.Errorf("the context %q is not present in kubeconfig file %s", contextName, o.KubeConfig)
+		}
+		o.ClusterName = kubeContext.Cluster
 	}
 
 	o.rbacResources = GenerateRBACResources(o.ClusterName, o.ClusterNamespace)
