@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net/http"
@@ -233,6 +234,85 @@ func TestConnectCluster(t *testing.T) {
 			}
 			if got := string(body); got != tt.want {
 				t.Errorf("Connect() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetTLSConfigForCluster(t *testing.T) {
+	s := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+	defer s.Close()
+	validCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: s.Certificate().Raw})
+
+	secretRef := &clusterapis.LocalSecretReference{Namespace: "ns", Name: "secret"}
+	secretWith := func(data map[string][]byte) func(context.Context, string, string) (*corev1.Secret, error) {
+		return func(_ context.Context, ns string, name string) (*corev1.Secret, error) {
+			return &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: name}, Data: data}, nil
+		}
+	}
+
+	tests := []struct {
+		name         string
+		spec         clusterapis.ClusterSpec
+		secretGetter func(context.Context, string, string) (*corev1.Secret, error)
+		wantErr      bool
+		wantRootCAs  bool
+	}{
+		{
+			name: "no secret ref",
+			spec: clusterapis.ClusterSpec{},
+		},
+		{
+			name: "secret not found",
+			spec: clusterapis.ClusterSpec{SecretRef: secretRef},
+			secretGetter: func(_ context.Context, _ string, name string) (*corev1.Secret, error) {
+				return nil, apierrors.NewNotFound(corev1.Resource("secrets"), name)
+			},
+			wantErr: true,
+		},
+		{
+			name:         "secret without CA bundle",
+			spec:         clusterapis.ClusterSpec{SecretRef: secretRef},
+			secretGetter: secretWith(map[string][]byte{clusterapis.SecretTokenKey: []byte("token")}),
+			wantRootCAs:  true,
+		},
+		{
+			name:         "valid CA bundle",
+			spec:         clusterapis.ClusterSpec{SecretRef: secretRef},
+			secretGetter: secretWith(map[string][]byte{clusterapis.SecretCADataKey: validCA}),
+			wantRootCAs:  true,
+		},
+		{
+			name:         "CA bundle without a PEM certificate",
+			spec:         clusterapis.ClusterSpec{SecretRef: secretRef},
+			secretGetter: secretWith(map[string][]byte{clusterapis.SecretCADataKey: []byte("not a certificate")}),
+			wantErr:      true,
+		},
+		{
+			name:         "CA bundle without a PEM certificate and TLS verification skipped",
+			spec:         clusterapis.ClusterSpec{SecretRef: secretRef, InsecureSkipTLSVerification: true},
+			secretGetter: secretWith(map[string][]byte{clusterapis.SecretCADataKey: []byte("not a certificate")}),
+			wantRootCAs:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &clusterapis.Cluster{
+				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+				Spec:       tt.spec,
+			}
+			got, err := GetTLSConfigForCluster(context.TODO(), cluster, tt.secretGetter)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetTLSConfigForCluster() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if err != nil {
+				return
+			}
+			if (got.RootCAs != nil) != tt.wantRootCAs {
+				t.Errorf("GetTLSConfigForCluster() RootCAs set = %v, want %v", got.RootCAs != nil, tt.wantRootCAs)
+			}
+			if got.InsecureSkipVerify != tt.spec.InsecureSkipTLSVerification {
+				t.Errorf("GetTLSConfigForCluster() InsecureSkipVerify = %v, want %v", got.InsecureSkipVerify, tt.spec.InsecureSkipTLSVerification)
 			}
 		})
 	}
