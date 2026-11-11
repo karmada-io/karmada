@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -34,7 +35,9 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	clienttesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/component-base/featuregate"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -150,7 +153,7 @@ func TestDoSchedule(t *testing.T) {
 				Algorithm:            mockAlgo,
 			}
 
-			err := s.doSchedule(tt.key)
+			err := s.doSchedule(context.TODO(), tt.key)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -318,7 +321,7 @@ func TestDoScheduleBinding(t *testing.T) {
 				Algorithm:     mockAlgorithm,
 			}
 
-			err := s.doScheduleBinding(tt.binding.Namespace, tt.binding.Name)
+			err := s.doScheduleBinding(context.TODO(), tt.binding.Namespace, tt.binding.Name)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -483,7 +486,7 @@ func TestDoScheduleClusterBinding(t *testing.T) {
 				Algorithm:            mockAlgorithm,
 			}
 
-			err := s.doScheduleClusterBinding(tt.binding.Name)
+			err := s.doScheduleClusterBinding(context.TODO(), tt.binding.Name)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -583,7 +586,7 @@ func TestScheduleResourceBindingWithClusterAffinity(t *testing.T) {
 				Algorithm:     mockAlgorithm,
 			}
 
-			err := s.scheduleResourceBindingWithClusterAffinity(tt.binding)
+			err := s.scheduleResourceBindingWithClusterAffinity(context.TODO(), tt.binding)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleResourceBindingWithClusterAffinity() error = %v, expectError %v", err, tt.expectError)
@@ -854,7 +857,7 @@ func TestScheduleResourceBindingWithClusterAffinities(t *testing.T) {
 				Algorithm:     mockAlgorithm,
 			}
 
-			err := s.scheduleResourceBindingWithClusterAffinities(tt.binding)
+			err := s.scheduleResourceBindingWithClusterAffinities(context.TODO(), tt.binding)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
@@ -970,7 +973,7 @@ func TestPatchScheduleResultForResourceBinding(t *testing.T) {
 				schedulerCache: cache,
 			}
 
-			err := s.patchScheduleResultForResourceBinding(tt.oldBinding, tt.placement, tt.scheduleResult)
+			err := s.patchScheduleResultForResourceBinding(context.TODO(), tt.oldBinding, tt.placement, tt.scheduleResult)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -1009,7 +1012,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1"},
 		})
 		assert.NoError(t, err)
@@ -1043,7 +1046,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1"},
 		})
 		assert.NoError(t, err)
@@ -1081,7 +1084,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1"}, // cluster2 removed
 		})
 		assert.NoError(t, err)
@@ -1109,7 +1112,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1", Replicas: 5},
 		})
 		assert.NoError(t, err)
@@ -1148,7 +1151,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1", Replicas: 4},
 			{Name: "cluster2", Replicas: 2},
 		})
@@ -1179,7 +1182,7 @@ func TestUpdatesAssumptions(t *testing.T) {
 			schedulerCache: cache,
 		}
 
-		err := s.patchScheduleResultForResourceBinding(oldBinding, "test-placement", []workv1alpha2.TargetCluster{
+		err := s.patchScheduleResultForResourceBinding(context.TODO(), oldBinding, "test-placement", []workv1alpha2.TargetCluster{
 			{Name: "cluster1"},
 		})
 		assert.NoError(t, err)
@@ -1253,7 +1256,7 @@ func TestScheduleClusterResourceBindingWithClusterAffinity(t *testing.T) {
 				Algorithm:     mockAlgorithm,
 			}
 
-			err := s.scheduleClusterResourceBindingWithClusterAffinity(tt.binding)
+			err := s.scheduleClusterResourceBindingWithClusterAffinity(context.TODO(), tt.binding)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleClusterResourceBindingWithClusterAffinity() error = %v, expectError %v", err, tt.expectError)
@@ -1502,7 +1505,7 @@ func TestScheduleClusterResourceBindingWithClusterAffinities(t *testing.T) {
 				Algorithm:     mockAlgorithm,
 			}
 
-			err := s.scheduleClusterResourceBindingWithClusterAffinities(tt.binding)
+			err := s.scheduleClusterResourceBindingWithClusterAffinities(context.TODO(), tt.binding)
 
 			if (err != nil) != tt.expectError {
 				t.Errorf("scheduleClusterResourceBindingWithClusterAffinities() error = %v, expectError %v", err, tt.expectError)
@@ -1616,7 +1619,7 @@ func TestWorkerAndScheduleNext(t *testing.T) {
 				s.priorityQueue.Close()
 			}
 
-			result := s.scheduleNext()
+			result := s.scheduleNext(context.TODO())
 
 			assert.Equal(t, tc.expectResult, result, "scheduleNext return value mismatch")
 
@@ -2008,7 +2011,7 @@ func TestPatchBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
+			err = patchBindingStatusCondition(context.TODO(), karmadaClient, test.binding, test.newScheduledCondition)
 			if err != nil {
 				t.Error(err)
 			}
@@ -2055,7 +2058,7 @@ func TestPatchBindingStatusWithAffinityName(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
+			err = patchBindingStatusWithAffinityName(context.TODO(), karmadaClient, test.binding, test.affinityName)
 			if err != nil {
 				t.Error(err)
 			}
@@ -2212,7 +2215,7 @@ func TestPatchClusterBindingStatusCondition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchClusterBindingStatusCondition(karmadaClient, test.binding, test.newScheduledCondition)
+			err = patchClusterBindingStatusCondition(context.TODO(), karmadaClient, test.binding, test.newScheduledCondition)
 			if err != nil {
 				t.Error(err)
 			}
@@ -2266,7 +2269,7 @@ func TestPatchClusterBindingStatusWithAffinityName(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = patchClusterBindingStatusWithAffinityName(karmadaClient, test.binding, test.affinityName)
+			err = patchClusterBindingStatusWithAffinityName(context.TODO(), karmadaClient, test.binding, test.affinityName)
 			if err != nil {
 				t.Error(err)
 			}
@@ -2645,6 +2648,183 @@ func TestHandleErr(t *testing.T) {
 			assert.Equal(t, tt.expectPushUnschedulable, mock.pushUnschedulableCalled, "PushUnschedulableIfNotPresent")
 			assert.Equal(t, tt.expectPushBackoff, mock.pushBackoffCalled, "PushBackoffIfNotPresent")
 			assert.Equal(t, tt.expectForget, mock.forgetCalled, "Forget")
+		})
+	}
+}
+
+func TestSchedulerShutdownWithInFlightSchedule(t *testing.T) {
+	tests := []struct {
+		name                    string
+		priorityBasedScheduling bool
+		isClusterBinding        bool
+	}{
+		{
+			name:                    "priority-based scheduling waits for in-flight ResourceBinding pass and propagates context cancellation",
+			priorityBasedScheduling: true,
+			isClusterBinding:        false,
+		},
+		{
+			name:                    "legacy queue scheduling waits for in-flight ResourceBinding pass and propagates context cancellation",
+			priorityBasedScheduling: false,
+			isClusterBinding:        false,
+		},
+		{
+			name:                    "priority-based scheduling waits for in-flight ClusterResourceBinding pass and propagates context cancellation",
+			priorityBasedScheduling: true,
+			isClusterBinding:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer setFeatureGateDuringTest(t, features.FeatureGate, features.PriorityBasedScheduling, tt.priorityBasedScheduling)()
+
+			rb := &workv1alpha2.ResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rb",
+					Namespace: "default",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
+			}
+			crb := &workv1alpha2.ClusterResourceBinding{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-crb",
+				},
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Placement: &policyv1alpha1.Placement{},
+				},
+			}
+
+			karmadaClient := karmadafake.NewSimpleClientset(rb, crb)
+			dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+			kubeClient := fake.NewSimpleClientset()
+
+			scheduleStarted := make(chan struct{})
+			releaseSchedule := make(chan struct{})
+			var scheduleCtx context.Context
+			var scheduleCtxMu sync.Mutex
+
+			mockAlgo := &mockAlgorithm{
+				scheduleFunc: func(ctx context.Context, _ *workv1alpha2.ResourceBindingSpec, _ *workv1alpha2.ResourceBindingStatus, _ *core.ScheduleAlgorithmOption) (core.ScheduleResult, error) {
+					scheduleCtxMu.Lock()
+					scheduleCtx = ctx
+					scheduleCtxMu.Unlock()
+					close(scheduleStarted)
+					<-releaseSchedule
+					return core.ScheduleResult{
+						SuggestedClusters: []workv1alpha2.TargetCluster{
+							{Name: "cluster1", Replicas: 1},
+						},
+					}, nil
+				},
+			}
+
+			rbIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{
+				cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
+			})
+			if err := rbIndexer.Add(rb); err != nil {
+				t.Fatalf("Failed to add ResourceBinding to indexer: %v", err)
+			}
+			bindingLister := workv1alpha2lister.NewResourceBindingLister(rbIndexer)
+
+			crbIndexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{})
+			if err := crbIndexer.Add(crb); err != nil {
+				t.Fatalf("Failed to add ClusterResourceBinding to indexer: %v", err)
+			}
+			clusterBindingLister := workv1alpha2lister.NewClusterResourceBindingLister(crbIndexer)
+
+			var priorityQ internalqueue.SchedulingQueue
+			var legacyQ workqueue.TypedRateLimitingInterface[any]
+			if tt.priorityBasedScheduling {
+				priorityQ = internalqueue.NewSchedulingQueue()
+				if tt.isClusterBinding {
+					priorityQ.Push(&internalqueue.QueuedBindingInfo{
+						NamespacedKey: "test-crb",
+					})
+				} else {
+					priorityQ.Push(&internalqueue.QueuedBindingInfo{
+						NamespacedKey: "default/test-rb",
+					})
+				}
+			} else {
+				legacyQ = workqueue.NewTypedRateLimitingQueueWithConfig(
+					ratelimiterflag.DefaultControllerRateLimiter[any](ratelimiterflag.Options{}),
+					workqueue.TypedRateLimitingQueueConfig[any]{Name: "test-queue"},
+				)
+				if tt.isClusterBinding {
+					legacyQ.Add("test-crb")
+				} else {
+					legacyQ.Add("default/test-rb")
+				}
+			}
+
+			sched := &Scheduler{
+				DynamicClient:        dynamicClient,
+				KarmadaClient:        karmadaClient,
+				KubeClient:           kubeClient,
+				bindingLister:        bindingLister,
+				clusterBindingLister: clusterBindingLister,
+				priorityQueue:        priorityQ,
+				queue:                legacyQ,
+				Algorithm:            mockAlgo,
+				eventRecorder:        record.NewFakeRecorder(10),
+			}
+
+			runCtx, cancel := context.WithCancel(context.Background())
+			runDone := make(chan struct{})
+			go func() {
+				defer close(runDone)
+				sched.Run(runCtx)
+			}()
+
+			select {
+			case <-scheduleStarted:
+			case <-time.After(5 * time.Second):
+				cancel()
+				close(releaseSchedule)
+				t.Fatal("Timed out waiting for scheduling pass to start")
+			}
+
+			// Initiate shutdown by cancelling the Run context
+			cancel()
+
+			// Assert that Run does NOT return while the scheduling pass is blocked
+			select {
+			case <-runDone:
+				close(releaseSchedule)
+				t.Fatal("sched.Run() returned while in-flight scheduling pass was still running")
+			case <-time.After(300 * time.Millisecond):
+				// Expected: Run is blocked waiting for worker to finish
+			}
+
+			// Assert that the context handed to Algorithm.Schedule received cancellation
+			scheduleCtxMu.Lock()
+			sc := scheduleCtx
+			scheduleCtxMu.Unlock()
+			if sc == nil {
+				close(releaseSchedule)
+				t.Fatal("Expected scheduleCtx to be non-nil")
+			}
+			select {
+			case <-sc.Done():
+				// Expected: in-flight pass observes parent context cancellation
+			default:
+				close(releaseSchedule)
+				t.Fatal("Expected scheduleCtx to be cancelled upon scheduler shutdown")
+			}
+
+			// Release the in-flight scheduling pass
+			close(releaseSchedule)
+
+			// Assert that sched.Run() now completes gracefully within a short timeout
+			select {
+			case <-runDone:
+				// Success: worker exited and Run returned
+			case <-time.After(5 * time.Second):
+				t.Fatal("Timed out waiting for sched.Run() to return after in-flight pass completed")
+			}
 		})
 	}
 }
