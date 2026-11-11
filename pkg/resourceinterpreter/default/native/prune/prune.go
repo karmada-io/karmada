@@ -183,7 +183,7 @@ func removeServiceAccountIrrelevantField(workload *unstructured.Unstructured) er
 	return nil
 }
 
-// removeServiceIrrelevantField removes member cluster specific fields from Service (e.g. clusterIP, clusterIPs)
+// removeServiceIrrelevantField removes member cluster specific fields from Service (e.g. clusterIP, clusterIPs, nodePort)
 func removeServiceIrrelevantField(workload *unstructured.Unstructured) error {
 	// In the case spec.clusterIP is set to `None`, means user want a headless service,  then it shouldn't be removed.
 	clusterIP, exist, _ := unstructured.NestedString(workload.Object, "spec", "clusterIP")
@@ -191,6 +191,23 @@ func removeServiceIrrelevantField(workload *unstructured.Unstructured) error {
 		unstructured.RemoveNestedField(workload.Object, "spec", "clusterIP")
 		unstructured.RemoveNestedField(workload.Object, "spec", "clusterIPs")
 	}
+
+	// spec.ports[*].nodePort is allocated by kube-apiserver. Each member cluster allocates from its
+	// own --service-node-port-range, so the value assigned in the Karmada control plane is not
+	// guaranteed to be free in a given member cluster and must be re-allocated per cluster.
+	ports, exist, _ := unstructured.NestedSlice(workload.Object, "spec", "ports")
+	if exist {
+		for i := range ports {
+			port, ok := ports[i].(map[string]any)
+			if !ok {
+				continue
+			}
+			delete(port, "nodePort")
+			ports[i] = port
+		}
+		_ = unstructured.SetNestedSlice(workload.Object, ports, "spec", "ports")
+	}
+
 	return nil
 }
 
