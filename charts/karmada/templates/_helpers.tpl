@@ -722,3 +722,37 @@ See: https://github.com/karmada-io/karmada/blob/f2b734140bd0ba5fa399ffa1d08a3b31
   {{- end -}}
   {{- tpl (toJson $hosts) . -}}
 {{- end -}}
+
+{{/*
+Generates the auto mode certificates into /opt/certs and fills them into the
+cert, kubeconfig and webhook-cert manifests under /opt/configs.
+*/}}
+{{- define "karmada.certs.generate" -}}
+mkdir -p /opt/certs
+cp -r -L /opt/mount/* /opt/configs/
+openssl req -x509 -sha256 -new -nodes -days {{ .Values.certs.auto.rootCAExpiryDays }} -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/server-ca.key" -out "/opt/certs/server-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+openssl req -x509 -sha256 -new -nodes -days {{ .Values.certs.auto.rootCAExpiryDays }} -newkey rsa:{{ .Values.certs.auto.rsaSize }} -keyout "/opt/certs/front-proxy-ca.key" -out "/opt/certs/front-proxy-ca.crt" -subj "/C=xx/ST=x/L=x/O=x/OU=x/CN=ca/emailAddress=x/"
+echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/server-ca-config.json"
+echo '{"CN":"system:admin","hosts":{{ include "karmada.certHosts" . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/server-ca.crt -ca-key=/opt/certs/server-ca.key -config=/opt/certs/server-ca-config.json - | cfssljson -bare /opt/certs/karmada
+echo '{"signing":{"default":{"expiry":{{ printf `"%s"` .Values.certs.auto.expiry }},"usages":["signing","key encipherment","client auth","server auth"]}}}' > "/opt/certs/front-proxy-ca-config.json"
+echo '{"CN":"front-proxy-client","hosts":{{ include "karmada.certHosts" . }},"names":[{"O":"system:masters"}],"key":{"algo":"rsa","size":{{ .Values.certs.auto.rsaSize }}}}' | cfssl gencert -ca=/opt/certs/front-proxy-ca.crt -ca-key=/opt/certs/front-proxy-ca.key -config=/opt/certs/front-proxy-ca-config.json - | cfssljson -bare /opt/certs/front-proxy-client
+karmada_ca=$(base64 /opt/certs/server-ca.crt | tr -d '\r\n')
+karmada_ca_key=$(base64 /opt/certs/server-ca.key | tr -d '\r\n')
+karmada_crt=$(base64 /opt/certs/karmada.pem | tr -d '\r\n')
+karmada_key=$(base64 /opt/certs/karmada-key.pem | tr -d '\r\n')
+front_proxy_ca=$(base64 /opt/certs/front-proxy-ca.crt | tr -d '\r\n')
+front_proxy_client_crt=$(base64 /opt/certs/front-proxy-client.pem | tr -d '\r\n')
+front_proxy_client_key=$(base64 /opt/certs/front-proxy-client-key.pem | tr -d '\r\n')
+sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ ca_key }}" }}/${karmada_ca_key}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ front_proxy_ca_crt }}" }}/${front_proxy_ca}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ front_proxy_crt }}" }}/${front_proxy_client_crt}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ front_proxy_key }}" }}/${front_proxy_client_key}/g" /opt/configs/cert.yaml
+sed -i'' -e "s/{{ print "{{ ca_crt }}" }}/${karmada_ca}/g" /opt/configs/kubeconfig.yaml
+sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/kubeconfig.yaml
+sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/kubeconfig.yaml
+sed -i'' -e "s/{{ print "{{ crt }}" }}/${karmada_crt}/g" /opt/configs/webhook-cert.yaml
+sed -i'' -e "s/{{ print "{{ key }}" }}/${karmada_key}/g" /opt/configs/webhook-cert.yaml
+{{- end -}}

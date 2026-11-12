@@ -38,6 +38,108 @@ data:
     {{- include "karmada.crd.patch.webhook.clusterresourcebinding" . | nindent 8 }}
   {{- print "webhook_in_resourcebindings.yaml: " | nindent 6 }} |-
     {{- include "karmada.crd.patch.webhook.resourcebinding" . | nindent 8 }}
+{{- if .Values.certs.auto.provisionOnUpgrade }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{ $name }}-pre-upgrade-certs"
+  namespace: {{ $namespace }}
+  annotations:
+    "helm.sh/hook": pre-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": {{ .Values.preUpdateJob.hookDeletePolicy }}
+  {{- if "karmada.preUpdateJob.labels" }}
+  labels:
+    {{- include "karmada.preUpdateJob.labels" . | nindent 4 }}
+  {{- end }}
+spec:
+  parallelism: 1
+  completions: 1
+  template:
+    metadata:
+      name: {{ $name }}-pre-upgrade-certs
+      labels:
+        app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
+        app.kubernetes.io/instance: {{ $name | quote }}
+        helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    spec:
+      {{- include "karmada.imagePullSecrets" . | nindent 6 }}
+      {{- with .Values.preUpdateJob.tolerations}}
+      tolerations:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.preUpdateJob.nodeSelector }}
+      nodeSelector:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ $name }}-hook-job
+      restartPolicy: Never
+      initContainers:
+      - name: check
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -ex
+          # Standalone assignments so a failed lookup aborts the Job instead of reading as missing.
+          cert_secret=$(kubectl get secret {{ $name }}-cert -n {{ $namespace }} --ignore-not-found -o name)
+          if [ -n "$cert_secret" ]; then
+            echo "secret {{ $name }}-cert already exists, skipping cert provisioning"
+            touch /opt/configs/skip
+            exit 0
+          fi
+          apiserver=$(kubectl get deploy {{ $name }}-apiserver -n {{ $namespace }} --ignore-not-found -o name)
+          if [ -n "$apiserver" ]; then
+            echo "secret {{ $name }}-cert is missing but karmada is already deployed, refusing to generate a new CA" >&2
+            exit 1
+          fi
+        volumeMounts:
+        - name: configs
+          mountPath: /opt/configs
+      - name: generate
+        image: {{ template "karmada.cfssl.image" . }}
+        imagePullPolicy: {{ .Values.cfssl.image.pullPolicy }}
+        workingDir: /opt/mount
+        command:
+        - /bin/sh
+        - -c
+        - |
+          bash <<'EOF'
+          set -ex
+          [ -f /opt/configs/skip ] && exit 0
+          {{- include "karmada.certs.generate" . | nindent 10 }}
+          EOF
+        volumeMounts:
+        - name: mount
+          mountPath: /opt/mount
+        - name: configs
+          mountPath: /opt/configs
+      containers:
+      - name: provision
+        image: {{ template "karmada.kubectl.image" . }}
+        imagePullPolicy: {{ .Values.kubectl.image.pullPolicy }}
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -ex
+          [ -f /opt/configs/skip ] && exit 0
+          # karmada-cert goes last so a partial failure leaves it missing and the next attempt regenerates all three.
+          kubectl apply --server-side -f /opt/configs/kubeconfig.yaml -f /opt/configs/webhook-cert.yaml
+          kubectl apply --server-side -f /opt/configs/cert.yaml
+        volumeMounts:
+        - name: configs
+          mountPath: /opt/configs
+      volumes:
+      - name: mount
+        configMap:
+          name: {{ $name }}-config
+      - name: configs
+        emptyDir: {}
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -46,7 +148,7 @@ metadata:
   namespace: {{ $namespace }}
   annotations:
     "helm.sh/hook": pre-upgrade
-    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-weight": "4"
     "helm.sh/hook-delete-policy": {{ .Values.preUpdateJob.hookDeletePolicy }}
   {{- if "karmada.preUpdateJob.labels" }}
   labels:
