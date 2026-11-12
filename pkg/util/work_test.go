@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -320,6 +321,126 @@ func TestIsWorkSuspendDispatching(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := IsWorkSuspendDispatching(tt.work)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetWorkSuspendDispatching(t *testing.T) {
+	tests := []struct {
+		name string
+		spec *workv1alpha1.WorkSpec
+		want []string
+	}{
+		{
+			name: "suspend dispatching is nil",
+			spec: &workv1alpha1.WorkSpec{
+				SuspendDispatching: nil,
+			},
+			want: []string{"false"},
+		},
+		{
+			name: "suspend dispatching is true",
+			spec: &workv1alpha1.WorkSpec{
+				SuspendDispatching: new(true),
+			},
+			want: []string{"true"},
+		},
+		{
+			name: "suspend dispatching is false",
+			spec: &workv1alpha1.WorkSpec{
+				SuspendDispatching: new(false),
+			},
+			want: []string{"false"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetWorkSuspendDispatching(tt.spec)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSetLabelsAndAnnotationsForWorkload(t *testing.T) {
+	tests := []struct {
+		name                 string
+		workload             *unstructured.Unstructured
+		work                 *workv1alpha1.Work
+		expectedPermanentID  string
+		hasManagedLabels     bool
+		hasManagedAnnotation bool
+	}{
+		{
+			name: "work with permanent ID label",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name": "nginx",
+						"labels": map[string]any{
+							"app": "nginx",
+						},
+					},
+				},
+			},
+			work: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "work-sample",
+					Labels: map[string]string{
+						workv1alpha2.WorkPermanentIDLabel: "perm-12345",
+					},
+				},
+			},
+			expectedPermanentID:  "perm-12345",
+			hasManagedLabels:     true,
+			hasManagedAnnotation: true,
+		},
+		{
+			name: "work without permanent ID label",
+			workload: &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata": map[string]any{
+						"name": "nginx",
+						"labels": map[string]any{
+							"app": "nginx",
+						},
+					},
+				},
+			},
+			work: &workv1alpha1.Work{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "work-sample",
+				},
+			},
+			expectedPermanentID:  "",
+			hasManagedLabels:     true,
+			hasManagedAnnotation: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetLabelsAndAnnotationsForWorkload(tt.workload, tt.work)
+
+			labels := tt.workload.GetLabels()
+			if tt.expectedPermanentID != "" {
+				assert.Equal(t, tt.expectedPermanentID, labels[workv1alpha2.WorkPermanentIDLabel])
+			} else {
+				_, exists := labels[workv1alpha2.WorkPermanentIDLabel]
+				assert.False(t, exists)
+			}
+
+			annotations := tt.workload.GetAnnotations()
+			if tt.hasManagedLabels {
+				assert.NotEmpty(t, annotations[workv1alpha2.ManagedLabels])
+			}
+			if tt.hasManagedAnnotation {
+				assert.NotEmpty(t, annotations[workv1alpha2.ManagedAnnotation])
+			}
 		})
 	}
 }
