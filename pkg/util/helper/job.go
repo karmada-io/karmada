@@ -33,7 +33,8 @@ import (
 //
 //nolint:gocyclo
 func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusItem) (*batchv1.JobStatus, error) {
-	var jobFailed []string
+	var jobFailed, failureTargetClusters []string
+	var firstFailureTargetReason string
 	var startTime, completionTime *metav1.Time
 	successfulJobs, startJobs, completionJobs := 0, 0, 0
 	// Track how many member clusters already reported SuccessCriteriaMet=true
@@ -62,11 +63,14 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 			jobFailed = append(jobFailed, item.ClusterName)
 		}
 
-		// Count clusters that already set SuccessCriteriaMet=true
-		for _, c := range temp.Conditions {
-			if c.Type == batchv1.JobSuccessCriteriaMet && c.Status == corev1.ConditionTrue {
-				successCriteriaMetClusters++
-				break
+		// Track SuccessCriteriaMet and FailureTarget conditions reported by member clusters
+		if findTrueJobCondition(temp.Conditions, batchv1.JobSuccessCriteriaMet) != nil {
+			successCriteriaMetClusters++
+		}
+		if ftCond := findTrueJobCondition(temp.Conditions, batchv1.JobFailureTarget); ftCond != nil {
+			failureTargetClusters = append(failureTargetClusters, item.ClusterName)
+			if firstFailureTargetReason == "" && ftCond.Reason != "" {
+				firstFailureTargetReason = ftCond.Reason
 			}
 		}
 
@@ -86,6 +90,16 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 		}
 	}
 
+	existingFailureTarget := findTrueJobCondition(obj.Status.Conditions, batchv1.JobFailureTarget)
+	hasFailureTarget := existingFailureTarget != nil || len(failureTargetClusters) != 0 || len(jobFailed) != 0
+	if hasFailureTarget {
+		targetClusters := failureTargetClusters
+		if len(targetClusters) == 0 {
+			targetClusters = jobFailed
+		}
+		newStatus.Conditions = append(newStatus.Conditions, buildFailureTargetCondition(existingFailureTarget, targetClusters, firstFailureTargetReason))
+	}
+
 	if len(jobFailed) != 0 {
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobFailed,
@@ -98,8 +112,10 @@ func ParsingJobStatus(obj *batchv1.Job, status []workv1alpha2.AggregatedStatusIt
 	}
 
 	// aggregated status can be empty when the binding is just created
-	// in which case we should not set the job status to complete
-	if successfulJobs == len(status) && successfulJobs > 0 {
+	// in which case we should not set the job status to complete.
+	// Also omit Complete when FailureTarget is present, since Complete and
+	// FailureTarget cannot coexist in Kubernetes Job validation.
+	if !hasFailureTarget && successfulJobs == len(status) && successfulJobs > 0 {
 		newStatus.Conditions = append(newStatus.Conditions, batchv1.JobCondition{
 			Type:               batchv1.JobComplete,
 			Status:             corev1.ConditionTrue,
@@ -142,4 +158,31 @@ func GetJobFinishedStatus(jobStatus *batchv1.JobStatus) (bool, batchv1.JobCondit
 		}
 	}
 	return false, ""
+}
+
+func findTrueJobCondition(conditions []batchv1.JobCondition, condType batchv1.JobConditionType) *batchv1.JobCondition {
+	for i := range conditions {
+		if conditions[i].Type == condType && conditions[i].Status == corev1.ConditionTrue {
+			return conditions[i].DeepCopy()
+		}
+	}
+	return nil
+}
+
+func buildFailureTargetCondition(existing *batchv1.JobCondition, clusters []string, reason string) batchv1.JobCondition {
+	if existing != nil {
+		return *existing
+	}
+	if reason == "" {
+		reason = "JobFailed"
+	}
+	now := metav1.Now()
+	return batchv1.JobCondition{
+		Type:               batchv1.JobFailureTarget,
+		Status:             corev1.ConditionTrue,
+		LastProbeTime:      now,
+		LastTransitionTime: now,
+		Reason:             reason,
+		Message:            fmt.Sprintf("Job reached failure target in member clusters %s", strings.Join(clusters, ",")),
+	}
 }

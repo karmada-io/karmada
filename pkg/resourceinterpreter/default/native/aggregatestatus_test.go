@@ -269,9 +269,45 @@ func TestAggregateJobStatus(t *testing.T) {
 
 	newJobWithJobFailed := &batchv1.Job{
 		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
-		Status:   batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}},
+		Status: batchv1.JobStatus{
+			Active:         0,
+			Succeeded:      1,
+			Failed:         1,
+			StartTime:      &startTime,
+			CompletionTime: &completionTime,
+			Conditions: []batchv1.JobCondition{
+				{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job reached failure target in member clusters member2"},
+				{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"},
+			},
+		},
 	}
 	newObjWithJobFailed, _ := helper.ToUnstructured(newJobWithJobFailed)
+
+	statusMapWithFailureTarget := map[string]any{
+		"active":     1,
+		"succeeded":  0,
+		"failed":     1,
+		"startTime":  startTime,
+		"conditions": []batchv1.JobCondition{{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: batchv1.JobReasonBackoffLimitExceeded}},
+	}
+	rawWithFailureTarget, _ := helper.BuildStatusRawExtension(statusMapWithFailureTarget)
+	aggregatedStatusItemsWithFailureTarget := []workv1alpha2.AggregatedStatusItem{
+		{ClusterName: "member1", Status: raw, Applied: true},
+		{ClusterName: "member2", Status: rawWithFailureTarget, Applied: true},
+	}
+	newJobWithFailureTarget := &batchv1.Job{
+		TypeMeta: metav1.TypeMeta{Kind: "Job", APIVersion: batchv1.SchemeGroupVersion.String()},
+		Status: batchv1.JobStatus{
+			Active:    1,
+			Succeeded: 1,
+			Failed:    1,
+			StartTime: &startTime,
+			Conditions: []batchv1.JobCondition{
+				{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: batchv1.JobReasonBackoffLimitExceeded, Message: "Job reached failure target in member clusters member2"},
+			},
+		},
+	}
+	newObjWithFailureTarget, _ := helper.ToUnstructured(newJobWithFailureTarget)
 
 	tests := []struct {
 		name                  string
@@ -290,6 +326,12 @@ func TestAggregateJobStatus(t *testing.T) {
 			curObj:                oldObj,
 			aggregatedStatusItems: aggregatedStatusItemsWithJobFailed,
 			expectedObj:           newObjWithJobFailed,
+		},
+		{
+			name:                  "update job status with failure target before failed",
+			curObj:                oldObj,
+			aggregatedStatusItems: aggregatedStatusItemsWithFailureTarget,
+			expectedObj:           newObjWithFailureTarget,
 		},
 		{
 			name:                  "ignore update job status as up to date",
