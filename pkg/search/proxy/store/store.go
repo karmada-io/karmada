@@ -44,18 +44,37 @@ type store struct {
 
 	gvr     schema.GroupVersionResource
 	multiNS *MultiNamespace
+	// namespaced tells whether the resource is namespace scoped. Without it,
+	// List and Watch cannot tell a namespace from a resource name in the key.
+	namespaced bool
 }
 
 var _ storage.Interface = &store{}
 
-func newStore(gvr schema.GroupVersionResource, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner, prefix string) *store {
+func newStore(gvr schema.GroupVersionResource, namespaced bool, multiNS *MultiNamespace, newClientFunc func() (dynamic.NamespaceableResourceInterface, error), versioner storage.Versioner, prefix string) *store {
 	return &store{
 		newClientFunc: newClientFunc,
 		versioner:     versioner,
 		prefix:        prefix,
 		gvr:           gvr,
 		multiNS:       multiNS,
+		namespaced:    namespaced,
 	}
+}
+
+// listKeyNamespace returns the namespace a List or Watch key selects, which is
+// nothing at all for a cluster scoped resource. The key is usually /prefix for
+// a cluster scoped resource, but the generic registry rewrites it to
+// /prefix/name when the field selector is an exact metadata.name match, and
+// reading that name as a namespace sent the request to a namespace that does
+// not exist. The resulting NotFound is turned into an empty list below, so the
+// object simply vanished from the response (issue #7880).
+func (s *store) listKeyNamespace(key string) string {
+	if !s.namespaced {
+		return ""
+	}
+	namespace, _ := s.splitKey(key)
+	return namespace
 }
 
 // Versioner implements storage.Interface.
@@ -101,11 +120,7 @@ func (s *store) GetList(ctx context.Context, key string, opts storage.ListOption
 
 // List implements storage.Interface.
 func (s *store) List(ctx context.Context, key string, opts storage.ListOptions, listObj runtime.Object) error {
-	// For cluster scope resources, key is /prefix. Parts are ["", ""]
-	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
-	namespace, _ := s.splitKey(key)
-
-	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, namespace)
+	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, s.listKeyNamespace(key))
 	if shortCircuit {
 		return nil
 	}
@@ -145,11 +160,7 @@ func (s *store) WatchList(ctx context.Context, key string, opts storage.ListOpti
 
 // Watch implements storage.Interface.
 func (s *store) Watch(ctx context.Context, key string, opts storage.ListOptions) (watch.Interface, error) {
-	// For cluster scope resources, key is /prefix. Parts are ["", ""]
-	// For namespace scope resources, key is /prefix/namespace. Parts are [namespace, ""]
-	namespace, _ := s.splitKey(key)
-
-	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, namespace)
+	reqNS, objFilter, shortCircuit := filterNS(s.multiNS, s.listKeyNamespace(key))
 	if shortCircuit {
 		return watch.NewEmptyWatch(), nil
 	}
