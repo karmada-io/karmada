@@ -950,6 +950,62 @@ func TestGetAllocatableModelings(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should continue calculating models after an unavailable node",
+			pods: []*corev1.Pod{
+				{
+					Spec: corev1.PodSpec{
+						NodeName: "node-2",
+						Containers: []corev1.Container{{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+									corev1.ResourceMemory: *resource.NewQuantity(10*1024*1024, resource.BinarySI),
+								},
+							},
+						}},
+					},
+					Status: corev1.PodStatus{Phase: corev1.PodRunning},
+				},
+			},
+			nodes: []*corev1.Node{
+				{ObjectMeta: metav1.ObjectMeta{Name: "node-1"}, Status: corev1.NodeStatus{Allocatable: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewMilliQuantity(4000, resource.DecimalSI),
+					corev1.ResourceMemory: *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI),
+					corev1.ResourcePods:   *resource.NewQuantity(1, resource.DecimalSI),
+				}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "node-2"}, Status: corev1.NodeStatus{Allocatable: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewMilliQuantity(4000, resource.DecimalSI),
+					corev1.ResourceMemory: *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI),
+					corev1.ResourcePods:   *resource.NewQuantity(1, resource.DecimalSI),
+				}}},
+				{ObjectMeta: metav1.ObjectMeta{Name: "node-3"}, Status: corev1.NodeStatus{Allocatable: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewMilliQuantity(4000, resource.DecimalSI),
+					corev1.ResourceMemory: *resource.NewQuantity(8*1024*1024*1024, resource.BinarySI),
+					corev1.ResourcePods:   *resource.NewQuantity(1, resource.DecimalSI),
+				}}},
+			},
+			cluster: &clusterv1alpha1.Cluster{Spec: clusterv1alpha1.ClusterSpec{ResourceModels: []clusterv1alpha1.ResourceModel{
+				{
+					Grade: 0,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: *resource.NewMilliQuantity(0, resource.DecimalSI), Max: *resource.NewQuantity(2, resource.DecimalSI)},
+						{Name: corev1.ResourceMemory, Min: *resource.NewQuantity(0, resource.BinarySI), Max: *resource.NewQuantity(1024*1024*1024, resource.BinarySI)},
+					},
+				},
+				{
+					Grade: 1,
+					Ranges: []clusterv1alpha1.ResourceModelRange{
+						{Name: corev1.ResourceCPU, Min: *resource.NewQuantity(2, resource.DecimalSI), Max: *resource.NewQuantity(16, resource.DecimalSI)},
+						{Name: corev1.ResourceMemory, Min: *resource.NewQuantity(1024*1024*1024, resource.BinarySI), Max: *resource.NewQuantity(64*1024*1024*1024, resource.BinarySI)},
+					},
+				},
+			}}},
+			expect: []clusterv1alpha1.AllocatableModeling{
+				{Grade: 0, Count: 0},
+				{Grade: 1, Count: 2},
+			},
+		},
 	}
 
 	for _, tt := range tests {
