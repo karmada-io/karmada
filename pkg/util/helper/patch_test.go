@@ -122,3 +122,52 @@ func TestGenMergePatch(t *testing.T) {
 		})
 	}
 }
+func TestGenFieldMergePatch(t *testing.T) {
+	tests := []struct {
+		name          string
+		fieldName     string
+		originField   any
+		modifiedField any
+		expectedPatch string
+		expectErr     bool
+	}{
+		{
+			name:          "no change returns nil",
+			fieldName:     "spec",
+			originField:   map[string]string{"key": "value"},
+			modifiedField: map[string]string{"key": "value"},
+			expectedPatch: "",
+			expectErr:     false,
+		},
+		{
+			name:          "field changed returns patch",
+			fieldName:     "spec",
+			originField:   map[string]string{"key": "old"},
+			modifiedField: map[string]string{"key": "new"},
+			expectedPatch: `{"spec":{"key":"new"}}`,
+			expectErr:     false,
+		},
+		{
+			name:          "nested field change",
+			fieldName:     "metadata",
+			originField:   map[string]any{"name": "foo", "labels": map[string]string{"env": "dev"}},
+			modifiedField: map[string]any{"name": "foo", "labels": map[string]string{"env": "prod"}},
+			expectedPatch: `{"metadata":{"labels":{"env":"prod"}}}`,
+			expectErr:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			patch, err := GenFieldMergePatch(tt.fieldName, tt.originField, tt.modifiedField)
+			if err != nil && !tt.expectErr {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if err == nil && tt.expectErr {
+				t.Fatal("expected error but got none")
+			}
+			if string(patch) != tt.expectedPatch {
+				t.Fatalf("want patch: %s, but got: %s", tt.expectedPatch, string(patch))
+			}
+		})
+	}
+}
