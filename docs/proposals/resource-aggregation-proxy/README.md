@@ -28,7 +28,7 @@ We can't access pod and node information from Karmada API server. So after intro
 
 In order to solve the problem, we can either:
 
-1. **Modify all the PaaS components.** Force all of them understand Karmada's logic, and find the pod node in the appropriate cluster by themselves.
+1. **Modify all the PaaS components.** Force all of them to understand Karmada's logic, and find the pod node in the appropriate cluster by themselves.
 2. **Provide a Resource Aggregation Proxy.** All PaaS components just ask the proxy to give them the pod node information. The proxy will find the right clusters to get data, merge data, then return it to the client.
 
 
@@ -53,13 +53,13 @@ Allow kubernetes API clients (kubectl, client-go, and other clients that use kub
 
 - All resources in controller panel, such as deployments, jobs. Supporting all the request behaviors like `karmada-apiserver`.
 - Pods/nodes/events/endpointslices in member clusters. Supporting all the request behaviors but `create`.
-- Customer resources in member clusters，are [limited supported](#notesconstraintscaveats).
+- Custom resources in member clusters are [limited supported](#notesconstraintscaveats).
 
 ## Non-Goals
 
 ## Risks and Mitigations
 
-1. This feature aims to build a cache to store arbitrary resources from multiple member clusters. And these resources are exposed by `search/proxy` REST APIs. If a user has access privilege to `search/proxy`, they can directly access the cached resource without routing their request to the member clusters.
+1. This feature is designed to build a cache that stores arbitrary resources from multiple member clusters. And these resources are exposed by `search/proxy` REST APIs. If a user has access privilege to `search/proxy`, they can directly access the cached resource without routing their request to the member clusters.
 1. As previously mentioned, the resource query request will not be routed to the member clusters. So if a secret is cached in the Karmada control plane but a user in the member cluster cannot access it via member cluster's apiserver due to RBAC privilege limitations, they can still access the secret through the Karmada control plane.
 1. This feature is designed for administrators who needs to query and view the resources in multiple clusters, not designed for the end users. Exposing this API to the end users may cause end users to be able to view resources that do not belong to them.
 
