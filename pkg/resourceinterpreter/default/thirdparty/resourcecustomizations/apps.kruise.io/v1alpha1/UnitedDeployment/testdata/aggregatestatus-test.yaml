@@ -58,6 +58,7 @@ statusItems:
       readyReplicas: 2
       updatedReplicas: 2
       availableReplicas: 2
+      labelSelector: app=sample
       collisionCount: 0
       observedGeneration: 1
       generation: 1
@@ -73,6 +74,7 @@ statusItems:
       readyReplicas: 1
       updatedReplicas: 1
       availableReplicas: 1
+      labelSelector: app=sample
       collisionCount: 0
       observedGeneration: 1
       generation: 1
@@ -126,6 +128,7 @@ output:
       updatedReplicas: 3
       availableReplicas: 3
       unavailableReplicas: 0
+      labelSelector: app=sample
       observedGeneration: 1
 ---
 name: "UnitedDeployment with mixed observed generations"
@@ -171,6 +174,7 @@ output:
       updatedReplicas: 3
       availableReplicas: 3
       unavailableReplicas: 0
+      labelSelector: ''
       observedGeneration: 1
 ---
 name: "UnitedDeployment with no status items"
