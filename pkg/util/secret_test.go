@@ -194,6 +194,45 @@ func TestPatchSecret(t *testing.T) {
 	}
 }
 
+func TestDeleteSecret(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "delete existing secret",
+			args: args{
+				client:    fake.NewClientset(makeSecret("test")),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "delete non-existent secret",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: metav1.NamespaceDefault,
+				name:      "test",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := DeleteSecret(tt.args.client, tt.args.namespace, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteSecret() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func makeSecret(name string) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
