@@ -17,15 +17,24 @@ limitations under the License.
 package taint
 
 import (
+	"context"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
+	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
 
 func TestConditionMatches(t *testing.T) {
@@ -291,6 +300,94 @@ func TestRemoveTaintsOnCluster(t *testing.T) {
 			result := removeTaintsFromCluster(tt.cluster, tt.taintsToRemove)
 			if !reflect.DeepEqual(result, tt.expected) {
 				t.Errorf("test failed, expected: %v, actual: %v", tt.expected, result)
+			}
+		})
+	}
+}
+
+// TestReconcilePolicyOrder verifies that the result of conflicting policies
+// doesn't depend on the order in which List returns them. The informer cache
+// returns objects in no particular order.
+func TestReconcilePolicyOrder(t *testing.T) {
+	earlier := metav1.NewTime(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	later := metav1.NewTime(earlier.Add(time.Second))
+	readyFalse := []policyv1alpha1.MatchCondition{
+		{
+			ConditionType: "Ready",
+			Operator:      policyv1alpha1.MatchConditionOpIn,
+			StatusValues:  []metav1.ConditionStatus{metav1.ConditionFalse},
+		},
+	}
+	taints := []policyv1alpha1.Taint{{Key: "example.io/unhealthy", Effect: corev1.TaintEffectNoSchedule}}
+
+	tests := []struct {
+		name                  string
+		addPolicyCreation     metav1.Time
+		removePolicyCreation  metav1.Time
+		expectedClusterTaints int
+	}{
+		{
+			name:                  "same creation timestamp, processed by name",
+			addPolicyCreation:     earlier,
+			removePolicyCreation:  earlier,
+			expectedClusterTaints: 0,
+		},
+		{
+			name:                  "different creation timestamps, processed by creation timestamp",
+			addPolicyCreation:     later,
+			removePolicyCreation:  earlier,
+			expectedClusterTaints: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, reverse := range []bool{false, true} {
+				cluster := &clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+					Status: clusterv1alpha1.ClusterStatus{
+						Conditions: []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}},
+					},
+				}
+				addPolicy := &policyv1alpha1.ClusterTaintPolicy{
+					ObjectMeta: metav1.ObjectMeta{Name: "policy-a", CreationTimestamp: tt.addPolicyCreation},
+					Spec:       policyv1alpha1.ClusterTaintPolicySpec{AddOnConditions: readyFalse, Taints: taints},
+				}
+				removePolicy := &policyv1alpha1.ClusterTaintPolicy{
+					ObjectMeta: metav1.ObjectMeta{Name: "policy-b", CreationTimestamp: tt.removePolicyCreation},
+					Spec:       policyv1alpha1.ClusterTaintPolicySpec{RemoveOnConditions: readyFalse, Taints: taints},
+				}
+				fakeClient := fake.NewClientBuilder().
+					WithScheme(gclient.NewSchema()).
+					WithObjects(cluster, addPolicy, removePolicy).
+					WithInterceptorFuncs(interceptor.Funcs{
+						List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+							if err := c.List(ctx, list, opts...); err != nil {
+								return err
+							}
+							if policyList, ok := list.(*policyv1alpha1.ClusterTaintPolicyList); ok && reverse {
+								slices.Reverse(policyList.Items)
+							}
+							return nil
+						},
+					}).
+					Build()
+				controller := &ClusterTaintPolicyController{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(1024),
+				}
+
+				if _, err := controller.Reconcile(context.Background(), controllerruntime.Request{
+					NamespacedName: types.NamespacedName{Name: "member1"},
+				}); err != nil {
+					t.Fatalf("Reconcile() returned error: %v", err)
+				}
+				got := &clusterv1alpha1.Cluster{}
+				if err := fakeClient.Get(context.Background(), types.NamespacedName{Name: "member1"}, got); err != nil {
+					t.Fatalf("failed to get cluster: %v", err)
+				}
+				if len(got.Spec.Taints) != tt.expectedClusterTaints {
+					t.Errorf("reversed list order: %v, expected %d taints, got: %v", reverse, tt.expectedClusterTaints, got.Spec.Taints)
+				}
 			}
 		})
 	}
