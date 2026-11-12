@@ -22,20 +22,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
 func Test_cleanPPUnmatchedRBs(t *testing.T) {
@@ -1407,5 +1413,357 @@ func Test_excludeClusterPolicy(t *testing.T) {
 			assert.Equal(t, tt.obj, tt.result)
 			assert.Equal(t, tt.hasClaimedClusterPolicy, got)
 		})
+	}
+}
+
+func newDetectorPolicyTestRESTMapper() *meta.DefaultRESTMapper {
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{
+		appsv1.SchemeGroupVersion,
+		rbacv1.SchemeGroupVersion,
+	})
+	mapper.Add(appsv1.SchemeGroupVersion.WithKind("Deployment"), meta.RESTScopeNamespace)
+	mapper.Add(rbacv1.SchemeGroupVersion.WithKind("ClusterRole"), meta.RESTScopeRoot)
+	return mapper
+}
+
+func newTestDeploymentObject(namespace, name string, objLabels map[string]string) *appsv1.Deployment {
+	return &appsv1.Deployment{
+		TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+			UID:       types.UID("uid-" + name),
+			Labels:    objLabels,
+		},
+	}
+}
+
+func newTestClusterRoleObject(name string, objLabels map[string]string) *rbacv1.ClusterRole {
+	return &rbacv1.ClusterRole{
+		TypeMeta: metav1.TypeMeta{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   name,
+			UID:    types.UID("uid-" + name),
+			Labels: objLabels,
+		},
+	}
+}
+
+func TestHandlePropagationPolicyCreationOrUpdate(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(policyv1alpha1.Install(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	deployGVR := appsv1.SchemeGroupVersion.WithResource("deployments")
+	restMapper := newDetectorPolicyTestRESTMapper()
+
+	tests := []struct {
+		name           string
+		policy         *policyv1alpha1.PropagationPolicy
+		existingObjs   []client.Object
+		cachedDynamic  []runtime.Object
+		expectedQueued []keys.ClusterWideKeyWithConfig
+	}{
+		{
+			name: "enqueues matched unbound resource missing from RB cache",
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "test-pp",
+					Labels:    map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1"},
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+					},
+					Suspension: &policyv1alpha1.Suspension{Dispatching: new(false)},
+				},
+			},
+			cachedDynamic: []runtime.Object{
+				newTestDeploymentObject("default", "nginx", map[string]string{
+					policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1",
+				}),
+			},
+			expectedQueued: []keys.ClusterWideKeyWithConfig{
+				{
+					ClusterWideKey: keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+				},
+			},
+		},
+		{
+			name: "deduplicates resource already present in derived ResourceBindings",
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "test-pp",
+					Labels:    map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1"},
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+					},
+				},
+			},
+			existingObjs: []client.Object{
+				&workv1alpha2.ResourceBinding{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "nginx-deployment",
+						Labels:    map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1"},
+					},
+					Spec: workv1alpha2.ResourceBindingSpec{
+						Resource: workv1alpha2.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+					},
+				},
+			},
+			cachedDynamic: []runtime.Object{
+				newTestDeploymentObject("default", "nginx", map[string]string{
+					policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1",
+				}),
+			},
+			expectedQueued: []keys.ClusterWideKeyWithConfig{
+				{
+					ClusterWideKey: keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+				},
+			},
+		},
+		{
+			name: "skips objects claimed by another policy, other namespaces, or karmada-system",
+			policy: &policyv1alpha1.PropagationPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "test-pp",
+					Labels:    map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1"},
+				},
+				Spec: policyv1alpha1.PropagationSpec{
+					ResourceSelectors: []policyv1alpha1.ResourceSelector{
+						{APIVersion: "apps/v1", Kind: "Deployment"},
+					},
+				},
+			},
+			cachedDynamic: []runtime.Object{
+				newTestDeploymentObject("default", "claimed-other-pp", map[string]string{
+					policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-other",
+				}),
+				newTestDeploymentObject("default", "claimed-cpp", map[string]string{
+					policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-1",
+				}),
+				newTestDeploymentObject("other-ns", "wrong-ns", nil),
+				newTestDeploymentObject("karmada-system", "skipped-ns", nil),
+				newTestDeploymentObject("default", "inflight-unclaimed", nil),
+			},
+			expectedQueued: []keys.ClusterWideKeyWithConfig{
+				{
+					ClusterWideKey: keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "default", Name: "inflight-unclaimed"},
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := t.Context()
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRESTMapper(restMapper).WithObjects(tt.existingObjs...).Build()
+			fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, tt.cachedDynamic...)
+			genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamic, 0, fedinformer.StripUnusedFields)
+			handler := &cache.ResourceEventHandlerFuncs{}
+			genMgr.ForResource(deployGVR, handler)
+			genMgr.Start()
+			genMgr.WaitForCacheSync()
+
+			mockWorker := &MockAsyncWorker{}
+			d := &ResourceDetector{
+				Client:          fakeClient,
+				DynamicClient:   fakeDynamic,
+				InformerManager: genMgr,
+				RESTMapper:      restMapper,
+				EventHandler:    handler,
+				Processor:       mockWorker,
+				waitingObjects:  make(map[keys.ClusterWideKey]struct{}),
+			}
+
+			err := d.HandlePropagationPolicyCreationOrUpdate(tt.policy)
+			assert.NoError(t, err)
+
+			var got []keys.ClusterWideKeyWithConfig
+			for _, item := range mockWorker.GetQueue() {
+				got = append(got, item.(keys.ClusterWideKeyWithConfig))
+			}
+			assert.Equal(t, tt.expectedQueued, got)
+		})
+	}
+}
+
+func TestHandleClusterPropagationPolicyCreationOrUpdate(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(rbacv1.AddToScheme(scheme))
+	utilruntime.Must(policyv1alpha1.Install(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	deployGVR := appsv1.SchemeGroupVersion.WithResource("deployments")
+	clusterRoleGVR := rbacv1.SchemeGroupVersion.WithResource("clusterroles")
+	restMapper := newDetectorPolicyTestRESTMapper()
+	ctx := t.Context()
+
+	cpp := &policyv1alpha1.ClusterPropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "test-cpp",
+			Labels: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-1"},
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Name: "shared-deploy"},
+				{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole", Name: "unbound-role"},
+				{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole", Name: "bound-role"},
+			},
+		},
+	}
+
+	existingCRB := &workv1alpha2.ClusterResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "bound-role-clusterrole",
+			Labels: map[string]string{policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-1"},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{APIVersion: "rbac.authorization.k8s.io/v1", Kind: "ClusterRole", Name: "bound-role"},
+		},
+	}
+
+	cachedObjs := []runtime.Object{
+		newTestDeploymentObject("team-a", "shared-deploy", nil),
+		newTestDeploymentObject("team-b", "shared-deploy", map[string]string{
+			policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1",
+		}),
+		newTestClusterRoleObject("unbound-role", nil),
+		newTestClusterRoleObject("bound-role", map[string]string{
+			policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "cpp-1",
+		}),
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRESTMapper(restMapper).WithObjects(existingCRB).Build()
+	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, cachedObjs...)
+	genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamic, 0, fedinformer.StripUnusedFields)
+	handler := &cache.ResourceEventHandlerFuncs{}
+	genMgr.ForResource(deployGVR, handler)
+	genMgr.ForResource(clusterRoleGVR, handler)
+	genMgr.Start()
+	genMgr.WaitForCacheSync()
+
+	mockWorker := &MockAsyncWorker{}
+	d := &ResourceDetector{
+		Client:          fakeClient,
+		DynamicClient:   fakeDynamic,
+		InformerManager: genMgr,
+		RESTMapper:      restMapper,
+		EventHandler:    handler,
+		Processor:       mockWorker,
+		waitingObjects:  make(map[keys.ClusterWideKey]struct{}),
+	}
+
+	err := d.HandleClusterPropagationPolicyCreationOrUpdate(cpp)
+	assert.NoError(t, err)
+
+	expected := []keys.ClusterWideKeyWithConfig{
+		{
+			ClusterWideKey: keys.ClusterWideKey{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole", Name: "bound-role"},
+		},
+		{
+			ClusterWideKey: keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "team-a", Name: "shared-deploy"},
+		},
+		{
+			ClusterWideKey: keys.ClusterWideKey{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole", Name: "unbound-role"},
+		},
+	}
+	var got []keys.ClusterWideKeyWithConfig
+	for _, item := range mockWorker.GetQueue() {
+		got = append(got, item.(keys.ClusterWideKeyWithConfig))
+	}
+	assert.Equal(t, expected, got)
+}
+
+func TestHandlePropagationPolicyCreationOrUpdate_SyncsStaleBindingAfterCreation(t *testing.T) {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(policyv1alpha1.Install(scheme))
+	utilruntime.Must(workv1alpha2.Install(scheme))
+
+	deployGVR := appsv1.SchemeGroupVersion.WithResource("deployments")
+	restMapper := newDetectorPolicyTestRESTMapper()
+	ctx := t.Context()
+
+	deploy := newTestDeploymentObject("default", "nginx", nil)
+	deployUnstructured, err := runtime.DefaultUnstructuredConverter.ToUnstructured(deploy)
+	assert.NoError(t, err)
+
+	ppV1 := &policyv1alpha1.PropagationPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "default",
+			Name:      "test-pp",
+			Labels:    map[string]string{policyv1alpha1.PropagationPolicyPermanentIDLabel: "pp-1"},
+		},
+		Spec: policyv1alpha1.PropagationSpec{
+			ResourceSelectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "nginx"},
+			},
+			Suspension: &policyv1alpha1.Suspension{Dispatching: new(true)},
+		},
+	}
+	ppV2 := ppV1.DeepCopy()
+	ppV2.Spec.Suspension = &policyv1alpha1.Suspension{Dispatching: new(false)}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithRESTMapper(restMapper).WithObjects(deploy.DeepCopy(), ppV2.DeepCopy()).Build()
+	fakeDynamic := dynamicfake.NewSimpleDynamicClient(scheme, deploy.DeepCopy())
+	genMgr := genericmanager.NewSingleClusterInformerManager(ctx, fakeDynamic, 0, fedinformer.StripUnusedFields)
+	handler := &cache.ResourceEventHandlerFuncs{}
+	genMgr.ForResource(deployGVR, handler)
+	genMgr.Start()
+	genMgr.WaitForCacheSync()
+
+	mockWorker := &MockAsyncWorker{}
+	d := &ResourceDetector{
+		Client:              fakeClient,
+		DynamicClient:       fakeDynamic,
+		InformerManager:     genMgr,
+		RESTMapper:          restMapper,
+		EventHandler:        handler,
+		Processor:           mockWorker,
+		EventRecorder:       record.NewFakeRecorder(10),
+		ResourceInterpreter: &mockResourceInterpreter{},
+		waitingObjects:      make(map[keys.ClusterWideKey]struct{}),
+	}
+
+	// Simulate ppV2 update arriving while RB has not been created yet (and deploy already left waitingObjects).
+	err = d.HandlePropagationPolicyCreationOrUpdate(ppV2)
+	assert.NoError(t, err)
+	assert.Len(t, mockWorker.GetQueue(), 1)
+
+	// Simulate in-flight ApplyPolicy finishing with stale ppV1 (Dispatching: true).
+	deployKey, err := keys.ClusterWideKeyFunc(&unstructured.Unstructured{Object: deployUnstructured})
+	assert.NoError(t, err)
+	err = d.ApplyPolicy(&unstructured.Unstructured{Object: deployUnstructured}, deployKey, false, ppV1)
+	assert.NoError(t, err)
+
+	binding := &workv1alpha2.ResourceBinding{}
+	err = fakeClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "nginx-deployment"}, binding)
+	assert.NoError(t, err)
+	if assert.NotNil(t, binding.Spec.Suspension) && assert.NotNil(t, binding.Spec.Suspension.Dispatching) {
+		assert.True(t, *binding.Spec.Suspension.Dispatching)
+	}
+
+	// Drain the enqueued reconcile item triggered by ppV2's handler.
+	for _, queued := range mockWorker.GetQueue() {
+		err = d.Reconcile(queued)
+		assert.NoError(t, err)
+	}
+
+	err = fakeClient.Get(ctx, client.ObjectKey{Namespace: "default", Name: "nginx-deployment"}, binding)
+	assert.NoError(t, err)
+	if assert.NotNil(t, binding.Spec.Suspension) && assert.NotNil(t, binding.Spec.Suspension.Dispatching) {
+		assert.False(t, *binding.Spec.Suspension.Dispatching)
 	}
 }

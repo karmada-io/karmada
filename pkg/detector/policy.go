@@ -25,7 +25,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -35,6 +39,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
@@ -415,4 +420,121 @@ func excludeClusterPolicy(obj metav1.Object) (hasClaimedClusterPolicy bool) {
 	}
 	CleanupCPPClaimMetadata(obj)
 	return true
+}
+
+type policySyncTarget struct {
+	policyID             string
+	namespace            string
+	isClusterPolicy      bool
+	activationPreference policyv1alpha1.ActivationPreference
+}
+
+// enqueueMatchedUnboundResources enqueues cached resource templates matching selectors whose bindings
+// have not yet been observed by the policy's binding listing (for example, while propagation is
+// still in flight or waiting for the ResourceBinding informer cache to catch up).
+func (d *ResourceDetector) enqueueMatchedUnboundResources(target policySyncTarget, selectors []policyv1alpha1.ResourceSelector, alreadyEnqueued sets.Set[keys.ClusterWideKey]) {
+	if d.InformerManager == nil || d.RESTMapper == nil {
+		return
+	}
+	for _, rs := range selectors {
+		gvr, err := restmapper.GetGroupVersionResource(d.RESTMapper, schema.FromAPIVersionAndKind(rs.APIVersion, rs.Kind))
+		if err != nil {
+			continue
+		}
+		if d.gvrDisabled(gvr) {
+			continue
+		}
+		if d.EventHandler != nil && !d.InformerManager.IsHandlerExist(gvr, d.EventHandler) && !d.InformerManager.IsInformerSynced(gvr) {
+			continue
+		}
+		lister := d.InformerManager.Lister(gvr)
+		if lister == nil {
+			continue
+		}
+		for _, obj := range d.listSelectorCandidatesFromLister(lister, rs, target) {
+			d.enqueueMatchedUnboundObject(obj, rs, target, alreadyEnqueued)
+		}
+	}
+}
+
+func (d *ResourceDetector) listSelectorCandidatesFromLister(lister cache.GenericLister, rs policyv1alpha1.ResourceSelector, target policySyncTarget) []runtime.Object {
+	ns := rs.Namespace
+	if !target.isClusterPolicy && ns == "" {
+		ns = target.namespace
+	}
+
+	if len(rs.Name) > 0 {
+		var (
+			obj runtime.Object
+			err error
+		)
+		if len(ns) > 0 {
+			obj, err = lister.ByNamespace(ns).Get(rs.Name)
+		} else {
+			obj, err = lister.Get(rs.Name)
+		}
+		if err == nil {
+			return []runtime.Object{obj}
+		}
+		// A ClusterPropagationPolicy selector with a Name and empty Namespace can match
+		// a namespaced resource in any namespace, which is keyed by "<ns>/<name>" in the store.
+		if len(ns) > 0 || !target.isClusterPolicy || !apierrors.IsNotFound(err) {
+			return nil
+		}
+	}
+
+	sel := labels.Everything()
+	if len(rs.Name) == 0 && rs.LabelSelector != nil {
+		var err error
+		sel, err = metav1.LabelSelectorAsSelector(rs.LabelSelector)
+		if err != nil {
+			return nil
+		}
+	}
+
+	var (
+		objs []runtime.Object
+		err  error
+	)
+	if len(ns) > 0 {
+		objs, err = lister.ByNamespace(ns).List(sel)
+	} else {
+		objs, err = lister.List(sel)
+	}
+	if err != nil {
+		return nil
+	}
+	return objs
+}
+
+func (d *ResourceDetector) enqueueMatchedUnboundObject(obj runtime.Object, rs policyv1alpha1.ResourceSelector, target policySyncTarget, alreadyEnqueued sets.Set[keys.ClusterWideKey]) {
+	unstructuredObj, err := helper.ToUnstructured(obj)
+	if err != nil {
+		return
+	}
+	if !target.isClusterPolicy && unstructuredObj.GetNamespace() != target.namespace {
+		return
+	}
+	if !util.ResourceMatches(unstructuredObj, rs) || !d.EventFilter(unstructuredObj) {
+		return
+	}
+	if isClaimedByOtherPolicy(unstructuredObj, target.isClusterPolicy, target.policyID) {
+		return
+	}
+	resourceKey, err := keys.ClusterWideKeyFunc(unstructuredObj)
+	if err != nil || alreadyEnqueued.Has(resourceKey) {
+		return
+	}
+	d.RemoveWaiting(resourceKey)
+	d.enqueueResourceTemplateForPolicyChange(resourceKey, target.activationPreference)
+	alreadyEnqueued.Insert(resourceKey)
+}
+
+func isClaimedByOtherPolicy(obj *unstructured.Unstructured, isClusterPolicy bool, policyID string) bool {
+	ppID := util.GetLabelValue(obj.GetLabels(), policyv1alpha1.PropagationPolicyPermanentIDLabel)
+	cppID := util.GetLabelValue(obj.GetLabels(), policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel)
+	if isClusterPolicy {
+		return ppID != "" || (cppID != "" && cppID != policyID)
+	}
+	return cppID != "" || (ppID != "" && ppID != policyID)
 }

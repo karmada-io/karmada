@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -1254,11 +1255,13 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 	if err != nil {
 		return err
 	}
+	enqueuedKeys := sets.New[keys.ClusterWideKey]()
 	for _, rb := range resourceBindings.Items {
 		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 		if err != nil {
 			return err
 		}
+		enqueuedKeys.Insert(resourceKey)
 		d.enqueueResourceTemplateForPolicyChange(resourceKey, policy.Spec.ActivationPreference)
 	}
 
@@ -1277,8 +1280,15 @@ func (d *ResourceDetector) HandlePropagationPolicyCreationOrUpdate(policy *polic
 
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
+		enqueuedKeys.Insert(key)
 		d.enqueueResourceTemplateForPolicyChange(key, policy.Spec.ActivationPreference)
 	}
+
+	d.enqueueMatchedUnboundResources(policySyncTarget{
+		policyID:             policyID,
+		namespace:            policy.Namespace,
+		activationPreference: policy.Spec.ActivationPreference,
+	}, policy.Spec.ResourceSelectors, enqueuedKeys)
 
 	// If preemption is enabled, handle the preemption process.
 	// If this policy succeeds in preempting resource managed by other policy, the label claimed on relevant resource
@@ -1321,11 +1331,13 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 	if err != nil {
 		return err
 	}
+	enqueuedKeys := sets.New[keys.ClusterWideKey]()
 	for _, rb := range resourceBindings.Items {
 		resourceKey, err := helper.ConstructClusterWideKey(rb.Spec.Resource)
 		if err != nil {
 			return err
 		}
+		enqueuedKeys.Insert(resourceKey)
 		d.enqueueResourceTemplateForPolicyChange(resourceKey, policy.Spec.ActivationPreference)
 	}
 	for _, crb := range clusterResourceBindings.Items {
@@ -1333,6 +1345,7 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 		if err != nil {
 			return err
 		}
+		enqueuedKeys.Insert(resourceKey)
 		d.enqueueResourceTemplateForPolicyChange(resourceKey, policy.Spec.ActivationPreference)
 	}
 
@@ -1350,8 +1363,15 @@ func (d *ResourceDetector) HandleClusterPropagationPolicyCreationOrUpdate(policy
 
 	for _, key := range matchedKeys {
 		d.RemoveWaiting(key)
+		enqueuedKeys.Insert(key)
 		d.enqueueResourceTemplateForPolicyChange(key, policy.Spec.ActivationPreference)
 	}
+
+	d.enqueueMatchedUnboundResources(policySyncTarget{
+		policyID:             policyID,
+		isClusterPolicy:      true,
+		activationPreference: policy.Spec.ActivationPreference,
+	}, policy.Spec.ResourceSelectors, enqueuedKeys)
 
 	// If preemption is enabled, handle the preemption process.
 	// If this policy succeeds in preempting resource managed by other policy, the label claimed on relevant resource
