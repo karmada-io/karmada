@@ -219,6 +219,17 @@ func ObtainClustersWithPurgeModeDirectly(bindingSpec workv1alpha2.ResourceBindin
 	return clusterNames
 }
 
+// ObtainBindingClustersMayHoldWorks will obtain the cluster slice on which the binding may still hold Works,
+// including clusters evicted with PurgeModeDirectly and clusters still reported in the aggregated status.
+func ObtainBindingClustersMayHoldWorks(bindingSpec workv1alpha2.ResourceBindingSpec, bindingStatus workv1alpha2.ResourceBindingStatus) sets.Set[string] {
+	clusterNames := ObtainBindingSpecExistingClusters(bindingSpec)
+	clusterNames.Insert(ObtainClustersWithPurgeModeDirectly(bindingSpec).UnsortedList()...)
+	for _, item := range bindingStatus.AggregatedStatus {
+		clusterNames.Insert(item.ClusterName)
+	}
+	return clusterNames
+}
+
 // FindOrphanWorks retrieves all works that labeled with current binding(ResourceBinding or ClusterResourceBinding) objects,
 // then pick the works that not meet current binding declaration.
 func FindOrphanWorks(ctx context.Context, c client.Client, bindingNamespace, bindingName, bindingID string, expectClusters sets.Set[string]) ([]workv1alpha1.Work, error) {
@@ -402,7 +413,14 @@ func GetResourceBindingsByNamespace(c client.Client, namespace string) (*workv1a
 }
 
 // DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingID string) error {
+// Works on candidateClusters that are missing from the cache are looked up via apiReader.
+func DeleteWorks(
+	ctx context.Context,
+	c client.Client,
+	apiReader client.Reader,
+	namespace, name, bindingID, expectedWorkName string,
+	candidateClusters sets.Set[string],
+) error {
 	workList, err := GetWorksByBindingID(ctx, c, bindingID, namespace != "")
 	if err != nil {
 		klog.Errorf("Failed to get works by (Cluster)ResourceBinding(%s/%s) : %v", namespace, name, err)
@@ -410,7 +428,14 @@ func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingI
 	}
 
 	var errs []error
+	coveredNamespaces := sets.New[string]()
+
+	// 1. Delete whatever the cache found
 	for index, work := range workList.Items {
+		if work.Name == expectedWorkName {
+			coveredNamespaces.Insert(work.Namespace)
+		}
+
 		if err := c.Delete(ctx, &workList.Items[index]); err != nil {
 			if apierrors.IsNotFound(err) {
 				continue
@@ -419,7 +444,60 @@ func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingI
 			errs = append(errs, err)
 		}
 	}
+
+	// 2. Fallback: Authoritative lookup on candidate clusters not covered by the cache
+	missedErrs := deleteMissedWorks(ctx, c, apiReader, bindingID, expectedWorkName, candidateClusters, coveredNamespaces)
+	errs = append(errs, missedErrs...)
+
 	return errors.NewAggregate(errs)
+}
+
+func deleteMissedWorks(
+	ctx context.Context,
+	c client.Client,
+	apiReader client.Reader,
+	bindingID, expectedWorkName string,
+	candidateClusters sets.Set[string],
+	coveredNamespaces sets.Set[string],
+) []error {
+	var errs []error
+
+	for _, clusterName := range sets.List(candidateClusters) {
+		workNamespace := names.GenerateExecutionSpaceName(clusterName)
+		if coveredNamespaces.Has(workNamespace) {
+			continue
+		}
+
+		work := &workv1alpha1.Work{}
+
+		err := apiReader.Get(ctx, types.NamespacedName{Namespace: workNamespace, Name: expectedWorkName}, work)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				klog.Errorf("Failed to get orphaned work(%s/%s) via API server: %v", workNamespace, expectedWorkName, err)
+				errs = append(errs, err)
+			}
+			continue
+		}
+
+		if !work.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		if work.Labels[workv1alpha2.ResourceBindingPermanentIDLabel] != bindingID &&
+			work.Labels[workv1alpha2.ClusterResourceBindingPermanentIDLabel] != bindingID {
+			continue
+		}
+
+		if err := c.Delete(ctx, work); err != nil {
+			if apierrors.IsNotFound(err) {
+				continue
+			}
+			klog.Errorf("Failed to delete orphaned work(%s/%s) found via API server: %v", work.Namespace, work.Name, err)
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
 }
 
 // GenerateNodeClaimByPodSpec will return a NodeClaim from PodSpec.
