@@ -21803,6 +21803,13 @@
           "description": "Placement represents the rule for select clusters to propagate resources.",
           "$ref": "#/definitions/com.github.karmada-io.karmada.pkg.apis.policy.v1alpha1.Placement"
         },
+        "podSelectors": {
+          "description": "PodSelectors contains label selectors used to find the Pods belonging to this binding when evaluating it as a preemption victim. A Pod matches if it satisfies any one of the selectors.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+          }
+        },
         "preserveResourcesOnDeletion": {
           "description": "PreserveResourcesOnDeletion controls whether resources should be preserved on the member clusters when the binding object is deleted. If set to true, resources will be preserved on the member clusters. Default is false, which means resources will be deleted along with the binding object. This setting applies to all Work objects created under this binding object.",
           "type": "boolean"
