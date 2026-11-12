@@ -267,7 +267,7 @@ func verifySecret(client *fakeclientset.Clientset, karmadaInstanceName, namespac
 	}
 
 	// Extract and load the kubeconfig from the secret.
-	karmadaConfig := []byte(secret.StringData["karmada.config"])
+	karmadaConfig := []byte(secret.StringData[constants.KarmadaConfigKey])
 	config, err := clientcmd.Load(karmadaConfig)
 	if err != nil {
 		return fmt.Errorf("failed to load secret kubeconfig data: %v", err)

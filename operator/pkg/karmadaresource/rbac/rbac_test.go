@@ -34,8 +34,8 @@ func TestEnsureKarmadaRBAC(t *testing.T) {
 	}
 
 	actions := fakeClient.Actions()
-	if len(actions) != 4 {
-		t.Fatalf("expected 4 actions, but got %d", len(actions))
+	if len(actions) != 14 {
+		t.Fatalf("expected 14 actions, but got %d", len(actions))
 	}
 }
 
