@@ -65,15 +65,19 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 		return nil
 	}
 
-	// Helper function to verify component resource requirements
+	// Helper function to verify component resource requirements.
+	// Uses Cmp for quantity comparison to avoid mismatches caused by different
+	// internal representations (e.g. DecimalSI vs BinarySI) for equal values.
 	verifyComponentResources := func(component *workv1alpha2.Component, expectedReplicas int32, expectedCPU, expectedMemory string) {
 		gomega.Expect(component).ShouldNot(gomega.BeNil())
 		gomega.Expect(component.Replicas).Should(gomega.Equal(expectedReplicas))
 		gomega.Expect(component.ReplicaRequirements).ShouldNot(gomega.BeNil())
-		gomega.Expect(component.ReplicaRequirements.ResourceRequest).Should(gomega.Equal(corev1.ResourceList{
-			corev1.ResourceCPU:    resource.MustParse(expectedCPU),
-			corev1.ResourceMemory: resource.MustParse(expectedMemory),
-		}))
+		actualCPU := component.ReplicaRequirements.ResourceRequest[corev1.ResourceCPU]
+		actualMemory := component.ReplicaRequirements.ResourceRequest[corev1.ResourceMemory]
+		gomega.Expect(actualCPU.Cmp(resource.MustParse(expectedCPU))).Should(gomega.Equal(0),
+			"CPU mismatch: got %s, expected %s", actualCPU.String(), expectedCPU)
+		gomega.Expect(actualMemory.Cmp(resource.MustParse(expectedMemory))).Should(gomega.Equal(0),
+			"Memory mismatch: got %s, expected %s", actualMemory.String(), expectedMemory)
 	}
 
 	ginkgo.Context("FlinkDeployment scheduling", func() {
@@ -205,8 +209,8 @@ var _ = ginkgo.Describe("[ScheduleMultiTemplate] schedule multi template resourc
 				gomega.Expect(jobManagerComponent).ShouldNot(gomega.BeNil(), "jobmanager component should exist")
 				gomega.Expect(taskManagerComponent).ShouldNot(gomega.BeNil(), "taskmanager component should exist")
 				// Verify the detailed content of components (including ReplicaRequirements and resource values)
-				verifyComponentResources(jobManagerComponent, 1, "50m", "100m")
-				verifyComponentResources(taskManagerComponent, 1, "100m", "100m")
+				verifyComponentResources(jobManagerComponent, 1, "50m", "100Mi")
+				verifyComponentResources(taskManagerComponent, 1, "100m", "100Mi")
 			})
 
 			var targetClusterName string
