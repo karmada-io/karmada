@@ -63,10 +63,8 @@ func (v *ValidatingAdmission) Handle(_ context.Context, req admission.Request) a
 
 func validateFederatedResourceQuota(quota *policyv1alpha1.FederatedResourceQuota) field.ErrorList {
 	errs := field.ErrorList{}
-	// TODO: Remove validateFederatedResourceQuotaName after the name of FederatedResourceQuota is no longer used in label.
-	// Using resource names as labels is not a recommended practice. This is a cheaper solution to prevent people from doing wrong and fix it later.
-	// https://github.com/karmada-io/karmada/pull/2168#issuecomment-2868574495
-	errs = append(errs, validateFederatedResourceQuotaName(quota.Name, field.NewPath("metadata").Child("name"))...)
+	// The name validation has been removed as FederatedResourceQuota names are no longer used in labels.
+	// This follows Kubernetes best practices of not using resource names as label values.
 	errs = append(errs, validateFederatedResourceQuotaSpec(&quota.Spec, field.NewPath("spec"))...)
 	errs = append(errs, validateFederatedResourceQuotaStatus(&quota.Status, field.NewPath("status"))...)
 	return errs
@@ -166,16 +164,6 @@ func validateResourceList(resourceList corev1.ResourceList, fld *field.Path) fie
 		resPath := fld.Key(string(k))
 		errs = append(errs, lifted.ValidateResourceQuotaResourceName(string(k), resPath)...)
 		errs = append(errs, lifted.ValidateResourceQuantityValue(string(k), v, resPath)...)
-	}
-
-	return errs
-}
-
-func validateFederatedResourceQuotaName(name string, fld *field.Path) field.ErrorList {
-	errs := field.ErrorList{}
-
-	if len(name) > validation.DNS1123LabelMaxLength {
-		errs = append(errs, field.Invalid(fld, name, fmt.Sprintf("must be no more than %d characters", validation.DNS1123LabelMaxLength)))
 	}
 
 	return errs
