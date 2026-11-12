@@ -98,6 +98,37 @@ func TestCronFHPAScaleTargetRefUpdates(t *testing.T) {
 	}
 }
 
+func TestCronFHPAScaleTargetRefUpdates_BugReproduction(t *testing.T) {
+	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
+	cronFHPAKey := "default/test-cronhpa"
+
+	target1 := autoscalingv2.CrossVersionObjectReference{
+		Kind:       "Deployment",
+		Name:       "test-deployment-1",
+		APIVersion: "apps/v1",
+	}
+	target2 := autoscalingv2.CrossVersionObjectReference{
+		Kind:       "Deployment",
+		Name:       "test-deployment-2",
+		APIVersion: "apps/v1",
+	}
+
+	// 1. Initial target setting. The map is empty.
+	// This should return false because it's the initial target and not an "update" from a previous target.
+	updated := handler.CronFHPAScaleTargetRefUpdates(cronFHPAKey, target1)
+	assert.False(t, updated, "Initial target setting should return false")
+
+	// 2. Update to a new scale target.
+	// This should return true because target2 is different from target1.
+	updated = handler.CronFHPAScaleTargetRefUpdates(cronFHPAKey, target2)
+	assert.True(t, updated, "Update to a new scale target should return true")
+
+	// 3. Call again with the same updated target.
+	// This should return false because the target hasn't changed since the last call.
+	updated = handler.CronFHPAScaleTargetRefUpdates(cronFHPAKey, target2)
+	assert.False(t, updated, "Calling again with the same target should return false")
+}
+
 func TestAddCronExecutorIfNotExist(t *testing.T) {
 	handler := NewCronHandler(fake.NewClientBuilder().Build(), record.NewFakeRecorder(100))
 
