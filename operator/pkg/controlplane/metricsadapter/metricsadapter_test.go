@@ -22,6 +22,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
 
@@ -131,6 +132,62 @@ func TestInstallKarmadaMetricAdapter(t *testing.T) {
 	_, err = verifyDeploymentCreation(fakeClient)
 	if err != nil {
 		t.Fatalf("failed to verify deployment creation: %v", err)
+	}
+}
+
+func TestInstallKarmadaMetricAdapterWithTopologySpreadConstraints(t *testing.T) {
+	var replicas int32 = 2
+	image, imageTag := "docker.io/karmada/karmada-metrics-adapter", "latest"
+	name := "karmada-demo"
+	namespace := "test"
+	imagePullPolicy := corev1.PullIfNotPresent
+	priorityClassName := "system-cluster-critical"
+
+	topologySpreadConstraints := []corev1.TopologySpreadConstraint{
+		{
+			MaxSkew:           1,
+			TopologyKey:       "topology.kubernetes.io/zone",
+			WhenUnsatisfiable: corev1.DoNotSchedule,
+			LabelSelector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "karmada-metrics-adapter",
+				},
+			},
+		},
+	}
+
+	cfg := &operatorv1alpha1.KarmadaMetricsAdapter{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image: operatorv1alpha1.Image{
+				ImageRepository: image,
+				ImageTag:        imageTag,
+			},
+			Replicas:                  ptr.To[int32](replicas),
+			Resources:                 corev1.ResourceRequirements{},
+			ImagePullPolicy:           imagePullPolicy,
+			PriorityClassName:         priorityClassName,
+			TopologySpreadConstraints: topologySpreadConstraints,
+		},
+	}
+
+	// Create fake clientset.
+	fakeClient := fakeclientset.NewClientset()
+
+	err := installKarmadaMetricAdapter(fakeClient, cfg, name, namespace)
+	if err != nil {
+		t.Fatalf("failed to install karmada metrics adapter: %v", err)
+	}
+
+	deployment, err := verifyDeploymentCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify deployment creation: %v", err)
+	}
+
+	if len(deployment.Spec.Template.Spec.TopologySpreadConstraints) != 1 {
+		t.Fatalf("expected 1 topology spread constraint, but got %d", len(deployment.Spec.Template.Spec.TopologySpreadConstraints))
+	}
+	if deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey != "topology.kubernetes.io/zone" {
+		t.Errorf("expected topology key 'topology.kubernetes.io/zone', but got '%s'", deployment.Spec.Template.Spec.TopologySpreadConstraints[0].TopologyKey)
 	}
 }
 
