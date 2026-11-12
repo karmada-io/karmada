@@ -51,6 +51,23 @@ spec:
           end
           return desiredObj
         end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+          -- Only the summary fields are reflected. nodes, storedTemplates and similar fields
+          -- grow with the size of the Workflow and are not copied into Work and ResourceBinding.
+          status.phase = observedObj.status.phase
+          status.startedAt = observedObj.status.startedAt
+          status.finishedAt = observedObj.status.finishedAt
+          status.progress = observedObj.status.progress
+          status.message = observedObj.status.message
+          status.conditions = observedObj.status.conditions
+          return status
+        end
     dependencyInterpretation:
       luaScript: >
         function GetDependencies(desiredObj)
