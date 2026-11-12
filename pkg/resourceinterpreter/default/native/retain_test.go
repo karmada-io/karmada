@@ -80,6 +80,42 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "statefulset is controlled by hpa",
+			args: args{
+				desired: &appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "nginx",
+						Labels: map[string]string{
+							util.RetainReplicasLabel: util.RetainReplicasValue,
+						},
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: &desiredNum,
+					},
+				},
+				observed: &appsv1.StatefulSet{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "nginx",
+					},
+					Spec: appsv1.StatefulSetSpec{
+						Replicas: &observedNum,
+					},
+				},
+			},
+			want: &appsv1.StatefulSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "nginx",
+					Labels: map[string]string{
+						util.RetainReplicasLabel: util.RetainReplicasValue,
+					},
+				},
+				Spec: appsv1.StatefulSetSpec{
+					Replicas: &observedNum,
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "deployment is not control by hpa",
 			args: args{
 				desired: &appsv1.Deployment{
@@ -707,6 +743,7 @@ func Test_retainPodFields(t *testing.T) {
 func Test_getAllDefaultRetentionInterpreter(t *testing.T) {
 	expectedKinds := []schema.GroupVersionKind{
 		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "apps", Version: "v1", Kind: "StatefulSet"},
 		{Group: "", Version: "v1", Kind: "Pod"},
 		{Group: "", Version: "v1", Kind: "Service"},
 		{Group: "", Version: "v1", Kind: "ServiceAccount"},
