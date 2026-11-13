@@ -266,6 +266,11 @@ func (c *MultiClusterCache) List(ctx context.Context, gvr schema.GroupVersionRes
 		if err != nil {
 			return nil, nil, err
 		}
+		// The response only takes the clones above and the list metadata of obj, so release the listed
+		// items now. Otherwise every cluster's raw list stays in memory until all clusters are merged.
+		if err = meta.SetList(obj, nil); err != nil {
+			return nil, nil, err
+		}
 		return obj, clusterItems, nil
 	}
 
