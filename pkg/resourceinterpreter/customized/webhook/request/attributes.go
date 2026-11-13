@@ -17,6 +17,7 @@ limitations under the License.
 package request
 
 import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -45,4 +46,5 @@ type ResponseAttributes struct {
 	RawStatus           runtime.RawExtension
 	Healthy             bool
 	Components          []workv1alpha2.Component
+	PodSelector         *metav1.LabelSelector
 }

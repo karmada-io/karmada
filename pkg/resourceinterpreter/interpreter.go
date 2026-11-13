@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -61,6 +62,16 @@ type ResourceInterpreter interface {
 	// If not implemented, the controller will fall back to GetReplicas for backward compatibility.
 	// This hook will only be called when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
 	GetComponents(object *unstructured.Unstructured) (components []workv1alpha2.Component, err error)
+
+	// GetPodSelector returns the label selector that identifies the Pods derived from the given object.
+	// This hook is designed for workloads with a single pod template (e.g., Deployment) whose replicas
+	// are interpreted by GetReplicas. For workloads interpreted by GetComponents, the selector is
+	// expected to be declared on each component instead, so this hook will not be called.
+	// A nil selector without error means the Pods can not be identified.
+	// The selector is stored in the 'components' field of ResourceBinding or ClusterResourceBinding,
+	// which is only populated when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	// Therefore, this hook will only be called when that feature gate is enabled.
+	GetPodSelector(object *unstructured.Unstructured) (selector *metav1.LabelSelector, err error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
@@ -237,6 +248,42 @@ func (i *customResourceInterpreterImpl) GetComponents(object *unstructured.Unstr
 	// TODO(@RainbowMango): Implement GetComponents for extracting per-component replica and resource requirements.
 	// Follow up tracked by: https://github.com/karmada-io/karmada/issues/6641
 	return nil, errors.New("interface GetComponents not implemented yet")
+}
+
+// GetPodSelector returns the label selector that identifies the Pods derived from the given object.
+func (i *customResourceInterpreterImpl) GetPodSelector(object *unstructured.Unstructured) (*metav1.LabelSelector, error) {
+	if object == nil {
+		return nil, errors.New("nil object")
+	}
+
+	selector, hookEnabled, err := i.configurableInterpreter.GetPodSelector(object)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return selector, nil
+	}
+
+	selector, hookEnabled, err = i.customizedInterpreter.GetPodSelector(context.TODO(), &request.Attributes{
+		Operation: configv1alpha1.InterpreterOperationInterpretPodSelector,
+		Object:    object,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return selector, nil
+	}
+
+	selector, hookEnabled, err = i.thirdpartyInterpreter.GetPodSelector(object)
+	if err != nil {
+		return nil, err
+	}
+	if hookEnabled {
+		return selector, nil
+	}
+
+	return i.defaultInterpreter.GetPodSelector(object)
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.

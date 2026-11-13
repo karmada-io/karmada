@@ -32,6 +32,7 @@ type LuaScriptAccessor interface {
 	GetRetentionLuaScript() string
 	GetReplicaResourceLuaScript() string
 	GetComponentResourceLuaScript() string
+	GetPodSelectorLuaScript() string
 	GetReplicaRevisionLuaScript() string
 	GetStatusReflectionLuaScript() string
 	GetStatusAggregationLuaScript() string
@@ -48,6 +49,7 @@ type resourceCustomAccessor struct {
 	retention                 *configv1alpha1.LocalValueRetention
 	replicaResource           *configv1alpha1.ReplicaResourceRequirement
 	componentResource         *configv1alpha1.ComponentResourceRequirement
+	podSelector               *configv1alpha1.PodSelectorInterpretation
 	replicaRevision           *configv1alpha1.ReplicaRevision
 	statusReflection          *configv1alpha1.StatusReflection
 	statusAggregation         *configv1alpha1.StatusAggregation
@@ -70,6 +72,9 @@ func (a *resourceCustomAccessor) Merge(rules configv1alpha1.CustomizationRules) 
 	}
 	if rules.ComponentResource != nil {
 		a.setComponentResource(rules.ComponentResource)
+	}
+	if rules.PodSelector != nil {
+		a.setPodSelector(rules.PodSelector)
 	}
 	if rules.ReplicaRevision != nil {
 		a.setReplicaRevision(rules.ReplicaRevision)
@@ -107,6 +112,13 @@ func (a *resourceCustomAccessor) GetComponentResourceLuaScript() string {
 		return ""
 	}
 	return a.componentResource.LuaScript
+}
+
+func (a *resourceCustomAccessor) GetPodSelectorLuaScript() string {
+	if a.podSelector == nil {
+		return ""
+	}
+	return a.podSelector.LuaScript
 }
 
 func (a *resourceCustomAccessor) GetReplicaRevisionLuaScript() string {
@@ -181,6 +193,17 @@ func (a *resourceCustomAccessor) setComponentResource(componentResource *configv
 
 	if componentResource.LuaScript != "" && a.componentResource.LuaScript == "" {
 		a.componentResource.LuaScript = componentResource.LuaScript
+	}
+}
+
+func (a *resourceCustomAccessor) setPodSelector(podSelector *configv1alpha1.PodSelectorInterpretation) {
+	if a.podSelector == nil {
+		a.podSelector = podSelector
+		return
+	}
+
+	if podSelector.LuaScript != "" && a.podSelector.LuaScript == "" {
+		a.podSelector.LuaScript = podSelector.LuaScript
 	}
 }
 

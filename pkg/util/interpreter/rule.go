@@ -32,6 +32,7 @@ var AllResourceInterpreterCustomizationRules = []Rule{
 	&retentionRule{},
 	&replicaResourceRule{},
 	&componentResourceRule{},
+	&podSelectorRule{},
 	&replicaRevisionRule{},
 	&statusReflectionRule{},
 	&statusAggregationRule{},
@@ -205,6 +206,55 @@ func (r *componentResourceRule) Run(interpreter *declarative.ConfigurableInterpr
 		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
 	}
 	return newRuleResult().add("components", components)
+}
+
+type podSelectorRule struct {
+}
+
+func (r *podSelectorRule) Name() string {
+	return string(configv1alpha1.InterpreterOperationInterpretPodSelector)
+}
+
+func (r *podSelectorRule) Document() string {
+	return `This rule is used to discover the label selector that identifies the Pods derived from the resource.
+The script should implement a function as follows:
+function GetPodSelector(desiredObj)
+  return desiredObj.spec.selector
+end`
+}
+
+func (r *podSelectorRule) GetScript(c *configv1alpha1.ResourceInterpreterCustomization) string {
+	if c.Spec.Customizations.PodSelector != nil {
+		return c.Spec.Customizations.PodSelector.LuaScript
+	}
+	return ""
+}
+
+func (r *podSelectorRule) SetScript(c *configv1alpha1.ResourceInterpreterCustomization, script string) {
+	if script == "" {
+		c.Spec.Customizations.PodSelector = nil
+		return
+	}
+
+	if c.Spec.Customizations.PodSelector == nil {
+		c.Spec.Customizations.PodSelector = &configv1alpha1.PodSelectorInterpretation{}
+	}
+	c.Spec.Customizations.PodSelector.LuaScript = script
+}
+
+func (r *podSelectorRule) Run(interpreter *declarative.ConfigurableInterpreter, args RuleArgs) *RuleResult {
+	obj, err := args.getObjectOrError()
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	selector, enabled, err := interpreter.GetPodSelector(obj)
+	if err != nil {
+		return newRuleResultWithError(err)
+	}
+	if !enabled {
+		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
+	}
+	return newRuleResult().add("podSelector", selector)
 }
 
 type replicaRevisionRule struct {

@@ -17,6 +17,11 @@ limitations under the License.
 package v1alpha2
 
 const (
+	// DefaultComponentName is the name of the component synthesized for workloads with a
+	// single pod template (e.g. Deployment), whose replicas and requirements are interpreted
+	// by the 'InterpretReplica' operation rather than 'InterpretComponent'.
+	DefaultComponentName = "default"
+
 	// ResourceBindingPermanentIDLabel is the identifier of a ResourceBinding object.
 	// Karmada generates a unique identifier, such as metadata.UUID, for each ResourceBinding object.
 	// This identifier will be used as a label selector to locate corresponding resources, such as Work.

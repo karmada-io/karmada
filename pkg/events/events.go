@@ -132,6 +132,8 @@ const (
 	EventReasonGetReplicasSucceed = "GetReplicasSucceed"
 	// EventReasonGetReplicasFailed indicates get replicas of resource template failed.
 	EventReasonGetReplicasFailed = "GetReplicasFailed"
+	// EventReasonGetPodSelectorFailed indicates get pod selector of resource template failed.
+	EventReasonGetPodSelectorFailed = "GetPodSelectorFailed"
 	// EventReasonPreemptPolicySucceed indicates policy preemption of resource template succeed.
 	EventReasonPreemptPolicySucceed = "PreemptPolicySucceed"
 	// EventReasonPreemptPolicyFailed indicates policy preemption of resource template failed.

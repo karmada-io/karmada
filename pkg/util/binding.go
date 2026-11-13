@@ -43,7 +43,7 @@ func IsBindingReplicasChanged(bindingSpec *workv1alpha2.ResourceBindingSpec, str
 	// For component-based workloads, trigger rescheduling when clusters are empty (e.g., after eviction),
 	// or when the per-component replicas recorded in any target cluster differ from the desired ones
 	// (e.g., scale up/down, component added/removed).
-	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && len(bindingSpec.Components) > 0 {
+	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && bindingSpec.IsMultiTemplateWorkload() {
 		if len(bindingSpec.Clusters) == 0 {
 			return true
 		}

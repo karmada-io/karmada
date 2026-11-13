@@ -24,6 +24,7 @@ import (
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -179,6 +180,29 @@ func (vm *VM) GetComponents(obj *unstructured.Unstructured, script string) ([]wo
 	}
 
 	return components, nil
+}
+
+// GetPodSelector returns the label selector that identifies the Pods derived from the object by lua.
+func (vm *VM) GetPodSelector(obj *unstructured.Unstructured, script string) (*metav1.LabelSelector, error) {
+	results, err := vm.RunScript(script, "GetPodSelector", 1, obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run 'GetPodSelector' script: %w", err)
+	}
+
+	selectorResult := results[0]
+	switch selectorResult.Type() {
+	case lua.LTTable:
+		selector := &metav1.LabelSelector{}
+		if err := ConvertLuaResultInto(selectorResult.(*lua.LTable), selector); err != nil {
+			return nil, fmt.Errorf("failed to convert lua table for pod selector: %w", err)
+		}
+		return selector, nil
+	case lua.LTNil:
+		// This is a valid case where the Pods can not be identified.
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("expected result type 'table' or 'nil' from GetPodSelector, but got '%s'", selectorResult.Type())
+	}
 }
 
 // ReviseReplica revises the replica of the given object by lua.

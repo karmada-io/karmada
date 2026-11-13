@@ -19,6 +19,7 @@ package declarative
 import (
 	"sort"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -72,6 +73,8 @@ func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 		script = accessor.GetReplicaResourceLuaScript()
 	case configv1alpha1.InterpreterOperationInterpretComponent:
 		script = accessor.GetComponentResourceLuaScript()
+	case configv1alpha1.InterpreterOperationInterpretPodSelector:
+		script = accessor.GetPodSelectorLuaScript()
 	case configv1alpha1.InterpreterOperationInterpretStatus:
 		script = accessor.GetStatusReflectionLuaScript()
 	case configv1alpha1.InterpreterOperationRetain:
@@ -117,6 +120,25 @@ func (c *ConfigurableInterpreter) GetComponents(object *unstructured.Unstructure
 	klog.V(4).Infof("Running operation %s for object: %v %s/%s with configurable interpreter.",
 		configv1alpha1.InterpreterOperationInterpretComponent, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 	components, err = c.luaVM.GetComponents(object, script)
+	return
+}
+
+// GetPodSelector returns the label selector that identifies the Pods derived from the object.
+func (c *ConfigurableInterpreter) GetPodSelector(object *unstructured.Unstructured) (selector *metav1.LabelSelector, enabled bool, err error) {
+	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
+	if !enabled {
+		return
+	}
+
+	script := accessor.GetPodSelectorLuaScript()
+	if len(script) == 0 {
+		enabled = false
+		return
+	}
+
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with configurable interpreter.",
+		configv1alpha1.InterpreterOperationInterpretPodSelector, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	selector, err = c.luaVM.GetPodSelector(object, script)
 	return
 }
 

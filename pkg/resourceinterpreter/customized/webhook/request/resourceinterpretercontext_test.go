@@ -22,6 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -387,6 +388,29 @@ func TestVerifyResourceInterpreterContextByOperation(t *testing.T) {
 			},
 			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
 				assert.Nil(t, attr.Components)
+			},
+		},
+		{
+			name:      "interpret pod selector with valid response",
+			operation: configv1alpha1.InterpreterOperationInterpretPodSelector,
+			response: &configv1alpha1.ResourceInterpreterResponse{
+				UID:         types.UID(testUID),
+				Successful:  true,
+				PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+			},
+			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
+				assert.Equal(t, &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}}, attr.PodSelector)
+			},
+		},
+		{
+			name:      "interpret pod selector with nil selector",
+			operation: configv1alpha1.InterpreterOperationInterpretPodSelector,
+			response: &configv1alpha1.ResourceInterpreterResponse{
+				UID:        types.UID(testUID),
+				Successful: true,
+			},
+			checkFunc: func(t *testing.T, attr *ResponseAttributes) {
+				assert.Nil(t, attr.PodSelector)
 			},
 		},
 		{

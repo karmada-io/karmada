@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,6 +35,7 @@ import (
 // for interpreting common resource.
 type DefaultInterpreter struct {
 	replicaHandlers         map[schema.GroupVersionKind]replicaInterpreter
+	podSelectorHandlers     map[schema.GroupVersionKind]podSelectorInterpreter
 	reviseReplicaHandlers   map[schema.GroupVersionKind]reviseReplicaInterpreter
 	retentionHandlers       map[schema.GroupVersionKind]retentionInterpreter
 	aggregateStatusHandlers map[schema.GroupVersionKind]aggregateStatusInterpreter
@@ -46,6 +48,7 @@ type DefaultInterpreter struct {
 func NewDefaultInterpreter() *DefaultInterpreter {
 	return &DefaultInterpreter{
 		replicaHandlers:         getAllDefaultReplicaInterpreter(),
+		podSelectorHandlers:     getAllDefaultPodSelectorInterpreter(),
 		reviseReplicaHandlers:   getAllDefaultReviseReplicaInterpreter(),
 		retentionHandlers:       getAllDefaultRetentionInterpreter(),
 		aggregateStatusHandlers: getAllDefaultAggregateStatusInterpreter(),
@@ -60,6 +63,10 @@ func (e *DefaultInterpreter) HookEnabled(kind schema.GroupVersionKind, operation
 	switch operationType {
 	case configv1alpha1.InterpreterOperationInterpretReplica:
 		if _, exist := e.replicaHandlers[kind]; exist {
+			return true
+		}
+	case configv1alpha1.InterpreterOperationInterpretPodSelector:
+		if _, exist := e.podSelectorHandlers[kind]; exist {
 			return true
 		}
 	case configv1alpha1.InterpreterOperationReviseReplica:
@@ -114,6 +121,16 @@ func (e *DefaultInterpreter) ReviseReplica(object *unstructured.Unstructured, re
 // GetComponents returns the resource requirements for multiple components from the given object.
 func (e *DefaultInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
 	return nil, errors.New("no plan to implement this method yet")
+}
+
+// GetPodSelector returns the label selector that identifies the Pods derived from the given object.
+func (e *DefaultInterpreter) GetPodSelector(object *unstructured.Unstructured) (*metav1.LabelSelector, error) {
+	handler, exist := e.podSelectorHandlers[object.GroupVersionKind()]
+	if !exist {
+		return nil, fmt.Errorf("default %s interpreter for %q not found", configv1alpha1.InterpreterOperationInterpretPodSelector, object.GroupVersionKind())
+	}
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with build-in interpreter.", configv1alpha1.InterpreterOperationInterpretPodSelector, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+	return handler(object)
 }
 
 // Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.

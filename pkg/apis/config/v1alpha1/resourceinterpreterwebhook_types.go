@@ -132,6 +132,16 @@ const (
 	// This operation is only used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
 	InterpreterOperationInterpretComponent InterpreterOperation = "InterpretComponent"
 
+	// InterpreterOperationInterpretPodSelector indicates that karmada wants to figure out the label selector
+	// that identifies the Pods derived from a specific object.
+	// Only necessary for those resource types that have a single pod template, like Deployment or similar
+	// custom resources whose replicas are interpreted by 'InterpretReplica'. For resources interpreted by
+	// 'InterpretComponent', the selector should be declared on each component instead.
+	// The selector is stored in the 'components' field of ResourceBinding or ClusterResourceBinding,
+	// which is only populated when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	// Therefore, this operation is only used when that feature gate is enabled.
+	InterpreterOperationInterpretPodSelector InterpreterOperation = "InterpretPodSelector"
+
 	// InterpreterOperationReviseReplica indicates that karmada request webhook to modify the replica.
 	InterpreterOperationReviseReplica InterpreterOperation = "ReviseReplica"
 

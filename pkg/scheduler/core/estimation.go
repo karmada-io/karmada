@@ -45,7 +45,7 @@ func isMultiTemplateSchedulingApplicable(spec *workv1alpha2.ResourceBindingSpec)
 		return false
 	}
 
-	if len(spec.Components) == 0 {
+	if !spec.IsMultiTemplateWorkload() {
 		return false
 	}
 

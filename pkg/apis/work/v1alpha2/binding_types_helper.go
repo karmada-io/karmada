@@ -222,3 +222,21 @@ func (s *ResourceBindingSpec) IsWorkload() bool {
 	}
 	return false
 }
+
+// IsMultiTemplateWorkload returns true if the workload is interpreted into Components by the
+// 'InterpretComponent' operation (e.g., FlinkDeployment). Such workloads are scheduled as a whole,
+// that is, every target cluster is expected to hold the full replicas of every component.
+//
+// Single pod template workloads (e.g., Deployment) are mirrored into exactly one Component while
+// the legacy Replicas and ReplicaRequirements fields are being deprecated, but they still carry
+// the legacy fields and are scheduled by assigning replicas across clusters, so they are not
+// considered multi-template workloads.
+func (s *ResourceBindingSpec) IsMultiTemplateWorkload() bool {
+	if len(s.Components) == 0 {
+		return false
+	}
+	if len(s.Components) > 1 {
+		return true
+	}
+	return s.Replicas == 0 && s.ReplicaRequirements == nil
+}
