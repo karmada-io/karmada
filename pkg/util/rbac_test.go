@@ -551,3 +551,237 @@ func TestPolicyRuleResourceNameMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestCreateRole(t *testing.T) {
+	type args struct {
+		client  kubernetes.Interface
+		roleObj *rbacv1.Role
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *rbacv1.Role
+		wantErr bool
+	}{
+		{
+			name: "already exist",
+			args: args{
+				client:  fake.NewClientset(makeRole("test-ns", "test")),
+				roleObj: makeRole("test-ns", "test"),
+			},
+			want:    makeRole("test-ns", "test"),
+			wantErr: false,
+		},
+		{
+			name: "create error",
+			args: args{
+				client:  alwaysErrorKubeClient,
+				roleObj: makeRole("test-ns", "test"),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "create success",
+			args: args{
+				client:  fake.NewClientset(),
+				roleObj: makeRole("test-ns", "test"),
+			},
+			want:    makeRole("test-ns", "test"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateRole(tt.args.client, tt.args.roleObj)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateRole() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != nil {
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateRole() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCreateRoleBinding(t *testing.T) {
+	type args struct {
+		client         kubernetes.Interface
+		roleBindingObj *rbacv1.RoleBinding
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *rbacv1.RoleBinding
+		wantErr bool
+	}{
+		{
+			name: "already exist",
+			args: args{
+				client:         fake.NewClientset(makeRoleBinding("test-ns", "test")),
+				roleBindingObj: makeRoleBinding("test-ns", "test"),
+			},
+			want:    makeRoleBinding("test-ns", "test"),
+			wantErr: false,
+		},
+		{
+			name: "create error",
+			args: args{
+				client:         alwaysErrorKubeClient,
+				roleBindingObj: makeRoleBinding("test-ns", "test"),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "create success",
+			args: args{
+				client:         fake.NewClientset(),
+				roleBindingObj: makeRoleBinding("test-ns", "test"),
+			},
+			want:    makeRoleBinding("test-ns", "test"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := CreateRoleBinding(tt.args.client, tt.args.roleBindingObj)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateRoleBinding() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != nil {
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+				got.UID = ""
+				got.Generation = 0
+				got.ManagedFields = nil
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("CreateRoleBinding() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDeleteRole(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "not found",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "existed and deleted",
+			args: args{
+				client:    fake.NewClientset(makeRole("test-ns", "test")),
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "delete error",
+			args: args{
+				client:    alwaysErrorKubeClient,
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := DeleteRole(tt.args.client, tt.args.namespace, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteRole() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDeleteRoleBinding(t *testing.T) {
+	type args struct {
+		client    kubernetes.Interface
+		namespace string
+		name      string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "not found",
+			args: args{
+				client:    fake.NewClientset(),
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "existed and deleted",
+			args: args{
+				client:    fake.NewClientset(makeRoleBinding("test-ns", "test")),
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: false,
+		},
+		{
+			name: "delete error",
+			args: args{
+				client:    alwaysErrorKubeClient,
+				namespace: "test-ns",
+				name:      "test",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := DeleteRoleBinding(tt.args.client, tt.args.namespace, tt.args.name); (err != nil) != tt.wantErr {
+				t.Errorf("DeleteRoleBinding() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func makeRole(namespace, name string) *rbacv1.Role {
+	return &rbacv1.Role{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+	}
+}
+
+func makeRoleBinding(namespace, name string) *rbacv1.RoleBinding {
+	return &rbacv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      name,
+		},
+	}
+}
