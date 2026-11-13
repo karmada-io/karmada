@@ -57,6 +57,11 @@ func (in LocalValueRetention) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in PodSelectorInterpretation) OpenAPIModelName() string {
+	return "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.PodSelectorInterpretation"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in ReplicaResourceRequirement) OpenAPIModelName() string {
 	return "com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaResourceRequirement"
 }

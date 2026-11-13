@@ -1007,3 +1007,77 @@ func Test_decodeValue(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPodSelector(t *testing.T) {
+	vm := New(true, 1)
+
+	deploy := &appsv1.Deployment{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
+		ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "nginx"},
+		Spec: appsv1.DeploymentSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{"app": "nginx"},
+				MatchExpressions: []metav1.LabelSelectorRequirement{
+					{Key: "tier", Operator: metav1.LabelSelectorOpIn, Values: []string{"frontend"}},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name         string
+		luaScript    string
+		wantSelector *metav1.LabelSelector
+		wantErr      bool
+	}{
+		{
+			name: "return selector from object",
+			luaScript: `
+function GetPodSelector(desiredObj)
+  return desiredObj.spec.selector
+end`,
+			wantSelector: deploy.Spec.Selector,
+		},
+		{
+			name: "return constructed selector",
+			luaScript: `
+function GetPodSelector(desiredObj)
+  return { matchLabels = { app = desiredObj.metadata.name } }
+end`,
+			wantSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}},
+		},
+		{
+			name: "return nil when pods can not be identified",
+			luaScript: `
+function GetPodSelector(desiredObj)
+  return nil
+end`,
+			wantSelector: nil,
+		},
+		{
+			name: "return unexpected type",
+			luaScript: `
+function GetPodSelector(desiredObj)
+  return "app=nginx"
+end`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, err := helper.ToUnstructured(deploy)
+			if err != nil {
+				t.Fatalf("Failed to convert object to unstructured: %v", err)
+			}
+
+			selector, err := vm.GetPodSelector(obj, tt.luaScript)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetPodSelector() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && !reflect.DeepEqual(selector, tt.wantSelector) {
+				t.Errorf("GetPodSelector() = \n%#v, \nwant \n%#v", selector, tt.wantSelector)
+			}
+		})
+	}
+}

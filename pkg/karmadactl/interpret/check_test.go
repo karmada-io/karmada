@@ -67,6 +67,7 @@ RULERS:
     Retain:                  PASS
     InterpretReplica:        ERROR: <string> line:1(column:10) near 'format':   parse error   
     InterpretComponent:      UNSET
+    InterpretPodSelector:    UNSET
     ReviseReplica:           UNSET
     InterpretStatus:         UNSET
     AggregateStatus:         UNSET
@@ -89,6 +90,7 @@ RULERS:
     Retain:                  PASS
     InterpretReplica:        PASS
     InterpretComponent:      PASS
+    InterpretPodSelector:    UNSET
     ReviseReplica:           PASS
     InterpretStatus:         PASS
     AggregateStatus:         PASS

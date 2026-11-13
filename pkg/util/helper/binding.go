@@ -538,8 +538,8 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 
 	usage := corev1.ResourceList{}
 
-	// if Components is set, calculate the resource usage based on Components.
-	if len(rb.Spec.Components) > 0 {
+	// For multi-template workloads, calculate the resource usage based on Components.
+	if rb.Spec.IsMultiTemplateWorkload() {
 		clusterCount := int64(len(rb.Spec.Clusters))
 		if clusterCount == 0 {
 			return corev1.ResourceList{}
@@ -561,7 +561,7 @@ func CalculateResourceUsage(rb *workv1alpha2.ResourceBinding) corev1.ResourceLis
 		return usage
 	}
 
-	// if Components is not set, calculate the resource usage based on ReplicaRequirements.
+	// Otherwise, calculate the resource usage based on ReplicaRequirements.
 	if rb.Spec.ReplicaRequirements != nil && len(rb.Spec.ReplicaRequirements.ResourceRequest) > 0 {
 		totalReplicas := int32(0)
 		for _, cluster := range rb.Spec.Clusters {

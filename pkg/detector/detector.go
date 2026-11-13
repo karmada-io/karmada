@@ -1498,9 +1498,10 @@ func (d *ResourceDetector) CleanupClusterResourceBindingClaimMetadata(crbName st
 func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstructured, spec *workv1alpha2.ResourceBindingSpec) error {
 	gvk := object.GroupVersionKind()
 	name := object.GetName()
+	componentsEnabled := features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling)
 
 	// Prioritize component interpretation if the feature and GetComponents are enabled.
-	if features.FeatureGate.Enabled(features.MultiplePodTemplatesScheduling) && d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretComponent) {
+	if componentsEnabled && d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretComponent) {
 		components, err := d.ResourceInterpreter.GetComponents(object)
 		if err != nil {
 			klog.Errorf("Failed to get components for %s(%s): %v", gvk, name, err)
@@ -1509,33 +1510,76 @@ func (d *ResourceDetector) applyReplicaInterpretation(object *unstructured.Unstr
 		}
 		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetComponentsSucceed, "Get components of resource template successfully.")
 		spec.Components = components
+		// The legacy fields are owned by GetReplicas; clear them in case they were populated before.
+		spec.Replicas = 0
+		spec.ReplicaRequirements = nil
 		return nil
 	}
 
 	// GetReplicas is executed if the MultiplePodTemplatesScheduling feature gate is disabled, or if GetComponents is not implemented.
-	if d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
-		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s): %v", gvk, name, err)
-			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetReplicasFailed, err.Error())
-			return err
-		}
-		d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetReplicasSucceed, "Get replicas of resource template successfully.")
-
-		// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
-		// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.
-		// Therefore, we uniformly check and set the namespace here.
-		// Note: The replicaRequirements.Namespace field is somewhat redundant and could be deprecated in the future,
-		// as the namespace can be obtained directly from ResourceBinding.
-		if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) && replicaRequirements != nil && len(replicaRequirements.Namespace) == 0 {
-			replicaRequirements.Namespace = object.GetNamespace()
-		}
-
-		spec.Replicas = replicas
-		spec.ReplicaRequirements = replicaRequirements
+	if !d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretReplica) {
+		return nil
 	}
 
+	replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+	if err != nil {
+		klog.Errorf("Failed to customize replicas for %s(%s): %v", gvk, name, err)
+		d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetReplicasFailed, err.Error())
+		return err
+	}
+	d.EventRecorder.Event(object, corev1.EventTypeNormal, events.EventReasonGetReplicasSucceed, "Get replicas of resource template successfully.")
+
+	// Most interpreters (except webhook interpreter) cannot properly obtain the namespace because they extract
+	// information from PodTemplate, and advanced workloads' PodTemplates typically don't have a namespace set.
+	// Therefore, we uniformly check and set the namespace here.
+	// Note: The replicaRequirements.Namespace field is somewhat redundant and could be deprecated in the future,
+	// as the namespace can be obtained directly from ResourceBinding.
+	if features.FeatureGate.Enabled(features.ResourceQuotaEstimate) && replicaRequirements != nil && len(replicaRequirements.Namespace) == 0 {
+		replicaRequirements.Namespace = object.GetNamespace()
+	}
+
+	spec.Replicas = replicas
+	spec.ReplicaRequirements = replicaRequirements
+
+	// The legacy Replicas and ReplicaRequirements fields are going to be replaced by Components.
+	// During the transition, mirror the single pod template into a component so that consumers
+	// relying on Components(e.g. the pod selector) work for single template workloads as well.
+	if !componentsEnabled {
+		spec.Components = nil
+		return nil
+	}
+	component := workv1alpha2.Component{
+		Name:                workv1alpha2.DefaultComponentName,
+		Replicas:            replicas,
+		ReplicaRequirements: toComponentReplicaRequirements(replicaRequirements),
+	}
+	if d.ResourceInterpreter.HookEnabled(gvk, configv1alpha1.InterpreterOperationInterpretPodSelector) {
+		// The pod selector is not a prerequisite for scheduling, so a failure here is not fatal.
+		// A binding without pod selector just can not locate its Pods in member clusters.
+		selector, err := d.ResourceInterpreter.GetPodSelector(object)
+		if err != nil {
+			klog.Errorf("Failed to get pod selector for %s(%s): %v", gvk, name, err)
+			d.EventRecorder.Event(object, corev1.EventTypeWarning, events.EventReasonGetPodSelectorFailed, err.Error())
+		} else {
+			component.PodSelector = selector
+		}
+	}
+	spec.Components = []workv1alpha2.Component{component}
+
 	return nil
+}
+
+// toComponentReplicaRequirements converts the legacy ReplicaRequirements into ComponentReplicaRequirements.
+// The Namespace is dropped intentionally as it can be obtained from the binding directly.
+func toComponentReplicaRequirements(requirements *workv1alpha2.ReplicaRequirements) *workv1alpha2.ComponentReplicaRequirements {
+	if requirements == nil {
+		return nil
+	}
+	return &workv1alpha2.ComponentReplicaRequirements{
+		NodeClaim:         requirements.NodeClaim,
+		ResourceRequest:   requirements.ResourceRequest,
+		PriorityClassName: requirements.PriorityClassName,
+	}
 }
 
 // enqueueResourceTemplateForPolicyChange enqueues a resource template key for reconciliation in response to a

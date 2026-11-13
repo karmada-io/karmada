@@ -522,6 +522,9 @@ var schemaYAML = typed.YAMLObject(`types:
     - name: healthInterpretation
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.HealthInterpretation
+    - name: podSelector
+      type:
+        namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.PodSelectorInterpretation
     - name: replicaResource
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.ReplicaResourceRequirement
@@ -563,6 +566,13 @@ var schemaYAML = typed.YAMLObject(`types:
         scalar: string
       default: ""
 - name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.LocalValueRetention
+  map:
+    fields:
+    - name: luaScript
+      type:
+        scalar: string
+      default: ""
+- name: com.github.karmada-io.karmada.pkg.apis.config.v1alpha1.PodSelectorInterpretation
   map:
     fields:
     - name: luaScript
@@ -2048,6 +2058,9 @@ var schemaYAML = typed.YAMLObject(`types:
       type:
         scalar: string
       default: ""
+    - name: podSelector
+      type:
+        namedType: io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector
     - name: replicaRequirements
       type:
         namedType: com.github.karmada-io.karmada.pkg.apis.work.v1alpha2.ComponentReplicaRequirements

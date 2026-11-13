@@ -118,6 +118,8 @@ func ForKind(kind schema.GroupVersionKind) interface{} {
 		return &applyconfigurationsconfigv1alpha1.HealthInterpretationApplyConfiguration{}
 	case configv1alpha1.SchemeGroupVersion.WithKind("LocalValueRetention"):
 		return &applyconfigurationsconfigv1alpha1.LocalValueRetentionApplyConfiguration{}
+	case configv1alpha1.SchemeGroupVersion.WithKind("PodSelectorInterpretation"):
+		return &applyconfigurationsconfigv1alpha1.PodSelectorInterpretationApplyConfiguration{}
 	case configv1alpha1.SchemeGroupVersion.WithKind("ReplicaResourceRequirement"):
 		return &applyconfigurationsconfigv1alpha1.ReplicaResourceRequirementApplyConfiguration{}
 	case configv1alpha1.SchemeGroupVersion.WithKind("ReplicaRevision"):

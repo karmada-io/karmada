@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -1491,6 +1493,10 @@ func (m *mockResourceInterpreter) GetComponents(_ *unstructured.Unstructured) ([
 	return nil, nil
 }
 
+func (m *mockResourceInterpreter) GetPodSelector(_ *unstructured.Unstructured) (*metav1.LabelSelector, error) {
+	return nil, nil
+}
+
 func (m *mockResourceInterpreter) Start(_ context.Context) error {
 	return nil
 }
@@ -1525,4 +1531,162 @@ func (m *mockResourceInterpreter) ReflectStatus(_ *unstructured.Unstructured) (*
 
 func (m *mockResourceInterpreter) InterpretHealth(_ *unstructured.Unstructured) (bool, error) {
 	return true, nil
+}
+
+// podSelectorMockInterpreter is a configurable mock covering the replica and pod selector hooks.
+type podSelectorMockInterpreter struct {
+	mockResourceInterpreter
+	enabledOperations []configv1alpha1.InterpreterOperation
+	replicas          int32
+	requirements      *workv1alpha2.ReplicaRequirements
+	components        []workv1alpha2.Component
+	selector          *metav1.LabelSelector
+	selectorErr       error
+}
+
+func (m *podSelectorMockInterpreter) HookEnabled(_ schema.GroupVersionKind, op configv1alpha1.InterpreterOperation) bool {
+	return slices.Contains(m.enabledOperations, op)
+}
+
+func (m *podSelectorMockInterpreter) GetReplicas(_ *unstructured.Unstructured) (int32, *workv1alpha2.ReplicaRequirements, error) {
+	return m.replicas, m.requirements, nil
+}
+
+func (m *podSelectorMockInterpreter) GetComponents(_ *unstructured.Unstructured) ([]workv1alpha2.Component, error) {
+	return m.components, nil
+}
+
+func (m *podSelectorMockInterpreter) GetPodSelector(_ *unstructured.Unstructured) (*metav1.LabelSelector, error) {
+	return m.selector, m.selectorErr
+}
+
+func TestApplyReplicaInterpretation(t *testing.T) {
+	originalFeatureGate := features.FeatureGate.DeepCopy()
+	t.Cleanup(func() {
+		features.FeatureGate = originalFeatureGate
+	})
+
+	selector := &metav1.LabelSelector{MatchLabels: map[string]string{"app": "nginx"}}
+	requirements := &workv1alpha2.ReplicaRequirements{
+		Namespace:       "default",
+		ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+	}
+	componentRequirements := &workv1alpha2.ComponentReplicaRequirements{
+		ResourceRequest: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+	}
+	multiComponents := []workv1alpha2.Component{
+		{Name: "jobmanager", Replicas: 1, PodSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"component": "jobmanager"}}},
+		{Name: "taskmanager", Replicas: 2},
+	}
+
+	tests := []struct {
+		name           string
+		gateEnabled    bool
+		interpreter    *podSelectorMockInterpreter
+		initialSpec    workv1alpha2.ResourceBindingSpec
+		wantReplicas   int32
+		wantRequires   *workv1alpha2.ReplicaRequirements
+		wantComponents []workv1alpha2.Component
+	}{
+		{
+			name:        "gate disabled: only legacy fields are populated",
+			gateEnabled: false,
+			interpreter: &podSelectorMockInterpreter{
+				enabledOperations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationInterpretReplica, configv1alpha1.InterpreterOperationInterpretPodSelector},
+				replicas:          3,
+				requirements:      requirements,
+				selector:          selector,
+			},
+			wantReplicas:   3,
+			wantRequires:   requirements,
+			wantComponents: nil,
+		},
+		{
+			name:        "gate enabled: single template is mirrored into one component with pod selector",
+			gateEnabled: true,
+			interpreter: &podSelectorMockInterpreter{
+				enabledOperations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationInterpretReplica, configv1alpha1.InterpreterOperationInterpretPodSelector},
+				replicas:          3,
+				requirements:      requirements,
+				selector:          selector,
+			},
+			wantReplicas: 3,
+			wantRequires: requirements,
+			wantComponents: []workv1alpha2.Component{
+				{Name: workv1alpha2.DefaultComponentName, Replicas: 3, ReplicaRequirements: componentRequirements, PodSelector: selector},
+			},
+		},
+		{
+			name:        "gate enabled: pod selector hook not enabled leaves selector empty",
+			gateEnabled: true,
+			interpreter: &podSelectorMockInterpreter{
+				enabledOperations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationInterpretReplica},
+				replicas:          3,
+				requirements:      requirements,
+				selector:          selector,
+			},
+			wantReplicas: 3,
+			wantRequires: requirements,
+			wantComponents: []workv1alpha2.Component{
+				{Name: workv1alpha2.DefaultComponentName, Replicas: 3, ReplicaRequirements: componentRequirements},
+			},
+		},
+		{
+			name:        "gate enabled: pod selector failure is not fatal",
+			gateEnabled: true,
+			interpreter: &podSelectorMockInterpreter{
+				enabledOperations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationInterpretReplica, configv1alpha1.InterpreterOperationInterpretPodSelector},
+				replicas:          3,
+				requirements:      requirements,
+				selectorErr:       fmt.Errorf("boom"),
+			},
+			wantReplicas: 3,
+			wantRequires: requirements,
+			wantComponents: []workv1alpha2.Component{
+				{Name: workv1alpha2.DefaultComponentName, Replicas: 3, ReplicaRequirements: componentRequirements},
+			},
+		},
+		{
+			name:        "gate enabled: component interpretation wins and clears legacy fields",
+			gateEnabled: true,
+			interpreter: &podSelectorMockInterpreter{
+				enabledOperations: []configv1alpha1.InterpreterOperation{configv1alpha1.InterpreterOperationInterpretReplica, configv1alpha1.InterpreterOperationInterpretComponent, configv1alpha1.InterpreterOperationInterpretPodSelector},
+				replicas:          3,
+				requirements:      requirements,
+				components:        multiComponents,
+				selector:          selector,
+			},
+			initialSpec:    workv1alpha2.ResourceBindingSpec{Replicas: 5, ReplicaRequirements: requirements},
+			wantReplicas:   0,
+			wantRequires:   nil,
+			wantComponents: multiComponents,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := features.FeatureGate.Set(fmt.Sprintf("%s=%t", features.MultiplePodTemplatesScheduling, tt.gateEnabled)); err != nil {
+				t.Fatalf("failed to set feature gate: %v", err)
+			}
+
+			detector := &ResourceDetector{
+				EventRecorder:       record.NewFakeRecorder(10),
+				ResourceInterpreter: tt.interpreter,
+			}
+			object := &unstructured.Unstructured{
+				Object: map[string]any{
+					"apiVersion": "apps/v1",
+					"kind":       "Deployment",
+					"metadata":   map[string]any{"name": "nginx", "namespace": "default"},
+				},
+			}
+
+			spec := tt.initialSpec
+			err := detector.applyReplicaInterpretation(object, &spec)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantReplicas, spec.Replicas)
+			assert.Equal(t, tt.wantRequires, spec.ReplicaRequirements)
+			assert.Equal(t, tt.wantComponents, spec.Components)
+		})
+	}
 }
