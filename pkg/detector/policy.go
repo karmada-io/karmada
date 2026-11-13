@@ -59,6 +59,9 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 	}
 
 	// 3. attempt to match policy in its namespace.
+	// put it into waiting list in case the resource and propagation policy come at the same time
+	// see https://github.com/karmada-io/karmada/issues/1195
+	added := d.AddWaiting(objectKey, object)
 	start := time.Now()
 	propagationPolicy, err := d.LookForMatchedPolicy(object, objectKey)
 	if err != nil {
@@ -93,15 +96,14 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 		return d.ApplyClusterPolicy(object, objectKey, resourceChangeByKarmada, clusterPolicy)
 	}
 
-	if d.isWaiting(objectKey) {
-		// reaching here means there is no appropriate policy for the object
+	if !added {
+		// reaching here means this object has already tried more than once, and there is no appropriate policy for the object
 		klog.V(4).Infof("No matched policy for object: %s", objectKey.String())
 		return nil
 	}
 
-	// put it into waiting list and retry once in case the resource and propagation policy come at the same time
+	// reaching here means this object has tried first time, retry once in case the resource and propagation policy come at the same time
 	// see https://github.com/karmada-io/karmada/issues/1195
-	d.AddWaiting(objectKey)
 	return fmt.Errorf("no matched propagation policy")
 }
 

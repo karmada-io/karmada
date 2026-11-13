@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1525,4 +1526,119 @@ func (m *mockResourceInterpreter) ReflectStatus(_ *unstructured.Unstructured) (*
 
 func (m *mockResourceInterpreter) InterpretHealth(_ *unstructured.Unstructured) (bool, error) {
 	return true, nil
+}
+
+func TestWaitingObjectLabelsAreRefreshedOnReconcile(t *testing.T) {
+	detector := &ResourceDetector{
+		Client: fake.NewClientBuilder().WithScheme(setupTestScheme()).Build(),
+	}
+	key := keys.ClusterWideKey{
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Namespace: "default",
+		Name:      "demo",
+	}
+	object := &unstructured.Unstructured{}
+	object.SetGroupVersionKind(key.GroupVersionKind())
+	object.SetNamespace(key.Namespace)
+	object.SetName(key.Name)
+	object.SetLabels(map[string]string{"environment": "old"})
+
+	if err := detector.propagateResource(object, key, false); err == nil {
+		t.Fatal("first reconcile without a policy should request one retry")
+	}
+
+	object.SetLabels(map[string]string{"environment": "new"})
+	if err := detector.propagateResource(object, key, false); err != nil {
+		t.Fatalf("repeat reconcile without a policy should not request another retry: %v", err)
+	}
+
+	oldSelector := policyv1alpha1.ResourceSelector{
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Namespace:  "default",
+		LabelSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{"environment": "old"},
+		},
+	}
+	if matched := detector.GetMatching([]policyv1alpha1.ResourceSelector{oldSelector}); len(matched) != 0 {
+		t.Fatalf("stale labels matched waiting object: %v", matched)
+	}
+
+	newSelector := oldSelector
+	newSelector.LabelSelector = &metav1.LabelSelector{
+		MatchLabels: map[string]string{"environment": "new"},
+	}
+	matched := detector.GetMatching([]policyv1alpha1.ResourceSelector{newSelector})
+	if len(matched) != 1 || matched[0] != key {
+		t.Fatalf("GetMatching() = %v, want [%v]", matched, key)
+	}
+}
+
+func TestWaitingObjectCount(t *testing.T) {
+	detector := &ResourceDetector{}
+	key := keys.ClusterWideKey{
+		Group:     "apps",
+		Version:   "v1",
+		Kind:      "Deployment",
+		Namespace: "default",
+		Name:      "demo",
+	}
+	object := &unstructured.Unstructured{}
+	object.SetGroupVersionKind(key.GroupVersionKind())
+	object.SetNamespace(key.Namespace)
+	object.SetName(key.Name)
+	selectors := []policyv1alpha1.ResourceSelector{{
+		APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default",
+	}}
+
+	const workers = 32
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			detector.AddWaiting(key, object)
+			_ = detector.GetMatching(selectors)
+		}()
+	}
+	wg.Wait()
+
+	if got := detector.waitingObjects.Len(); got != 1 {
+		t.Fatalf("waiting object count after concurrent upserts = %d, want 1", got)
+	}
+
+	secondKey := key
+	secondKey.Name = "demo-2"
+	secondObject := object.DeepCopy()
+	secondObject.SetName(secondKey.Name)
+	detector.AddWaiting(secondKey, secondObject)
+	detector.AddWaiting(secondKey, secondObject)
+	if got := detector.waitingObjects.Len(); got != 2 {
+		t.Fatalf("waiting object count after adding a second object = %d, want 2", got)
+	}
+
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			_ = detector.GetMatching(selectors)
+			detector.RemoveWaiting(key)
+		}()
+	}
+	wg.Wait()
+
+	if got := detector.waitingObjects.Len(); got != 1 {
+		t.Fatalf("waiting object count after concurrent removals = %d, want 1", got)
+	}
+
+	detector.RemoveWaiting(secondKey)
+	detector.RemoveWaiting(secondKey)
+	if got := detector.waitingObjects.Len(); got != 0 {
+		t.Fatalf("waiting object count after repeated removal = %d, want 0", got)
+	}
+	if got := detector.GetMatching(selectors); len(got) != 0 {
+		t.Fatalf("GetMatching() after removing all objects = %v, want empty", got)
+	}
 }
