@@ -188,6 +188,7 @@ func run(ctx context.Context, opts *options.Options, registryOptions ...Option) 
 		scheduler.WithEnableSchedulerPlugin(opts.Plugins),
 		scheduler.WithSchedulerName(opts.SchedulerName),
 		scheduler.WithRateLimiterOptions(opts.RateLimiterOpts),
+		scheduler.WithBindingUpdateDebounce(opts.BindingUpdateDebounce),
 	)
 	if err != nil {
 		return fmt.Errorf("couldn't create scheduler: %w", err)
