@@ -699,6 +699,12 @@ type CommonSettings struct {
 	// Affinity to apply to the pods for this component.
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
+
+	// NodeSelector is a map of key-value pairs that must match a node's labels for the
+	// pod to be scheduled on that node. This is the simplest form of node selection.
+	// More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+	// +optional
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // Image allows to customize the image used for components.

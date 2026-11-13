@@ -18,6 +18,7 @@ package etcd
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -433,4 +434,27 @@ func verifyEtcdPeerOrClientService(service *corev1.Service, expectedPorts []core
 // contains check if a slice contains a specific string.
 func contains(slice []string, item string) bool {
 	return slices.Contains(slice, item)
+}
+
+func TestInstallKarmadaEtcdAppliesNodeSelector(t *testing.T) {
+	cfg := &operatorv1alpha1.LocalEtcd{
+		CommonSettings: operatorv1alpha1.CommonSettings{
+			Image:        operatorv1alpha1.Image{ImageRepository: "registry.k8s.io/etcd", ImageTag: "latest"},
+			Replicas:     new(int32(1)),
+			NodeSelector: map[string]string{"nodepool": "large-vm"},
+		},
+	}
+
+	fakeClient := fakeclientset.NewClientset()
+	if err := installKarmadaEtcd(fakeClient, "karmada-demo", "test", cfg); err != nil {
+		t.Fatalf("failed to install karmada etcd, got: %v", err)
+	}
+
+	statefulset, err := verifyStatefulSetCreation(fakeClient)
+	if err != nil {
+		t.Fatalf("failed to verify statefulset creation: %v", err)
+	}
+	if got, want := statefulset.Spec.Template.Spec.NodeSelector, cfg.NodeSelector; !reflect.DeepEqual(got, want) {
+		t.Errorf("expected etcd pod nodeSelector %v, but got %v", want, got)
+	}
 }
