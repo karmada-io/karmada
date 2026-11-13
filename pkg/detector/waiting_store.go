@@ -17,6 +17,7 @@ limitations under the License.
 package detector
 
 import (
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -42,12 +43,16 @@ type waitingObjectStore struct {
 	cache sync.Map
 }
 
-// waitingObjectSelector is a policy resource selector prepared for matching.
+// waitingObjectSelector is a group of compiled selectors that share a GVK and
+// namespace. Merging them lets one walk over the objects handle all of them.
 type waitingObjectSelector struct {
-	gvk           schema.GroupVersionKind
-	namespace     string
-	name          string
-	labelSelector labels.Selector
+	gvk       schema.GroupVersionKind
+	namespace string
+	// matchAll means the merged selectors select every object in scope, so
+	// names and labels cannot narrow the result any further.
+	matchAll bool
+	names    []string
+	labels   []labels.Selector
 }
 
 // Store adds the object identified by key or updates its labels, and returns
@@ -96,64 +101,87 @@ func notEmpty(objects *sync.Map) bool {
 // Match returns the keys of the waiting objects that match any of the given
 // resource selectors.
 func (s *waitingObjectStore) Match(resourceSelectors []policyv1alpha1.ResourceSelector) []keys.ClusterWideKey {
-	selectors := compileWaitingObjectSelectors(resourceSelectors)
 	matched := sets.New[keys.ClusterWideKey]()
-
-	for _, selector := range selectors {
+	for _, selector := range compileWaitingObjectSelectors(resourceSelectors) {
 		s.matchSelector(selector, matched)
 	}
 
 	return matched.UnsortedList()
 }
 
-// matchSelector adds the waiting objects that match selector to matched.
+// matchSelector adds the waiting objects selected by matcher to matched.
 func (s *waitingObjectStore) matchSelector(selector waitingObjectSelector, matched sets.Set[keys.ClusterWideKey]) {
-	// A namespaced selector only needs to inspect that namespace's bucket.
+	for _, name := range selector.names {
+		s.matchName(selector.gvk, selector.namespace, name, matched)
+	}
+	if !selector.matchAll && len(selector.labels) == 0 {
+		return
+	}
+
+	// A namespaced matcher only needs to inspect that namespace's bucket.
 	if selector.namespace != "" {
-		s.matchBucket(selector, selector.namespace, matched)
+		s.matchLabelBucket(selector, selector.namespace, matched)
 		return
 	}
 
-	// All objects of a GVK share the same scope. A waiting object in the
-	// empty-namespace bucket therefore means the GVK is cluster-scoped, and the
-	// namespace buckets cannot hold anything this selector may match.
+	// All objects of a GVK share the same scope, so a waiting object in the
+	// empty-namespace bucket means the GVK is cluster-scoped.
 	if objects := s.getObjectsBucket(selector.gvk, ""); notEmpty(objects) {
-		s.matchBucket(selector, "", matched)
+		s.matchLabelBucket(selector, "", matched)
 		return
 	}
 
-	// The GVK is namespaced (or has no waiting object yet). A selector without
-	// a namespace matches objects in any namespace, so every namespace bucket
-	// has to be inspected. Even then, a named selector resolves with a point
-	// lookup per namespace instead of scanning the objects.
+	// The GVK is namespaced (or has no waiting object yet), so a matcher
+	// without a namespace has to inspect every namespace bucket.
 	namespaces, exists := s.cache.Load(selector.gvk)
 	if !exists {
 		return
 	}
-
 	namespaces.(*sync.Map).Range(func(namespace, _ any) bool {
-		s.matchBucket(selector, namespace.(string), matched)
+		s.matchLabelBucket(selector, namespace.(string), matched)
 		return true
 	})
 }
 
-// matchBucket adds the objects of the given namespace bucket that match selector to matched.
-func (s *waitingObjectStore) matchBucket(
-	selector waitingObjectSelector,
-	namespace string,
-	matched sets.Set[keys.ClusterWideKey],
-) {
-	objects := s.getObjectsBucket(selector.gvk, namespace)
-	if objects == nil {
+// matchName adds the waiting object of the given name to matched.
+func (s *waitingObjectStore) matchName(gvk schema.GroupVersionKind, namespace, name string, matched sets.Set[keys.ClusterWideKey]) {
+	if namespace != "" {
+		objects := s.getObjectsBucket(gvk, namespace)
+		if objects == nil {
+			return
+		}
+		if _, exists := objects.Load(name); exists {
+			matched.Insert(waitingObjectKey(gvk, namespace, name))
+		}
 		return
 	}
 
-	// The bucket is already scoped by GVK and namespace, so the name is the
-	// only remaining part of an object's identity and is used as the index key.
-	if selector.name != "" {
-		if _, exists := objects.Load(selector.name); exists {
-			matched.Insert(waitingObjectKey(selector.gvk, namespace, selector.name))
+	// A waiting object in the empty-namespace bucket means the GVK is
+	// cluster-scoped, so the namespace buckets cannot hold a match.
+	if objects := s.getObjectsBucket(gvk, ""); notEmpty(objects) {
+		if _, exists := objects.Load(name); exists {
+			matched.Insert(waitingObjectKey(gvk, "", name))
 		}
+		return
+	}
+
+	namespaces, exists := s.cache.Load(gvk)
+	if !exists {
+		return
+	}
+	namespaces.(*sync.Map).Range(func(namespace, objects any) bool {
+		if _, exists := objects.(*sync.Map).Load(name); exists {
+			matched.Insert(waitingObjectKey(gvk, namespace.(string), name))
+		}
+		return true
+	})
+}
+
+// matchLabelBucket adds the objects of the namespace bucket selected by the
+// matcher to matched.
+func (s *waitingObjectStore) matchLabelBucket(matcher waitingObjectSelector, namespace string, matched sets.Set[keys.ClusterWideKey]) {
+	objects := s.getObjectsBucket(matcher.gvk, namespace)
+	if objects == nil {
 		return
 	}
 
@@ -161,13 +189,22 @@ func (s *waitingObjectStore) matchBucket(
 	// indexes. Matching only schedules another resource reconciliation, which
 	// validates the current object and policy state before taking action.
 	objects.Range(func(name, objectValue any) bool {
-		if selector.labelSelector != nil &&
-			!selector.labelSelector.Matches(labels.Set(objectValue.(map[string]string))) {
-			return true
+		if matcher.matchAll || matcher.matchesLabels(objectValue.(map[string]string)) {
+			matched.Insert(waitingObjectKey(matcher.gvk, namespace, name.(string)))
 		}
-		matched.Insert(waitingObjectKey(selector.gvk, namespace, name.(string)))
 		return true
 	})
+}
+
+// matchesLabels reports whether any label selector of the matcher matches.
+func (m waitingObjectSelector) matchesLabels(objectLabels map[string]string) bool {
+	labelSet := labels.Set(objectLabels)
+	for _, selector := range m.labels {
+		if selector.Matches(labelSet) {
+			return true
+		}
+	}
+	return false
 }
 
 // waitingObjectKey builds the key of an object inside the bucket of the given
@@ -182,30 +219,77 @@ func waitingObjectKey(gvk schema.GroupVersionKind, namespace, name string) keys.
 	}
 }
 
-// compileWaitingObjectSelectors converts policy resource selectors into the
-// form used for matching, dropping invalid ones.
+// add merges a compiled selector into the group. A match-all selector absorbs
+// everything of the same scope, so later selectors cannot narrow the result.
+func (m *waitingObjectSelector) add(name string, labelSelector labels.Selector) {
+	switch {
+	case m.matchAll:
+		// The scope is already fully selected.
+	case name != "":
+		if !slices.Contains(m.names, name) {
+			m.names = append(m.names, name)
+		}
+	case labelSelector == nil || labelSelector.Empty():
+		m.matchAll = true
+		m.names = nil
+		m.labels = nil
+	default:
+		if !slices.ContainsFunc(m.labels, func(existing labels.Selector) bool {
+			return existing.String() == labelSelector.String()
+		}) {
+			m.labels = append(m.labels, labelSelector)
+		}
+	}
+}
+
+// compileWaitingObjectSelectors compiles resource selectors and merges the ones
+// that share a GVK and namespace. A match-all selector absorbs every other
+// selector of the same scope, so matching only has to walk each group of
+// objects once.
 func compileWaitingObjectSelectors(resourceSelectors []policyv1alpha1.ResourceSelector) []waitingObjectSelector {
-	selectors := make([]waitingObjectSelector, 0, len(resourceSelectors))
+	byGVK := make(map[schema.GroupVersionKind]map[string]*waitingObjectSelector, len(resourceSelectors))
 	for _, resourceSelector := range resourceSelectors {
 		groupVersion, err := schema.ParseGroupVersion(resourceSelector.APIVersion)
 		if err != nil {
 			continue
 		}
 
-		selector := waitingObjectSelector{
-			gvk:       groupVersion.WithKind(resourceSelector.Kind),
-			namespace: resourceSelector.Namespace,
-			name:      resourceSelector.Name,
-		}
-		if selector.name == "" && resourceSelector.LabelSelector != nil {
-			selector.labelSelector, err = metav1.LabelSelectorAsSelector(resourceSelector.LabelSelector)
+		gvk := groupVersion.WithKind(resourceSelector.Kind)
+		namespace := resourceSelector.Namespace
+		name := resourceSelector.Name
+		var labelSelector labels.Selector
+		if name == "" && resourceSelector.LabelSelector != nil {
+			labelSelector, err = metav1.LabelSelectorAsSelector(resourceSelector.LabelSelector)
 			if err != nil {
 				continue
 			}
 		}
-		selectors = append(selectors, selector)
+
+		namespaces := byGVK[gvk]
+		if namespaces == nil {
+			namespaces = make(map[string]*waitingObjectSelector)
+			byGVK[gvk] = namespaces
+		}
+		selector := namespaces[namespace]
+		if selector == nil {
+			selector = &waitingObjectSelector{gvk: gvk, namespace: namespace}
+			namespaces[namespace] = selector
+		}
+
+		selector.add(name, labelSelector)
 	}
-	return selectors
+
+	matchers := make([]waitingObjectSelector, 0, len(resourceSelectors))
+	for _, namespaces := range byGVK {
+		if global := namespaces[""]; global != nil && global.matchAll {
+			matchers = append(matchers, *global)
+			continue
+		}
+		for _, matcher := range namespaces {
+			matchers = append(matchers, *matcher)
+		}
+	}
+	return matchers
 }
 
 // getObjectsBucket returns the bucket of the given GVK and namespace, or nil

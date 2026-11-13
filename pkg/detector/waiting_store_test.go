@@ -17,6 +17,7 @@ limitations under the License.
 package detector
 
 import (
+	"slices"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -198,6 +199,267 @@ func TestWaitingObjectStoreNamespaceLessSelectorClusterScopedFastPath(t *testing
 				t.Fatalf("GetMatching() = %v, must not scan namespace buckets after a cluster-scoped hit", got)
 			}
 		})
+	}
+}
+
+func TestCompileWaitingObjectSelectorsAbsorbsMatchAll(t *testing.T) {
+	tests := []struct {
+		name      string
+		selectors []policyv1alpha1.ResourceSelector
+		want      map[string]waitingObjectSelector
+	}{
+		{
+			name: "global match-all absorbs every selector of the GVK",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a", Name: "demo"},
+				{
+					APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": "prod"}},
+				},
+				{APIVersion: "apps/v1", Kind: "Deployment"},
+			},
+			want: map[string]waitingObjectSelector{
+				"": {matchAll: true},
+			},
+		},
+		{
+			name: "namespace match-all only absorbs its own namespace",
+			selectors: []policyv1alpha1.ResourceSelector{
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a", Name: "demo"},
+				{
+					APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a",
+					LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": "prod"}},
+				},
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a"},
+				{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-b", Name: "other"},
+			},
+			want: map[string]waitingObjectSelector{
+				"team-a": {namespace: "team-a", matchAll: true},
+				"team-b": {namespace: "team-b", names: []string{"other"}},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			matchers := compileWaitingObjectSelectors(test.selectors)
+			if len(matchers) != len(test.want) {
+				t.Fatalf("compileWaitingObjectSelectors() returned %d matchers, want %d", len(matchers), len(test.want))
+			}
+			for _, matcher := range matchers {
+				want, exists := test.want[matcher.namespace]
+				if !exists {
+					t.Fatalf("unexpected matcher for namespace %q: %+v", matcher.namespace, matcher)
+				}
+				if matcher.matchAll != want.matchAll || !slices.Equal(matcher.names, want.names) || len(matcher.labels) != len(want.labels) {
+					t.Fatalf("matcher for namespace %q = %+v, want %+v", matcher.namespace, matcher, want)
+				}
+			}
+		})
+	}
+}
+
+func TestWaitingObjectStoreNamespaceScopedSelectorDoesNotLeak(t *testing.T) {
+	objects := []*unstructured.Unstructured{
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "a-match", map[string]string{"app": "a"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "a-other", map[string]string{"app": "other"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-b", "b-match", map[string]string{"tenant": "b"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-b", "b-a", map[string]string{"app": "a"}),
+	}
+
+	detector := &ResourceDetector{}
+	for _, object := range objects {
+		key, err := keys.ClusterWideKeyFunc(object)
+		if err != nil {
+			t.Fatalf("failed to build object key: %v", err)
+		}
+		detector.AddWaiting(key, object)
+	}
+
+	selectors := []policyv1alpha1.ResourceSelector{
+		{
+			APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "a"}},
+		},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"tenant": "b"}},
+		},
+	}
+
+	want := sets.New[keys.ClusterWideKey]()
+	for _, object := range []*unstructured.Unstructured{objects[0], objects[2]} {
+		key, err := keys.ClusterWideKeyFunc(object)
+		if err != nil {
+			t.Fatalf("failed to build expected key: %v", err)
+		}
+		want.Insert(key)
+	}
+
+	got := sets.New(detector.GetMatching(selectors)...)
+	if !got.Equal(want) {
+		t.Fatalf("GetMatching() = %v, want %v", got, want)
+	}
+}
+
+func TestCompileWaitingObjectSelectorsDropsInvalidAndDuplicateSelectors(t *testing.T) {
+	matchers := compileWaitingObjectSelectors([]policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1/extra", Kind: "Deployment"},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": "prod"}},
+		},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": "prod"}},
+		},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment",
+			LabelSelector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{
+				{Key: "env", Operator: metav1.LabelSelectorOpIn},
+			}},
+		},
+	})
+
+	if len(matchers) != 1 {
+		t.Fatalf("compileWaitingObjectSelectors() returned %d matchers, want 1", len(matchers))
+	}
+	if len(matchers[0].labels) != 1 {
+		t.Fatalf("matcher has %d label selectors, want 1; invalid and duplicate selectors must be dropped", len(matchers[0].labels))
+	}
+}
+
+func TestWaitingObjectStoreTracksLabelUpdatesAndDeletion(t *testing.T) {
+	object := newWaitingStoreTestObject("apps/v1", "Deployment", "default", "demo", map[string]string{"env": "prod"})
+	key, err := keys.ClusterWideKeyFunc(object)
+	if err != nil {
+		t.Fatalf("failed to build object key: %v", err)
+	}
+	detector := &ResourceDetector{}
+	detector.AddWaiting(key, object)
+
+	selectorFor := func(env string) []policyv1alpha1.ResourceSelector {
+		return []policyv1alpha1.ResourceSelector{{
+			APIVersion: "apps/v1", Kind: "Deployment",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"env": env}},
+		}}
+	}
+
+	if !sets.New(detector.GetMatching(selectorFor("prod"))...).Has(key) {
+		t.Fatal("object must match its current labels")
+	}
+
+	object.SetLabels(map[string]string{"env": "dev"})
+	detector.AddWaiting(key, object)
+	if sets.New(detector.GetMatching(selectorFor("prod"))...).Has(key) {
+		t.Fatal("object must not match labels it no longer has")
+	}
+	if !sets.New(detector.GetMatching(selectorFor("dev"))...).Has(key) {
+		t.Fatal("object must match its updated labels")
+	}
+
+	detector.RemoveWaiting(key)
+	if got := detector.GetMatching(selectorFor("dev")); len(got) != 0 {
+		t.Fatalf("GetMatching() = %v after removal, want no match", got)
+	}
+}
+
+func TestWaitingObjectStoreMatchAllAbsorbsOtherSelectors(t *testing.T) {
+	objects := []*unstructured.Unstructured{
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "a", map[string]string{"app": "a"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "b", map[string]string{"app": "b"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-b", "c", map[string]string{"app": "a"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-b", "d", map[string]string{"tenant": "x"}),
+	}
+
+	detector := &ResourceDetector{}
+	want := sets.New[keys.ClusterWideKey]()
+	for _, object := range objects {
+		key, err := keys.ClusterWideKeyFunc(object)
+		if err != nil {
+			t.Fatalf("failed to build object key: %v", err)
+		}
+		detector.AddWaiting(key, object)
+		want.Insert(key)
+	}
+
+	selectors := []policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "Deployment"},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "a"}},
+		},
+		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-b", Name: "c"},
+		{APIVersion: "apps/v1", Kind: "Deployment", Name: "a"},
+	}
+
+	got := sets.New(detector.GetMatching(selectors)...)
+	if !got.Equal(want) {
+		t.Fatalf("GetMatching() = %v, want every waiting object %v", got, want)
+	}
+}
+
+func TestWaitingObjectStoreNamespaceMatchAll(t *testing.T) {
+	objects := []*unstructured.Unstructured{
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "a", map[string]string{"app": "a"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "b", map[string]string{"app": "b"}),
+		newWaitingStoreTestObject("apps/v1", "Deployment", "team-b", "c", map[string]string{"app": "a"}),
+	}
+
+	detector := &ResourceDetector{}
+	for _, object := range objects {
+		key, err := keys.ClusterWideKeyFunc(object)
+		if err != nil {
+			t.Fatalf("failed to build object key: %v", err)
+		}
+		detector.AddWaiting(key, object)
+	}
+
+	want := sets.New[keys.ClusterWideKey]()
+	for _, object := range objects[:2] {
+		key, err := keys.ClusterWideKeyFunc(object)
+		if err != nil {
+			t.Fatalf("failed to build expected key: %v", err)
+		}
+		want.Insert(key)
+	}
+
+	selectors := []policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-a"},
+	}
+
+	got := sets.New(detector.GetMatching(selectors)...)
+	if !got.Equal(want) {
+		t.Fatalf("GetMatching() = %v, want %v", got, want)
+	}
+}
+
+func TestWaitingObjectStoreIgnoresMissingTargets(t *testing.T) {
+	object := newWaitingStoreTestObject("apps/v1", "Deployment", "team-a", "a", map[string]string{"app": "a"})
+	key, err := keys.ClusterWideKeyFunc(object)
+	if err != nil {
+		t.Fatalf("failed to build object key: %v", err)
+	}
+	detector := &ResourceDetector{}
+	detector.AddWaiting(key, object)
+
+	// Removing objects with an unknown GVK, namespace, or name is a no-op.
+	detector.RemoveWaiting(keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "StatefulSet", Namespace: "team-a", Name: "x"})
+	detector.RemoveWaiting(keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "team-z", Name: "x"})
+	detector.RemoveWaiting(keys.ClusterWideKey{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: "team-a", Name: "missing"})
+
+	selectors := []policyv1alpha1.ResourceSelector{
+		{APIVersion: "apps/v1", Kind: "StatefulSet", Name: "x"},
+		{APIVersion: "apps/v1", Kind: "DaemonSet"},
+		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-z", Name: "x"},
+		{
+			APIVersion: "apps/v1", Kind: "Deployment", Namespace: "team-z",
+			LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": "a"}},
+		},
+	}
+
+	if got := detector.GetMatching(selectors); len(got) != 0 {
+		t.Fatalf("GetMatching() = %v, want no match", got)
 	}
 }
 
