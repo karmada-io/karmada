@@ -772,6 +772,58 @@ func TestClusterMatches(t *testing.T) {
 	}
 }
 
+func TestClusterNamesMatches(t *testing.T) {
+	type args struct {
+		cluster      *clusterv1alpha1.Cluster
+		clusterNames []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "cluster name in the allow list",
+			args: args{
+				cluster:      &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+				clusterNames: []string{"cluster1", "cluster2"},
+			},
+			want: true,
+		},
+		{
+			name: "cluster name not in the allow list",
+			args: args{
+				cluster:      &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster3"}},
+				clusterNames: []string{"cluster1", "cluster2"},
+			},
+			want: false,
+		},
+		{
+			name: "empty allow list matches all",
+			args: args{
+				cluster:      &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+				clusterNames: []string{},
+			},
+			want: true,
+		},
+		{
+			name: "nil allow list matches all",
+			args: args{
+				cluster:      &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+				clusterNames: nil,
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterNamesMatches(tt.args.cluster, tt.args.clusterNames); got != tt.want {
+				t.Errorf("ClusterNamesMatches() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestResourceMatchSelectors(t *testing.T) {
 	resource := &unstructured.Unstructured{
 		Object: map[string]any{
