@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"math"
 	"reflect"
 	"testing"
 
@@ -636,6 +637,150 @@ func TestResource_Clone(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.caller.Clone(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Clone() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMinInt64(t *testing.T) {
+	tests := []struct {
+		name string
+		a    int64
+		b    int64
+		want int64
+	}{
+		{
+			name: "a less than b",
+			a:    10,
+			b:    20,
+			want: 10,
+		},
+		{
+			name: "a greater than b",
+			a:    50,
+			b:    20,
+			want: 20,
+		},
+		{
+			name: "a equals b",
+			a:    15,
+			b:    15,
+			want: 15,
+		},
+		{
+			name: "both negative, a less than b",
+			a:    -20,
+			b:    -10,
+			want: -20,
+		},
+		{
+			name: "both negative, a greater than b",
+			a:    -10,
+			b:    -20,
+			want: -20,
+		},
+		{
+			name: "negative vs positive",
+			a:    -5,
+			b:    5,
+			want: -5,
+		},
+		{
+			name: "zero vs positive",
+			a:    0,
+			b:    10,
+			want: 0,
+		},
+		{
+			name: "zero vs negative",
+			a:    0,
+			b:    -10,
+			want: -10,
+		},
+		{
+			name: "boundary min and max int64",
+			a:    math.MinInt64,
+			b:    math.MaxInt64,
+			want: math.MinInt64,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MinInt64(tt.a, tt.b); got != tt.want {
+				t.Errorf("MinInt64(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaxInt64(t *testing.T) {
+	tests := []struct {
+		name string
+		a    int64
+		b    int64
+		want int64
+	}{
+		{
+			name: "a greater than b",
+			a:    20,
+			b:    10,
+			want: 20,
+		},
+		{
+			name: "a less than b",
+			a:    10,
+			b:    50,
+			want: 50,
+		},
+		{
+			name: "a equals b",
+			a:    15,
+			b:    15,
+			want: 15,
+		},
+		{
+			name: "both negative, a greater than b",
+			a:    -10,
+			b:    -20,
+			want: -10,
+		},
+		{
+			name: "both negative, a less than b",
+			a:    -20,
+			b:    -10,
+			want: -10,
+		},
+		{
+			name: "negative vs positive",
+			a:    -5,
+			b:    5,
+			want: 5,
+		},
+		{
+			name: "zero vs positive",
+			a:    0,
+			b:    10,
+			want: 10,
+		},
+		{
+			name: "zero vs negative",
+			a:    0,
+			b:    -10,
+			want: 0,
+		},
+		{
+			name: "boundary min and max int64",
+			a:    math.MinInt64,
+			b:    math.MaxInt64,
+			want: math.MaxInt64,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MaxInt64(tt.a, tt.b); got != tt.want {
+				t.Errorf("MaxInt64(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
 			}
 		})
 	}
