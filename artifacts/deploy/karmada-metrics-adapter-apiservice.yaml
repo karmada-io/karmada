@@ -43,6 +43,20 @@ spec:
   groupPriorityMinimum: 100
   versionPriority: 200
 ---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.external.metrics.k8s.io
+spec:
+  service:
+    name: karmada-metrics-adapter
+    namespace:  karmada-system
+  group: external.metrics.k8s.io
+  version: v1beta1
+  caBundle: {{caBundle}}
+  groupPriorityMinimum: 100
+  versionPriority: 200
+---
 apiVersion: v1
 kind: Service
 metadata:

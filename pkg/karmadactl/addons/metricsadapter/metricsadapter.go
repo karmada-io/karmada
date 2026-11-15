@@ -46,6 +46,7 @@ var aaAPIServices = []string{
 	"v1beta1.metrics.k8s.io",
 	"v1beta1.custom.metrics.k8s.io",
 	"v1beta2.custom.metrics.k8s.io",
+	"v1beta1.external.metrics.k8s.io",
 }
 
 // AddonMetricsAdapter describe the metrics-adapter addon command process

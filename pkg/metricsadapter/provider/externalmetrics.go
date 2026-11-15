@@ -18,28 +18,143 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/klog/v2"
 	"k8s.io/metrics/pkg/apis/external_metrics"
+	externalmetricsv1beta1 "k8s.io/metrics/pkg/apis/external_metrics/v1beta1"
 	"sigs.k8s.io/custom-metrics-apiserver/pkg/provider"
+
+	clusterlister "github.com/karmada-io/karmada/pkg/generated/listers/cluster/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/metricsadapter/multiclient"
 )
 
-// ExternalMetricsProvider is a custom metrics provider
+// ExternalMetricsProvider is an external metrics provider that serves the
+// external metrics of the member clusters.
 type ExternalMetricsProvider struct {
+	// multiClusterDiscovery returns a discovery client for member cluster apiserver
+	multiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
+	clusterLister         clusterlister.ClusterLister
 }
 
-// MakeExternalMetricsProvider creates a new custom metrics provider
-func MakeExternalMetricsProvider() *ExternalMetricsProvider {
-	return &ExternalMetricsProvider{}
+// MakeExternalMetricsProvider creates a new external metrics provider
+func MakeExternalMetricsProvider(clusterLister clusterlister.ClusterLister, multiClusterDiscovery multiclient.MultiClusterDiscoveryInterface) *ExternalMetricsProvider {
+	return &ExternalMetricsProvider{
+		clusterLister:         clusterLister,
+		multiClusterDiscovery: multiClusterDiscovery,
+	}
 }
 
-// GetExternalMetric will query metrics by selector from member clusters and return the result
-func (c *ExternalMetricsProvider) GetExternalMetric(_ context.Context, _ string, _ labels.Selector, _ provider.ExternalMetricInfo) (*external_metrics.ExternalMetricValueList, error) {
-	return nil, fmt.Errorf("karmada-metrics-adapter still not implement it")
+// GetExternalMetric queries the metric from every member cluster that serves the
+// external metrics API and returns the values of all of them. The HPA algorithm
+// sums the returned values, so a metric reported by several clusters is added up.
+func (c *ExternalMetricsProvider) GetExternalMetric(ctx context.Context, namespace string, metricSelector labels.Selector, info provider.ExternalMetricInfo) (*external_metrics.ExternalMetricValueList, error) {
+	clusters, err := c.clusterLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list clusters: %v", err)
+		return nil, err
+	}
+
+	var (
+		mu        sync.Mutex
+		wg        sync.WaitGroup
+		result    = &external_metrics.ExternalMetricValueList{}
+		succeeded int
+	)
+	for _, cluster := range clusters {
+		wg.Add(1)
+		go func(clusterName string) {
+			defer wg.Done()
+			metrics, err := c.getExternalMetric(ctx, clusterName, namespace, metricSelector, info.Metric)
+			if err != nil {
+				klog.Warningf("query external metric %s from cluster %s failed, err: %v", info.Metric, clusterName, err)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			succeeded++
+			result.Items = append(result.Items, metrics.Items...)
+		}(cluster.Name)
+	}
+	wg.Wait()
+
+	if succeeded == 0 {
+		return nil, fmt.Errorf("external metric %s is not available from any member cluster", info.Metric)
+	}
+	return result, nil
 }
 
-// ListAllExternalMetrics returns all metrics in all member clusters
+func (c *ExternalMetricsProvider) getExternalMetric(ctx context.Context, clusterName, namespace string, metricSelector labels.Selector, metricName string) (*external_metrics.ExternalMetricValueList, error) {
+	discoveryClient := c.multiClusterDiscovery.Get(clusterName)
+	if discoveryClient == nil {
+		return nil, fmt.Errorf("failed to get discovery client for cluster %s", clusterName)
+	}
+
+	if metricSelector == nil {
+		metricSelector = labels.Everything()
+	}
+	data, err := discoveryClient.RESTClient().Get().
+		AbsPath("/apis", externalmetricsv1beta1.SchemeGroupVersion.String(), "namespaces", namespace, metricName).
+		Param("labelSelector", metricSelector.String()).
+		DoRaw(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	versioned := &externalmetricsv1beta1.ExternalMetricValueList{}
+	if err := json.Unmarshal(data, versioned); err != nil {
+		return nil, fmt.Errorf("failed to decode external metric %s: %w", metricName, err)
+	}
+	metrics := &external_metrics.ExternalMetricValueList{}
+	if err := externalmetricsv1beta1.Convert_v1beta1_ExternalMetricValueList_To_external_metrics_ExternalMetricValueList(versioned, metrics, nil); err != nil {
+		return nil, err
+	}
+	return metrics, nil
+}
+
+// ListAllExternalMetrics returns the external metrics served by the member clusters
 func (c *ExternalMetricsProvider) ListAllExternalMetrics() []provider.ExternalMetricInfo {
-	return []provider.ExternalMetricInfo{}
+	clusters, err := c.clusterLister.List(labels.Everything())
+	if err != nil {
+		klog.Errorf("Failed to list clusters: %v", err)
+		return []provider.ExternalMetricInfo{}
+	}
+
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		metrics = sets.New[string]()
+	)
+	for _, cluster := range clusters {
+		wg.Add(1)
+		go func(clusterName string) {
+			defer wg.Done()
+			discoveryClient := c.multiClusterDiscovery.Get(clusterName)
+			if discoveryClient == nil {
+				return
+			}
+			resources, err := discoveryClient.ServerResourcesForGroupVersion(externalmetricsv1beta1.SchemeGroupVersion.String())
+			if err != nil {
+				klog.V(4).Infof("cluster %s doesn't serve %s: %v", clusterName, externalmetricsv1beta1.SchemeGroupVersion.String(), err)
+				return
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			for _, resource := range resources.APIResources {
+				metrics.Insert(resource.Name)
+			}
+		}(cluster.Name)
+	}
+	wg.Wait()
+
+	names := sets.List(metrics)
+	infos := make([]provider.ExternalMetricInfo, 0, len(names))
+	for _, name := range names {
+		infos = append(infos, provider.ExternalMetricInfo{Metric: name})
+	}
+	return infos
 }
