@@ -118,6 +118,22 @@ func TestGetExternalMetricNotServedByAnyCluster(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestGetExternalMetricFailsWhenAClusterFails(t *testing.T) {
+	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "metrics backend unavailable", http.StatusInternalServerError)
+	}))
+	t.Cleanup(failing.Close)
+	p := newExternalMetricsProvider(t, map[string]*httptest.Server{
+		"member1": newMemberAPIServer(t, 3),
+		"member2": failing,
+	})
+	selector := labels.SelectorFromSet(labels.Set{"queue": "orders"})
+
+	_, err := p.GetExternalMetric(context.TODO(), "default", selector, provider.ExternalMetricInfo{Metric: "queue_length"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "member2")
+}
+
 func TestListAllExternalMetrics(t *testing.T) {
 	p := newExternalMetricsProvider(t, map[string]*httptest.Server{
 		"member1": newMemberAPIServer(t, 3),

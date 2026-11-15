@@ -19,10 +19,13 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/klog/v2"
 	"k8s.io/metrics/pkg/apis/external_metrics"
@@ -52,6 +55,10 @@ func MakeExternalMetricsProvider(clusterLister clusterlister.ClusterLister, mult
 // GetExternalMetric queries the metric from every member cluster that serves the
 // external metrics API and returns the values of all of them. The HPA algorithm
 // sums the returned values, so a metric reported by several clusters is added up.
+//
+// Clusters without a client or without the metric are skipped. Any other failure
+// fails the whole request, since a sum that silently misses a cluster looks like
+// lower load and could make the autoscaler scale down during an outage.
 func (c *ExternalMetricsProvider) GetExternalMetric(ctx context.Context, namespace string, metricSelector labels.Selector, info provider.ExternalMetricInfo) (*external_metrics.ExternalMetricValueList, error) {
 	clusters, err := c.clusterLister.List(labels.Everything())
 	if err != nil {
@@ -63,6 +70,7 @@ func (c *ExternalMetricsProvider) GetExternalMetric(ctx context.Context, namespa
 		mu        sync.Mutex
 		wg        sync.WaitGroup
 		result    = &external_metrics.ExternalMetricValueList{}
+		errs      []error
 		succeeded int
 	)
 	for _, cluster := range clusters {
@@ -70,28 +78,36 @@ func (c *ExternalMetricsProvider) GetExternalMetric(ctx context.Context, namespa
 		go func(clusterName string) {
 			defer wg.Done()
 			metrics, err := c.getExternalMetric(ctx, clusterName, namespace, metricSelector, info.Metric)
-			if err != nil {
-				klog.Warningf("query external metric %s from cluster %s failed, err: %v", info.Metric, clusterName, err)
-				return
-			}
 			mu.Lock()
 			defer mu.Unlock()
-			succeeded++
-			result.Items = append(result.Items, metrics.Items...)
+			switch {
+			case err == nil:
+				succeeded++
+				result.Items = append(result.Items, metrics.Items...)
+			case errors.Is(err, errNoDiscoveryClient) || apierrors.IsNotFound(err):
+				klog.V(4).Infof("cluster %s has no external metric %s: %v", clusterName, info.Metric, err)
+			default:
+				errs = append(errs, fmt.Errorf("cluster %s: %w", clusterName, err))
+			}
 		}(cluster.Name)
 	}
 	wg.Wait()
 
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to query external metric %s from member clusters: %w", info.Metric, utilerrors.NewAggregate(errs))
+	}
 	if succeeded == 0 {
 		return nil, fmt.Errorf("external metric %s is not available from any member cluster", info.Metric)
 	}
 	return result, nil
 }
 
+var errNoDiscoveryClient = errors.New("no discovery client for the cluster")
+
 func (c *ExternalMetricsProvider) getExternalMetric(ctx context.Context, clusterName, namespace string, metricSelector labels.Selector, metricName string) (*external_metrics.ExternalMetricValueList, error) {
 	discoveryClient := c.multiClusterDiscovery.Get(clusterName)
 	if discoveryClient == nil {
-		return nil, fmt.Errorf("failed to get discovery client for cluster %s", clusterName)
+		return nil, errNoDiscoveryClient
 	}
 
 	if metricSelector == nil {
