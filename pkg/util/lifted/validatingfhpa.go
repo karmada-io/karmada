@@ -345,6 +345,20 @@ func validateExternalSource(src *autoscalingv2.ExternalMetricSource, fldPath *fi
 		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("value"), "may not set both a target value for metric and a per-pod target"))
 	}
 
+	// The controller reads the field that matches the target type, so the two have to agree.
+	switch src.Target.Type {
+	case autoscalingv2.ValueMetricType:
+		if src.Target.Value == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("value"), "must set value when the target type is Value"))
+		}
+	case autoscalingv2.AverageValueMetricType:
+		if src.Target.AverageValue == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set averageValue when the target type is AverageValue"))
+		}
+	case autoscalingv2.UtilizationMetricType:
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("target").Child("type"), src.Target.Type, "Utilization is not supported for external metrics"))
+	}
+
 	return allErrs
 }
 

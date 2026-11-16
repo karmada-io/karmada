@@ -1360,6 +1360,21 @@ func TestValidateMetricSpecExternal(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name:    "value type with only average value",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.ValueMetricType, AverageValue: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
+			name:    "average value type with only value",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.AverageValueMetricType, Value: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
+			name:    "utilization type",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.UtilizationMetricType, AverageValue: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
 			name:    "external type without external source",
 			spec:    autoscalingv2.MetricSpec{Type: autoscalingv2.ExternalMetricSourceType},
 			wantErr: true,

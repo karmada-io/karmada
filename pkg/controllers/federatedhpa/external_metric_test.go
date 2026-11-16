@@ -129,6 +129,15 @@ func TestGetExternalPerPodMetricReplicas(t *testing.T) {
 			expectedReplicas:  3,
 			expectedUsage:     30,
 		},
+		{
+			name:              "calibration is applied before rounding",
+			statusReplicas:    1,
+			targetUsagePerPod: 10,
+			metrics:           []int64{21},
+			calibration:       0.5,
+			expectedReplicas:  5,
+			expectedUsage:     21,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -144,4 +153,11 @@ func TestGetExternalPerPodMetricReplicas(t *testing.T) {
 			mockClient.AssertExpectations(t)
 		})
 	}
+}
+
+func TestGetExternalPerPodMetricReplicasZeroStatusReplicas(t *testing.T) {
+	calculator := NewReplicaCalculator(&MockQueryClient{}, 0.1, 5*time.Minute, 30*time.Second)
+
+	_, _, _, err := calculator.GetExternalPerPodMetricReplicas(0, 10, "queue_length", "default", labels.Everything(), 1.0)
+	require.Error(t, err)
 }
