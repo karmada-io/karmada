@@ -2,6 +2,7 @@
 # case1. Workflow with no dependencies
 # case2. Workflow with volume dependency
 # case3. Workflow with ConfigMap env dependency
+# case4. Workflow with volume Secret dependency
 
 name: "Workflow with no dependencies"
 description: "Test interpreting dependency of simple Workflow with no dependencies"
@@ -97,4 +98,39 @@ output:
     - apiVersion: v1
       kind: ConfigMap
       name: workflow-config
+      namespace: test-workflow
+
+---
+name: "Workflow with volume Secret dependency"
+description: "Test interpreting dependency of Workflow with volume-mounted Secret"
+desiredObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    labels:
+      app: sample
+    name: sample-secret-volume
+    namespace: test-workflow
+  spec:
+    parallelism: 1
+    entrypoint: secret-volume-task
+    volumes:
+      - name: secret-volume
+        secret:
+          secretName: workflow-secret
+    templates:
+      - name: secret-volume-task
+        container:
+          image: busybox
+          command: [ "ls" ]
+          args: [ "/secret" ]
+          volumeMounts:
+            - name: secret-volume
+              mountPath: /secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: Secret
+      name: workflow-secret
       namespace: test-workflow

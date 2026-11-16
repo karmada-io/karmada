@@ -105,8 +105,8 @@ spec:
             if volume.rbd ~= nil and volume.rbd.secretRef ~= nil and volume.rbd.secretRef.name ~= nil and volume.rbd.secretRef.name ~= '' then
               dependentSecrets[volume.rbd.secretRef.name] = true
             end
-            if volume.secret ~= nil and volume.secret.name ~= nil and volume.secret.name ~= '' then
-              dependentSecrets[volume.secret.name] = true
+            if volume.secret ~= nil and volume.secret.secretName ~= nil and volume.secret.secretName ~= '' then
+              dependentSecrets[volume.secret.secretName] = true
             end
             if volume.scaleIO ~= nil and volume.scaleIO.secretRef ~= nil and volume.scaleIO.secretRef.name ~= nil and volume.scaleIO.secretRef.name ~= '' then
               dependentSecrets[volume.scaleIO.secretRef.name] = true
