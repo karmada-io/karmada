@@ -761,6 +761,16 @@ func (c *FHPAController) computeReplicasForMetric(ctx context.Context, hpa *auto
 		if err != nil {
 			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get %s container metric value: %v", spec.ContainerResource.Container, err)
 		}
+	case autoscalingv2.ExternalMetricSourceType:
+		metricSelector, err := metav1.LabelSelectorAsSelector(spec.External.Metric.Selector)
+		if err != nil {
+			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetExternalMetric", err)
+			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get external metric value: %v", err)
+		}
+		replicaCountProposal, timestampProposal, metricNameProposal, condition, err = c.computeStatusForExternalMetric(specReplicas, statusReplicas, spec, hpa, status, metricSelector, podList, calibration)
+		if err != nil {
+			return 0, "", time.Time{}, condition, fmt.Errorf("failed to get external metric value: %v", err)
+		}
 	default:
 		// It shouldn't reach here as invalid metric source type is filtered out in the api-server's validation.
 		err = fmt.Errorf("unknown metric source type %q%w", string(spec.Type), errSpec)
@@ -816,6 +826,55 @@ func (c *FHPAController) computeStatusForObjectMetric(specReplicas, statusReplic
 	errMsg := "invalid object metric source: neither a value target nor an average value target was set"
 	err = errors.New(errMsg)
 	condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetObjectMetric", err)
+	return 0, time.Time{}, "", condition, err
+}
+
+// computeStatusForExternalMetric computes the desired number of replicas for the specified metric of type ExternalMetricSourceType.
+func (c *FHPAController) computeStatusForExternalMetric(specReplicas, statusReplicas int32, metricSpec autoscalingv2.MetricSpec, hpa *autoscalingv1alpha1.FederatedHPA, status *autoscalingv2.MetricStatus, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicas int32, timestamp time.Time, metricName string, condition autoscalingv2.HorizontalPodAutoscalerCondition, err error) {
+	metricName = fmt.Sprintf("external metric %s(%+v)", metricSpec.External.Metric.Name, metricSpec.External.Metric.Selector)
+	switch metricSpec.External.Target.Type {
+	case autoscalingv2.ValueMetricType:
+		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetExternalMetricReplicas(specReplicas, metricSpec.External.Target.Value.MilliValue(), metricSpec.External.Metric.Name, hpa.Namespace, metricSelector, podList, calibration)
+		if err != nil {
+			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetExternalMetric", err)
+			return 0, time.Time{}, "", condition, err
+		}
+		*status = autoscalingv2.MetricStatus{
+			Type: autoscalingv2.ExternalMetricSourceType,
+			External: &autoscalingv2.ExternalMetricStatus{
+				Metric: autoscalingv2.MetricIdentifier{
+					Name:     metricSpec.External.Metric.Name,
+					Selector: metricSpec.External.Metric.Selector,
+				},
+				Current: autoscalingv2.MetricValueStatus{
+					Value: resource.NewMilliQuantity(usageProposal, resource.DecimalSI),
+				},
+			},
+		}
+		return replicaCountProposal, timestampProposal, metricName, autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
+	case autoscalingv2.AverageValueMetricType:
+		replicaCountProposal, usageProposal, timestampProposal, err := c.ReplicaCalc.GetExternalPerPodMetricReplicas(statusReplicas, metricSpec.External.Target.AverageValue.MilliValue(), metricSpec.External.Metric.Name, hpa.Namespace, metricSelector, calibration)
+		if err != nil {
+			condition := c.getUnableComputeReplicaCountCondition(hpa, "FailedGetExternalMetric", err)
+			return 0, time.Time{}, "", condition, err
+		}
+		*status = autoscalingv2.MetricStatus{
+			Type: autoscalingv2.ExternalMetricSourceType,
+			External: &autoscalingv2.ExternalMetricStatus{
+				Metric: autoscalingv2.MetricIdentifier{
+					Name:     metricSpec.External.Metric.Name,
+					Selector: metricSpec.External.Metric.Selector,
+				},
+				Current: autoscalingv2.MetricValueStatus{
+					AverageValue: resource.NewMilliQuantity(usageProposal, resource.DecimalSI),
+				},
+			},
+		}
+		return replicaCountProposal, timestampProposal, metricName, autoscalingv2.HorizontalPodAutoscalerCondition{}, nil
+	}
+	errMsg := "invalid external metric source: neither a value target nor an average value target was set"
+	err = errors.New(errMsg)
+	condition = c.getUnableComputeReplicaCountCondition(hpa, "FailedGetExternalMetric", err)
 	return 0, time.Time{}, "", condition, err
 }
 

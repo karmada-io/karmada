@@ -272,6 +272,46 @@ func (c *ReplicaCalculator) GetObjectPerPodMetricReplicas(statusReplicas int32, 
 	return int32(math.Ceil(float64(replicaCount) / calibration)), usage, timestamp, nil
 }
 
+// GetExternalMetricReplicas calculates the desired replica count based on a target metric value (as a milli-value)
+// for the external metric in the given namespace, and the current replica count.
+// The values of all returned metric series are added up, like the Kubernetes HPA does.
+func (c *ReplicaCalculator) GetExternalMetricReplicas(currentReplicas int32, targetUsage int64, metricName string, namespace string, metricSelector labels.Selector, podList []*corev1.Pod, calibration float64) (replicaCount int32, usage int64, timestamp time.Time, err error) {
+	metrics, timestamp, err := c.metricsClient.GetExternalMetric(metricName, namespace, metricSelector)
+	if err != nil {
+		return 0, 0, time.Time{}, fmt.Errorf("unable to get external metric %s/%s/%+v: %v", namespace, metricName, metricSelector, err)
+	}
+	usage = 0
+	for _, val := range metrics {
+		usage += val
+	}
+
+	usageRatio := float64(usage) / float64(targetUsage)
+	replicaCount, _, err = c.getUsageRatioReplicaCount(currentReplicas, usageRatio, podList, calibration)
+	return replicaCount, usage, timestamp, err
+}
+
+// GetExternalPerPodMetricReplicas calculates the desired replica count based on a target metric value per pod
+// (as a milli-value) for the external metric in the given namespace, and the current replica count.
+func (c *ReplicaCalculator) GetExternalPerPodMetricReplicas(statusReplicas int32, targetUsagePerPod int64, metricName string, namespace string, metricSelector labels.Selector, calibration float64) (replicaCount int32, usage int64, timestamp time.Time, err error) {
+	metrics, timestamp, err := c.metricsClient.GetExternalMetric(metricName, namespace, metricSelector)
+	if err != nil {
+		return 0, 0, time.Time{}, fmt.Errorf("unable to get external metric %s/%s/%+v: %v", namespace, metricName, metricSelector, err)
+	}
+	usage = 0
+	for _, val := range metrics {
+		usage += val
+	}
+
+	replicaCount = statusReplicas
+	usageRatio := float64(usage) / (float64(targetUsagePerPod) * float64(replicaCount))
+	if math.Abs(1.0-usageRatio) > c.tolerance {
+		// update number of replicas if the change is large enough
+		replicaCount = int32(math.Ceil(float64(usage) / float64(targetUsagePerPod)))
+	}
+	usage = int64(math.Ceil(float64(usage) / float64(statusReplicas)))
+	return int32(math.Ceil(float64(replicaCount) / calibration)), usage, timestamp, nil
+}
+
 // getUsageRatioReplicaCount calculates the desired replica count based on usageRatio and ready pods count.
 // For currentReplicas=0 doesn't take into account ready pods count and tolerance to support scaling to zero pods.
 func (c *ReplicaCalculator) getUsageRatioReplicaCount(currentReplicas int32, usageRatio float64, podList []*corev1.Pod, calibration float64) (replicaCount int32, timestamp time.Time, err error) {
