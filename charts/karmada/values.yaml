@@ -896,26 +896,32 @@ agent:
 ## karmada scheduler estimator
 schedulerEstimator:
   ## @param schedulerEstimator.memberClusters each cluster requires an estimator component, fill in the information for each cluster
+  ## Each member cluster has to be registered with Karmada first, so the estimator is usually installed with
+  ## installMode "component" on the host cluster after the "host" mode installation, and the "host" mode release
+  ## must set scheduler.enableSchedulerEstimator to true, otherwise the scheduler does not call the estimator.
   memberClusters:
-      ## @param schedulerEstimator.memberClusterInfo[0].clusterName the name of the member cluster
+      ## @param schedulerEstimator.memberClusters[0].clusterName the name of the member cluster as registered in Karmada
+      ## (the name given to `karmadactl join <name>`, or agent.clusterName for a member registered by the karmada-agent).
+      ## It must be set: the default "" renders invalid object names.
+      ## kubeconfig.server, caCrt, crt and key must also be set, otherwise the estimator pod cannot start.
     - clusterName: ""
-      ## @param schedulerEstimator.memberClusterInfo[0].replicaCount target replicas
+      ## @param schedulerEstimator.memberClusters[0].replicaCount target replicas
       replicaCount: 1
       ## kubeconfig of the member cluster
       kubeconfig:
-        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.server apiserver of the member cluster
+        ## @param schedulerEstimator.memberClusters[0].kubeconfig.server apiserver of the member cluster
         server: ""
-        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.caCrt ca of the certificate
+        ## @param schedulerEstimator.memberClusters[0].kubeconfig.caCrt ca of the certificate
         caCrt: |
           -----BEGIN CERTIFICATE-----
           XXXXXXXXXXXXXXXXXXXXXXXXXXX
           -----END CERTIFICATE-----
-        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.crt crt of the certificate
+        ## @param schedulerEstimator.memberClusters[0].kubeconfig.crt crt of the certificate
         crt: |
           -----BEGIN CERTIFICATE-----
           XXXXXXXXXXXXXXXXXXXXXXXXXXX
           -----END CERTIFICATE-----
-        ## @param schedulerEstimator.memberClusterInfo[0].kubeconfig.key key of the certificate
+        ## @param schedulerEstimator.memberClusters[0].kubeconfig.key key of the certificate
         key: |
           -----BEGIN RSA PRIVATE KEY-----
           XXXXXXXXXXXXXXXXXXXXXXXXXXX
