@@ -50,6 +50,7 @@ import (
 
 	"github.com/karmada-io/karmada/pkg/apis/cluster/validation"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	initutils "github.com/karmada-io/karmada/pkg/karmadactl/cmdinit/utils"
 	"github.com/karmada-io/karmada/pkg/karmadactl/options"
 	cmdutil "github.com/karmada-io/karmada/pkg/karmadactl/util"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
@@ -198,6 +199,7 @@ func NewCmdRegister(parentCommand string) *cobra.Command {
 	flags.Int32Var(&opts.CertExpirationSeconds, "cert-expiration-seconds", DefaultCertExpirationSeconds, "The expiration time of certificate.")
 	flags.BoolVar(&opts.DryRun, "dry-run", false, "Run the command in dry-run mode, without making any server requests.")
 	flags.StringVar(&opts.ProxyServerAddress, "proxy-server-address", "", "Address of the proxy server that is used to proxy to the cluster.")
+	flags.StringSliceVar(&opts.KarmadaAgentExtraArgs, "karmada-agent-extra-args", nil, "Additional command line arguments to pass to the karmada-agent component. Can be specified multiple times or as comma-separated values (e.g., '--report-secrets=None,--kube-api-qps=80')")
 
 	return cmd
 }
@@ -252,6 +254,9 @@ type CommandRegisterOption struct {
 
 	// ProxyServerAddress holds the proxy server address that is used to proxy to the cluster.
 	ProxyServerAddress string
+
+	// KarmadaAgentExtraArgs holds additional command line arguments for karmada-agent.
+	KarmadaAgentExtraArgs []string
 
 	memberClusterEndpoint string
 	memberClusterClient   *kubeclient.Clientset
@@ -311,6 +316,12 @@ func (o *CommandRegisterOption) Validate() error {
 	if !o.BootstrapToken.UnsafeSkipCAVerification && len(o.BootstrapToken.CACertHashes) == 0 {
 		return fmt.Errorf("need to verify CACertHashes, or set --discovery-token-unsafe-skip-ca-verification=true")
 	}
+
+	extraArgs, err := initutils.ValidateExtraArgs(o.KarmadaAgentExtraArgs)
+	if err != nil {
+		return fmt.Errorf("invalid --karmada-agent-extra-args: %w", err)
+	}
+	o.KarmadaAgentExtraArgs = extraArgs
 
 	return nil
 }
@@ -1027,7 +1038,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 			{
 				Name:  names.KarmadaAgentComponentName,
 				Image: o.KarmadaAgentImage,
-				Command: []string{
+				Command: initutils.MergeCommandArgs([]string{
 					"/bin/karmada-agent",
 					"--karmada-kubeconfig=/etc/kubeconfig/karmada-kubeconfig",
 					fmt.Sprintf("--cluster-name=%s", o.ClusterName),
@@ -1043,7 +1054,7 @@ func (o *CommandRegisterOption) makeKarmadaAgentDeployment() *appsv1.Deployment 
 					"--metrics-bind-address=:8080",
 					"--health-probe-bind-address=0.0.0.0:10357",
 					"--v=2",
-				},
+				}, o.KarmadaAgentExtraArgs),
 				Ports: []corev1.ContainerPort{
 					{
 						Name:          "metrics",
