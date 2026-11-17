@@ -92,13 +92,24 @@ func calAvailableReplicas(clusters []*clusterv1alpha1.Cluster, spec *workv1alpha
 			assumedWorkloads: assumedWorkloads,
 		})
 		if err != nil {
-			continue
+			// An estimator may still return usable per-cluster results together with
+			// an aggregate error. Conforming implementations mark every failed cluster
+			// with UnauthenticReplica. Without such a marker the values may be a
+			// zero-filled result, which must not be mistaken for real zero capacity.
+			if hasUsableEstimate(clusters, res) {
+				klog.V(4).Infof("Estimator %s returned partial results for workload(%s): %v", name, namespacedKey, err)
+			} else {
+				klog.Errorf("Estimator %s failed for workload(%s): %v", name, namespacedKey, err)
+				continue
+			}
 		}
 		availableTargetClusters = mergeReplicaResults(availableTargetClusters, res)
 	}
 
 	// In most cases, the target cluster max available replicas should not be MaxInt32 unless the workload is best-effort
 	// and the scheduler-estimator has not been enabled. So we set the replicas to spec.Replicas for avoiding overflow.
+	// A cluster that no estimator reported also keeps the boundary and is treated as having spec.Replicas capacity;
+	// this pre-existing fallback is distinct from falling back to another estimator's partial result.
 	for i := range availableTargetClusters {
 		if availableTargetClusters[i].Replicas == math.MaxInt32 {
 			availableTargetClusters[i].Replicas = spec.Replicas
@@ -144,20 +155,43 @@ func runSingleTemplateEstimator(ctx context.Context, in replicaEstimationContext
 		ReplicaRequirements: in.spec.ReplicaRequirements,
 		AssumedWorkloads:    in.assumedWorkloads,
 	})
-	if err != nil {
-		klog.Errorf("Max cluster available replicas error: %v", err)
-		return nil, err
-	}
 	klog.V(4).Infof("Invoked MaxAvailableReplicas of estimator %s for workload(%s, kind=%s, %s): %v", in.estimatorName,
 		in.spec.Resource.APIVersion, in.spec.Resource.Kind, names.NamespacedKey(in.spec.Resource.Namespace, in.spec.Resource.Name), res)
-	return res, nil
+	return res, err
+}
+
+// hasUsableEstimate reports whether res contains a trustworthy partial result for at
+// least one requested cluster. A result returned alongside an error is only trusted
+// when the producer also marked at least one failed cluster with UnauthenticReplica;
+// this distinguishes a conforming partial result from a zero-filled error result.
+func hasUsableEstimate(clusters []*clusterv1alpha1.Cluster, res []workv1alpha2.TargetCluster) bool {
+	requested := make(map[string]struct{}, len(clusters))
+	for _, cluster := range clusters {
+		requested[cluster.Name] = struct{}{}
+	}
+	hasValue := false
+	hasFailure := false
+	for i := range res {
+		if _, ok := requested[res[i].Name]; !ok {
+			continue
+		}
+		if res[i].Replicas == estimatorclient.UnauthenticReplica {
+			hasFailure = true
+			continue
+		}
+		hasValue = true
+	}
+	return hasValue && hasFailure
 }
 
 // mergeReplicaResults takes the minimum replicas across estimators for each cluster.
 func mergeReplicaResults(available []workv1alpha2.TargetCluster, res []workv1alpha2.TargetCluster) []workv1alpha2.TargetCluster {
 	resMap := make(map[string]int32, len(res))
 	for i := range res {
-		if res[i].Replicas != estimatorclient.UnauthenticReplica {
+		if res[i].Replicas == estimatorclient.UnauthenticReplica {
+			continue
+		}
+		if current, ok := resMap[res[i].Name]; !ok || res[i].Replicas < current {
 			resMap[res[i].Name] = res[i].Replicas
 		}
 	}
