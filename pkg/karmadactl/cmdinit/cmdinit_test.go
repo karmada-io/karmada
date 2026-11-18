@@ -17,6 +17,7 @@ limitations under the License.
 package cmdinit
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -24,6 +25,14 @@ func TestNewCmdInit(t *testing.T) {
 	cmdinit := NewCmdInit("karmadactl")
 	if cmdinit == nil {
 		t.Errorf("NewCmdInit() want return not nil, but return nil")
+	}
+	certModeFlag := cmdinit.Flags().Lookup("cert-mode")
+	if certModeFlag == nil {
+		t.Errorf("NewCmdInit() should include cert-mode flag")
+		return
+	}
+	if !strings.Contains(certModeFlag.Usage, "external etcd CA and client credentials are preserved and must be rotated separately") {
+		t.Errorf("cert-mode flag usage should document external etcd credential rotation, got %q", certModeFlag.Usage)
 	}
 }
 
