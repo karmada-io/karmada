@@ -1,0 +1,106 @@
+# test case for interpreting health of HelmRelease
+# case1. HelmRelease with Ready=True, reason=InstallSucceeded should be Healthy
+# case2. HelmRelease with Ready=True, reason=UpgradeSucceeded should be Healthy
+# case3. HelmRelease with Ready=False should be Unhealthy
+# case4. HelmRelease with stale observedGeneration should be Unhealthy
+# case5. HelmRelease without status should be Unhealthy
+
+name: "HelmRelease with Ready=True, reason=InstallSucceeded should be Healthy"
+description: "Test interpreting health of HelmRelease after a successful install"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+    generation: 1
+  status:
+    observedGeneration: 1
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: InstallSucceeded
+        message: Helm install succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "HelmRelease with Ready=True, reason=UpgradeSucceeded should be Healthy"
+description: "Test interpreting health of HelmRelease after a successful upgrade"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+    generation: 2
+  status:
+    observedGeneration: 2
+    conditions:
+      - type: Released
+        status: "True"
+        reason: UpgradeSucceeded
+        message: Helm upgrade succeeded
+      - type: Ready
+        status: "True"
+        reason: UpgradeSucceeded
+        message: Helm upgrade succeeded
+operation: InterpretHealth
+output:
+  healthy: true
+
+---
+name: "HelmRelease with Ready=False should be Unhealthy"
+description: "Test interpreting health of HelmRelease when Ready condition is False"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+    generation: 1
+  status:
+    observedGeneration: 1
+    conditions:
+      - type: Ready
+        status: "False"
+        reason: InstallFailed
+        message: Helm install failed
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease with stale observedGeneration should be Unhealthy"
+description: "Test interpreting health of HelmRelease whose latest generation has not been reconciled"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+    generation: 2
+  status:
+    observedGeneration: 1
+    conditions:
+      - type: Ready
+        status: "True"
+        reason: InstallSucceeded
+        message: Helm install succeeded
+operation: InterpretHealth
+output:
+  healthy: false
+
+---
+name: "HelmRelease without status should be Unhealthy"
+description: "Test interpreting health of HelmRelease without status"
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+operation: InterpretHealth
+output:
+  healthy: false

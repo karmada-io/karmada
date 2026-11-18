@@ -1,0 +1,64 @@
+# test case for retaining fields of HelmRelease
+# case1. HelmRelease with suspend=true should retain suspend field
+# case2. HelmRelease without suspend field should not modify desiredObj
+
+name: "HelmRelease with suspend=true should retain suspend field"
+description: "Test retaining suspend field when observedObj has suspend=true"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+    suspend: true
+operation: Retain
+output:
+  retained:
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+    metadata:
+      name: podinfo
+      namespace: default
+    spec:
+      interval: 5m
+      suspend: true
+
+---
+name: "HelmRelease without suspend field should not modify desiredObj"
+description: "Test retaining when observedObj has no suspend field"
+desiredObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+observedObj:
+  apiVersion: helm.toolkit.fluxcd.io/v2
+  kind: HelmRelease
+  metadata:
+    name: podinfo
+    namespace: default
+  spec:
+    interval: 5m
+operation: Retain
+output:
+  retained:
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+    metadata:
+      name: podinfo
+      namespace: default
+    spec:
+      interval: 5m
