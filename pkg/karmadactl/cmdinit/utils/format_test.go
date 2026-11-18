@@ -17,7 +17,10 @@ limitations under the License.
 package utils
 
 import (
+	"fmt"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"slices"
@@ -123,12 +126,44 @@ func TestFlagsDNS(t *testing.T) {
 }
 
 func TestInternetIP(t *testing.T) {
-	got, err := InternetIP()
-	if got == nil {
-		t.Errorf("InternetIP() want return not nil, but return nil")
+	tests := []struct {
+		name       string
+		statusCode int
+		body       string
+		wantIP     string
+		wantErr    bool
+	}{
+		{
+			name:       "valid IP is returned",
+			statusCode: http.StatusOK,
+			body:       "203.0.113.7",
+			wantIP:     "203.0.113.7",
+			wantErr:    false,
+		},
+		{
+			name:       "non-200 status returns an error instead of falling back to 127.0.0.1",
+			statusCode: http.StatusTooManyRequests,
+			body:       "rate limited",
+			wantErr:    true,
+		},
 	}
-	if err != nil {
-		t.Errorf("InternetIP() want return not error, but return error")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tt.statusCode)
+				fmt.Fprint(w, tt.body)
+			}))
+			defer server.Close()
+
+			got, err := internetIP(server.URL)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("internetIP() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && got.String() != tt.wantIP {
+				t.Errorf("internetIP() = %v, want %v", got, tt.wantIP)
+			}
+		})
 	}
 }
 
