@@ -1,5 +1,6 @@
 # test case for interpreting dependency of StatefulSet
 # case1. StatefulSet with configmap and secret dependency
+# case2. StatefulSet with a PVC volume backed by volumeClaimTemplates
 
 name: "StatefulSet with configmap and secret dependency"
 description: "InterpretDependency should return configmap and secret references"
@@ -40,3 +41,45 @@ output:
       kind: Secret
       name: my-secret
       namespace: test-ns
+
+---
+name: "StatefulSet with volumeClaimTemplates"
+description: "PVC placeholders that match a volumeClaimTemplate are managed by the StatefulSet and must not be reported as dependencies"
+desiredObj:
+  apiVersion: apps.kruise.io/v1beta1
+  kind: StatefulSet
+  metadata:
+    name: web
+    namespace: default
+  spec:
+    replicas: 3
+    serviceName: nginx
+    selector:
+      matchLabels:
+        app: nginx
+    template:
+      metadata:
+        labels:
+          app: nginx
+      spec:
+        volumes:
+          - name: www
+            persistentVolumeClaim:
+              claimName: www
+        containers:
+          - name: nginx
+            image: nginx
+            volumeMounts:
+              - name: www
+                mountPath: /usr/share/nginx/html
+    volumeClaimTemplates:
+      - metadata:
+          name: www
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+operation: InterpretDependency
+output:
+  dependencies: []
