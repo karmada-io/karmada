@@ -401,9 +401,17 @@ func GetResourceBindingsByNamespace(c client.Client, namespace string) (*workv1a
 	return bindings, c.List(context.TODO(), bindings, listOpt)
 }
 
-// DeleteWorks will delete all Work objects by labels.
-func DeleteWorks(ctx context.Context, c client.Client, namespace, name, bindingID string) error {
-	workList, err := GetWorksByBindingID(ctx, c, bindingID, namespace != "")
+// DeleteWorks deletes all Work objects associated with a ResourceBinding or ClusterResourceBinding.
+func DeleteWorks(ctx context.Context, c client.Client, apiReader client.Reader, namespace, name, bindingID string) error {
+	bindingIDLabel := workv1alpha2.ClusterResourceBindingPermanentIDLabel
+	if namespace != "" {
+		bindingIDLabel = workv1alpha2.ResourceBindingPermanentIDLabel
+	}
+
+	// Use an uncached reader here because the binding finalizer must not be removed until every associated
+	// Work has been found and deleted. The informer cache can lag behind Work creation and return a partial list.
+	workList := &workv1alpha1.WorkList{}
+	err := apiReader.List(ctx, workList, client.MatchingLabels{bindingIDLabel: bindingID})
 	if err != nil {
 		klog.Errorf("Failed to get works by (Cluster)ResourceBinding(%s/%s) : %v", namespace, name, err)
 		return err
