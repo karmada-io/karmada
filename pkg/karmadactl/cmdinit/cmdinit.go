@@ -97,9 +97,9 @@ var (
 		%[1]s init --karmada-scheduler-extra-args="--scheduler-name=test-scheduler" --karmada-scheduler-extra-args="--enable-pprof"
 
 		# Pass extra arguments to Kube Controller Manager. (Parameters are separated by commas)
-		%[1]s init --kube-controller-manager-extra-args="--node-monitor-grace-period=50s,--node-monitor-period=5s"
+		%[1]s init --karmada-kube-controller-manager-extra-args="--node-monitor-grace-period=50s,--node-monitor-period=5s"
 		# Or write them separately.
-		%[1]s init --kube-controller-manager-extra-args="--node-monitor-grace-period=50s" --kube-controller-manager-extra-args="--node-monitor-period=5s"
+		%[1]s init --karmada-kube-controller-manager-extra-args="--node-monitor-grace-period=50s" --karmada-kube-controller-manager-extra-args="--node-monitor-period=5s"
 		
 		# Pass extra arguments to Karmada Controller Manager. (Parameters are separated by commas)
 		%[1]s init --karmada-controller-manager-extra-args="--v=2,--enable-pprof"
