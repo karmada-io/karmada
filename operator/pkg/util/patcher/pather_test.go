@@ -181,6 +181,58 @@ func TestPatchForDeployment(t *testing.T) {
 			},
 		},
 		{
+			name: "PatchForDeployment_WithExtraArgsAndEmptyCommand_Patched",
+			patcher: &Patcher{
+				extraArgs: map[string]string{
+					"some-arg": "some-value",
+				},
+			},
+			deployment: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-deployment",
+					Namespace: "test",
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
+									Args:  []string{"run", "--existing=1"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: &appsv1.Deployment{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        "test-deployment",
+					Namespace:   "test",
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
+				},
+				Spec: appsv1.DeploymentSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels:      map[string]string{},
+							Annotations: map[string]string{},
+						},
+						Spec: corev1.PodSpec{
+							Containers: []corev1.Container{
+								{
+									Name:  "test-container",
+									Image: "nginx:latest",
+									Args:  []string{"run", "--existing=1"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "PatchForDeployment_WithExtraVolumesAndVolumeMounts_Patched",
 			patcher: &Patcher{
 				extraVolumes: []corev1.Volume{
