@@ -484,7 +484,7 @@ func TestValidateIngressStatusUpdate(t *testing.T) {
 		},
 	}
 
-	errs := ValidateIngressLoadBalancerStatus(&newValue.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))
+	errs := ValidateIngressLoadBalancerStatus(&newValue.Status.LoadBalancer, nil, field.NewPath("status", "loadBalancer"))
 	if len(errs) != 0 {
 		t.Errorf("Unexpected error %v", errs)
 	}
@@ -494,7 +494,7 @@ func TestValidateIngressStatusUpdate(t *testing.T) {
 		"status.loadBalancer.ingress[0].hostname: Invalid value": invalidHostname,
 	}
 	for k, v := range errorCases {
-		errs := ValidateIngressLoadBalancerStatus(&v.Status.LoadBalancer, field.NewPath("status", "loadBalancer"))
+		errs := ValidateIngressLoadBalancerStatus(&v.Status.LoadBalancer, nil, field.NewPath("status", "loadBalancer"))
 		if len(errs) == 0 {
 			t.Errorf("expected failure for %s", k)
 		} else {
@@ -504,5 +504,22 @@ func TestValidateIngressStatusUpdate(t *testing.T) {
 				t.Errorf("unexpected error: %q, expected: %q", err, k)
 			}
 		}
+	}
+}
+
+func TestValidateIngressLoadBalancerStatusToleratesExistingIP(t *testing.T) {
+	invalid := networkingv1.IngressLoadBalancerStatus{
+		Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "1.2.3.4.5"}},
+	}
+
+	// Without an old status the address is rejected, as before.
+	if errs := ValidateIngressLoadBalancerStatus(&invalid, nil, field.NewPath("status", "loadBalancer")); len(errs) == 0 {
+		t.Errorf("expected failure for an invalid address when there is no old status")
+	}
+
+	// An address already carried by the object must not block an update, otherwise the
+	// object can never be changed again. See kubernetes/kubernetes@ad22c0d4.
+	if errs := ValidateIngressLoadBalancerStatus(&invalid, &invalid, field.NewPath("status", "loadBalancer")); len(errs) != 0 {
+		t.Errorf("unexpected error for an address carried over from the old status: %v", errs)
 	}
 }
