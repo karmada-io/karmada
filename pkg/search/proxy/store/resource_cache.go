@@ -18,6 +18,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -163,31 +164,31 @@ func (s *simpleRESTCreateStrategy) NamespaceScoped() bool {
 }
 
 func (s *simpleRESTCreateStrategy) ObjectKinds(runtime.Object) ([]schema.GroupVersionKind, bool, error) {
-	panic("simpleRESTCreateStrategy.ObjectKinds is not supported")
+	return nil, false, fmt.Errorf("simpleRESTCreateStrategy.ObjectKinds is not supported")
 }
 
 func (s *simpleRESTCreateStrategy) Recognizes(schema.GroupVersionKind) bool {
-	panic("simpleRESTCreateStrategy.Recognizes is not supported")
+	return false
 }
 
 func (s *simpleRESTCreateStrategy) GenerateName(string) string {
-	panic("simpleRESTCreateStrategy.GenerateName is not supported")
+	return ""
 }
 
 func (s *simpleRESTCreateStrategy) PrepareForCreate(context.Context, runtime.Object) {
-	panic("simpleRESTCreateStrategy.PrepareForCreate is not supported")
+	// No-op implementation
 }
 
 func (s *simpleRESTCreateStrategy) Validate(context.Context, runtime.Object) field.ErrorList {
-	panic("simpleRESTCreateStrategy.Validate is not supported")
+	return field.ErrorList{}
 }
 
 func (s *simpleRESTCreateStrategy) WarningsOnCreate(context.Context, runtime.Object) []string {
-	panic("simpleRESTCreateStrategy.WarningsOnCreate is not supported")
+	return nil
 }
 
 func (s *simpleRESTCreateStrategy) Canonicalize(runtime.Object) {
-	panic("simpleRESTCreateStrategy.Canonicalize is not supported")
+	// No-op implementation
 }
 
 func restCreateStrategy(namespaced bool) rest.RESTCreateStrategy {
