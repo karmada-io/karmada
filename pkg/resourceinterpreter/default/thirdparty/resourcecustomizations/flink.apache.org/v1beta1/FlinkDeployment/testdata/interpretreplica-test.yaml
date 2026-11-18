@@ -44,7 +44,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     namespace: "test-namespace"
 
 ---
@@ -81,7 +81,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     namespace: "test-namespace"
 
 ---
@@ -125,7 +125,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     nodeClaim:
       nodeSelector:
         disktype: ssd
@@ -167,7 +167,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     namespace: "test-namespace"
 
 ---
@@ -199,7 +199,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     namespace: "test-namespace"
 
 ---
@@ -232,7 +232,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "2"
-      "memory": "4096m"
+      "memory": "4294967296"
     namespace: "test-namespace"
 
 ---
@@ -265,7 +265,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "2"
-      "memory": "8192m"
+      "memory": "8589934592"
     namespace: "test-namespace"
 
 ---
@@ -293,7 +293,7 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
+      "memory": "2147483648"
     namespace: "test-namespace"
 
 ---
@@ -329,6 +329,5 @@ output:
   requires:
     resourceRequest:
       "cpu": "1"
-      "memory": "2048m"
-    namespace: "test-namespace"
+      "memory": "2147483648"
 
