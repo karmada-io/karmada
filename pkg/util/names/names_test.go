@@ -237,6 +237,35 @@ func TestGenerateWorkName(t *testing.T) {
 	}
 }
 
+func TestShortNameLabelValue(t *testing.T) {
+	cases := []struct {
+		description string
+		input       string
+		expect      string
+	}{{
+		description: "some common case",
+		input:       "lala.134-ab_abc-adfja2edklfja3rqdkfjasfa-1234567890123-a-b",
+		expect:      "lala-134-ab-abc-adfja2edklfja3rqdkfjasfa-12345678-ab",
+	}, {
+		description: "less common case",
+		input:       "0-1-2-3-4-5-6-7-8-9-10-11-12-13-14-15-16-17-18-19-20-21-22-23-24",
+		expect:      "0-1-2-3-4-5-6-7-8-9-10-11-12-13-14-15-16-17-1-122222",
+	}, {
+		description: "boundary case A",
+		input:       "0-1-2-3-4-5-6-7-8-9-0-a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z",
+		expect:      "0-1-2-3-4-5-6-7-8-9-0-a-b-c-d-efghijklmnopqrstuvwxyz",
+	}, {
+		description: "boundary case B",
+		input:       "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+		expect:      "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOP",
+	}}
+	for _, testCase := range cases {
+		if got := ShortNameLabelValue(testCase.input); got != testCase.expect {
+			t.Errorf("Test failed, name: %s, expect: %s, got: %s", testCase.description, testCase.expect, got)
+		}
+	}
+}
+
 func TestGenerateServiceAccountName(t *testing.T) {
 	tests := []struct {
 		name        string
