@@ -1,0 +1,161 @@
+# test case for interpreting dependency of MPIJob
+# case1. MPIJob with multiple dependencies from both Launcher and Worker
+# case2. MPIJob with empty mpiReplicaSpecs
+# case3. MPIJob with default ServiceAccount (should not be included)
+# case4. MPIJob with envFrom for ConfigMap and Secret
+
+name: "MPIJob with multiple dependencies from both Launcher and Worker"
+description: "Test interpreting dependency of MPIJob with multiple dependencies from both replicas"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-multi-deps
+    namespace: default
+  spec:
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            serviceAccountName: mpijob-service-account
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: launcher
+                env:
+                  - name: CONFIG_DATA
+                    valueFrom:
+                      configMapKeyRef:
+                        name: mpijob-config
+                        key: config
+                volumeMounts:
+                  - mountPath: "/train"
+                    name: training-data
+            volumes:
+              - name: training-data
+                persistentVolumeClaim:
+                  claimName: training-data-pvc
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            serviceAccountName: mpijob-service-account
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: worker
+                env:
+                  - name: SECRET_DATA
+                    valueFrom:
+                      secretKeyRef:
+                        name: mpijob-secret
+                        key: secret
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ServiceAccount
+      name: mpijob-service-account
+      namespace: default
+    - apiVersion: v1
+      kind: ConfigMap
+      name: mpijob-config
+      namespace: default
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      name: training-data-pvc
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: mpijob-secret
+      namespace: default
+
+---
+name: "MPIJob with empty mpiReplicaSpecs"
+description: "Test interpreting dependency of MPIJob when mpiReplicaSpecs is empty"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-empty-specs
+    namespace: default
+  spec:
+    mpiReplicaSpecs: {}
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "MPIJob with default ServiceAccount (should not be included)"
+description: "Test interpreting dependency of MPIJob with default ServiceAccount"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-default-sa
+    namespace: default
+  spec:
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: launcher
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            serviceAccountName: default
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: worker
+operation: InterpretDependency
+output:
+  dependencies: []
+
+---
+name: "MPIJob with envFrom for ConfigMap and Secret"
+description: "Test interpreting dependency of MPIJob with envFrom referencing ConfigMap and Secret"
+desiredObj:
+  apiVersion: kubeflow.org/v2beta1
+  kind: MPIJob
+  metadata:
+    name: mpijob-envfrom
+    namespace: default
+  spec:
+    mpiReplicaSpecs:
+      Launcher:
+        replicas: 1
+        template:
+          spec:
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: launcher
+                envFrom:
+                  - configMapRef:
+                      name: mpijob-config
+                  - secretRef:
+                      name: mpijob-secret
+      Worker:
+        replicas: 2
+        template:
+          spec:
+            containers:
+              - image: mpioperator/mpi-pi:latest
+                name: worker
+                envFrom:
+                  - configMapRef:
+                      name: mpijob-config
+operation: InterpretDependency
+output:
+  dependencies:
+    - apiVersion: v1
+      kind: ConfigMap
+      name: mpijob-config
+      namespace: default
+    - apiVersion: v1
+      kind: Secret
+      name: mpijob-secret
+      namespace: default
