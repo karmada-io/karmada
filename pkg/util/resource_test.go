@@ -640,3 +640,555 @@ func TestResource_Clone(t *testing.T) {
 		})
 	}
 }
+
+func TestEmptyResource(t *testing.T) {
+	got := EmptyResource()
+	want := &Resource{}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("EmptyResource() = %v, want %v", got, want)
+	}
+}
+
+func TestResource_Add(t *testing.T) {
+	tests := []struct {
+		name string
+		r    *Resource
+		rl   corev1.ResourceList
+		want *Resource
+	}{
+		{
+			name: "r is nil",
+			r:    nil,
+			rl: corev1.ResourceList{
+				corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+				corev1.ResourceMemory: *resource.NewQuantity(10, resource.BinarySI),
+			},
+			want: nil,
+		},
+		{
+			name: "add standard resources",
+			r:    EmptyResource(),
+			rl: corev1.ResourceList{
+				corev1.ResourceCPU:              *resource.NewMilliQuantity(10, resource.DecimalSI),
+				corev1.ResourceMemory:           *resource.NewQuantity(20, resource.BinarySI),
+				corev1.ResourcePods:             *resource.NewQuantity(5, resource.DecimalSI),
+				corev1.ResourceEphemeralStorage: *resource.NewQuantity(30, resource.BinarySI),
+			},
+			want: &Resource{
+				MilliCPU:         10,
+				Memory:           20,
+				AllowedPodNumber: 5,
+				EphemeralStorage: 30,
+			},
+		},
+		{
+			name: "add scalar resources",
+			r:    EmptyResource(),
+			rl: corev1.ResourceList{
+				"test.karmada.io/gpu": *resource.NewQuantity(4, resource.DecimalSI),
+			},
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.r.Add(tt.rl)
+			if !reflect.DeepEqual(tt.r, tt.want) {
+				t.Errorf("Add() result = %v, want %v", tt.r, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_Multiply(t *testing.T) {
+	tests := []struct {
+		name   string
+		r      *Resource
+		factor int64
+		want   *Resource
+	}{
+		{
+			name:   "r is nil",
+			r:      nil,
+			factor: 3,
+			want:   nil,
+		},
+		{
+			name: "multiply by factor",
+			r: &Resource{
+				MilliCPU:         10,
+				Memory:           20,
+				EphemeralStorage: 30,
+				AllowedPodNumber: 5,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 2,
+				},
+			},
+			factor: 3,
+			want: &Resource{
+				MilliCPU:         30,
+				Memory:           60,
+				EphemeralStorage: 90,
+				AllowedPodNumber: 15,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 6,
+				},
+			},
+		},
+		{
+			name: "multiply by zero",
+			r: &Resource{
+				MilliCPU:         10,
+				Memory:           20,
+				EphemeralStorage: 30,
+				AllowedPodNumber: 5,
+			},
+			factor: 0,
+			want: &Resource{
+				MilliCPU:         0,
+				Memory:           0,
+				EphemeralStorage: 0,
+				AllowedPodNumber: 0,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.r.Multiply(tt.factor)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Multiply() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_Allocatable(t *testing.T) {
+	tests := []struct {
+		name string
+		r    *Resource
+		rr   *Resource
+		want bool
+	}{
+		{
+			name: "rr is nil",
+			r: &Resource{
+				MilliCPU: 10,
+				Memory:   10,
+			},
+			rr:   nil,
+			want: true,
+		},
+		{
+			name: "r is nil",
+			r:    nil,
+			rr: &Resource{
+				MilliCPU: 10,
+				Memory:   10,
+			},
+			want: false,
+		},
+		{
+			name: "r has sufficient resources",
+			r: &Resource{
+				MilliCPU:         100,
+				Memory:           100,
+				EphemeralStorage: 100,
+				AllowedPodNumber: 10,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 8,
+				},
+			},
+			rr: &Resource{
+				MilliCPU:         50,
+				Memory:           50,
+				EphemeralStorage: 50,
+				AllowedPodNumber: 5,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "insufficient MilliCPU",
+			r: &Resource{
+				MilliCPU: 10,
+				Memory:   100,
+			},
+			rr: &Resource{
+				MilliCPU: 50,
+				Memory:   50,
+			},
+			want: false,
+		},
+		{
+			name: "insufficient Memory",
+			r: &Resource{
+				MilliCPU: 100,
+				Memory:   10,
+			},
+			rr: &Resource{
+				MilliCPU: 50,
+				Memory:   50,
+			},
+			want: false,
+		},
+		{
+			name: "insufficient EphemeralStorage",
+			r: &Resource{
+				MilliCPU:         100,
+				Memory:           100,
+				EphemeralStorage: 10,
+			},
+			rr: &Resource{
+				MilliCPU:         50,
+				Memory:           50,
+				EphemeralStorage: 50,
+			},
+			want: false,
+		},
+		{
+			name: "insufficient AllowedPodNumber",
+			r: &Resource{
+				MilliCPU:         100,
+				Memory:           100,
+				AllowedPodNumber: 2,
+			},
+			rr: &Resource{
+				MilliCPU:         50,
+				Memory:           50,
+				AllowedPodNumber: 5,
+			},
+			want: false,
+		},
+		{
+			name: "insufficient scalar resource",
+			r: &Resource{
+				MilliCPU: 100,
+				Memory:   100,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 2,
+				},
+			},
+			rr: &Resource{
+				MilliCPU: 50,
+				Memory:   50,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "missing scalar resource in r",
+			r: &Resource{
+				MilliCPU: 100,
+				Memory:   100,
+			},
+			rr: &Resource{
+				MilliCPU: 50,
+				Memory:   50,
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.r.Allocatable(tt.rr); got != tt.want {
+				t.Errorf("Allocatable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_SetScalar(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        *Resource
+		rName    corev1.ResourceName
+		quantity int64
+		want     *Resource
+	}{
+		{
+			name:     "lazy init scalar resources map",
+			r:        EmptyResource(),
+			rName:    "test.karmada.io/gpu",
+			quantity: 4,
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+		},
+		{
+			name: "overwrite existing scalar",
+			r: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 2,
+				},
+			},
+			rName:    "test.karmada.io/gpu",
+			quantity: 8,
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 8,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.r.SetScalar(tt.rName, tt.quantity)
+			if !reflect.DeepEqual(tt.r, tt.want) {
+				t.Errorf("SetScalar() result = %v, want %v", tt.r, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_AddScalar(t *testing.T) {
+	tests := []struct {
+		name     string
+		r        *Resource
+		rName    corev1.ResourceName
+		quantity int64
+		want     *Resource
+	}{
+		{
+			name:     "add scalar to empty resource",
+			r:        EmptyResource(),
+			rName:    "test.karmada.io/gpu",
+			quantity: 4,
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 4,
+				},
+			},
+		},
+		{
+			name: "accumulate scalar resource",
+			r: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 2,
+				},
+			},
+			rName:    "test.karmada.io/gpu",
+			quantity: 3,
+			want: &Resource{
+				ScalarResources: map[corev1.ResourceName]int64{
+					"test.karmada.io/gpu": 5,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.r.AddScalar(tt.rName, tt.quantity)
+			if !reflect.DeepEqual(tt.r, tt.want) {
+				t.Errorf("AddScalar() result = %v, want %v", tt.r, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_AddPodRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		podSpec *corev1.PodSpec
+		want    *Resource
+	}{
+		{
+			name: "containers only",
+			podSpec: &corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(10, resource.BinarySI),
+							},
+						},
+					},
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewMilliQuantity(5, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(5, resource.BinarySI),
+							},
+						},
+					},
+				},
+			},
+			want: &Resource{
+				MilliCPU: 15,
+				Memory:   15,
+			},
+		},
+		{
+			name: "init container request exceeds container request",
+			podSpec: &corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(10, resource.BinarySI),
+							},
+						},
+					},
+				},
+				InitContainers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewMilliQuantity(20, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(5, resource.BinarySI),
+							},
+						},
+					},
+				},
+			},
+			want: &Resource{
+				MilliCPU: 20,
+				Memory:   10,
+			},
+		},
+		{
+			name: "with overhead",
+			podSpec: &corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    *resource.NewMilliQuantity(10, resource.DecimalSI),
+								corev1.ResourceMemory: *resource.NewQuantity(10, resource.BinarySI),
+							},
+						},
+					},
+				},
+				Overhead: corev1.ResourceList{
+					corev1.ResourceCPU:    *resource.NewMilliQuantity(5, resource.DecimalSI),
+					corev1.ResourceMemory: *resource.NewQuantity(5, resource.BinarySI),
+				},
+			},
+			want: &Resource{
+				MilliCPU: 15,
+				Memory:   15,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := EmptyResource()
+			got := r.AddPodRequest(tt.podSpec)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("AddPodRequest() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResource_AddResourcePods(t *testing.T) {
+	tests := []struct {
+		name string
+		pods int64
+		want *Resource
+	}{
+		{
+			name: "add pods",
+			pods: 5,
+			want: &Resource{
+				AllowedPodNumber: 5,
+			},
+		},
+		{
+			name: "add zero pods",
+			pods: 0,
+			want: &Resource{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := EmptyResource()
+			r.AddResourcePods(tt.pods)
+			if !reflect.DeepEqual(r, tt.want) {
+				t.Errorf("AddResourcePods() result = %v, want %v", r, tt.want)
+			}
+		})
+	}
+}
+
+func TestMinInt64(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b int64
+		want int64
+	}{
+		{
+			name: "a is smaller",
+			a:    1,
+			b:    2,
+			want: 1,
+		},
+		{
+			name: "b is smaller",
+			a:    5,
+			b:    3,
+			want: 3,
+		},
+		{
+			name: "equal",
+			a:    4,
+			b:    4,
+			want: 4,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MinInt64(tt.a, tt.b); got != tt.want {
+				t.Errorf("MinInt64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaxInt64(t *testing.T) {
+	tests := []struct {
+		name string
+		a, b int64
+		want int64
+	}{
+		{
+			name: "a is larger",
+			a:    5,
+			b:    2,
+			want: 5,
+		},
+		{
+			name: "b is larger",
+			a:    1,
+			b:    3,
+			want: 3,
+		},
+		{
+			name: "equal",
+			a:    4,
+			b:    4,
+			want: 4,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MaxInt64(tt.a, tt.b); got != tt.want {
+				t.Errorf("MaxInt64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
