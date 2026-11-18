@@ -213,7 +213,15 @@ func (s *Scheduler) onResourceBindingUpdate(old, cur any) {
 			klog.Errorf("couldn't get key for object %#v: %v", newRB, err)
 			return
 		}
-		s.queue.Add(key)
+
+		// Collapse bursts of spec updates into one scheduling pass. Only update
+		// events are delayed; adds and requeues (failover, cluster changes) stay
+		// on the fast path.
+		if s.bindingUpdateDebounce > 0 {
+			s.queue.AddAfter(key, s.bindingUpdateDebounce)
+		} else {
+			s.queue.Add(key)
+		}
 	}
 	metrics.CountSchedulerBindings(metrics.BindingUpdate)
 }
