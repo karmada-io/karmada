@@ -153,6 +153,12 @@ certs:
     ]
     ## @param certs.auto.rsaSize rsa key size of the certificate
     rsaSize: 3072
+    ## @param certs.auto.provisionOnUpgrade Allow initial certificate provisioning during a Helm upgrade.
+    ## Useful when Karmada is first enabled as a subchart in an existing release.
+    ## To guard against unintended CA replacement, provisioning is allowed only when
+    ## neither the main certificate Secret nor the Karmada API server Deployment exists.
+    ## Warning: Enabling this option may replace existing certificates if the conditions are met.
+    provisionOnUpgrade: false
   custom:
     ## @param certs.custom.caCrt ca of the certificate
     caCrt: |
