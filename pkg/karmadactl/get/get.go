@@ -669,22 +669,23 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 	if len(watchObjs) <= 0 {
 		return fmt.Errorf("not to find obj that is watched")
 	}
-	infos, err := watchObjs[0].r.Infos()
+
+	mapping, err := watchObjs[0].r.ResourceMapping()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get resource mapping: %w", err)
 	}
 
-	var objs []Obj
-	for ix := range infos {
-		objs = append(objs, Obj{Cluster: watchObjs[0].Cluster, Info: infos[ix]})
+	// Verify all watchObjs share the same GVK (watch only supports single resource type)
+	for i, watchObj := range watchObjs[1:] {
+		m, err := watchObj.r.ResourceMapping()
+		if err != nil {
+			return fmt.Errorf("failed to get resource mapping for watchObj %d: %w", i+1, err)
+		}
+		if m.GroupVersionKind != mapping.GroupVersionKind {
+			return fmt.Errorf("watch is only supported on individual resources and resource collections - more than 1 resource was found")
+		}
 	}
 
-	if multipleGVKsRequested(objs) {
-		return fmt.Errorf("watch is only supported on individual resources and resource collections - more than 1 resource was found")
-	}
-
-	info := infos[0]
-	mapping := info.ResourceMapping()
 	outputObjects := new(!g.WatchOnly)
 
 	printer, err := g.ToPrinter(mapping, outputObjects, g.AllNamespaces, false)
@@ -692,6 +693,10 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 		return err
 	}
 	writer := printers.GetNewTabWriter(g.Out)
+
+	// Track whether the initial list was empty so we know to preserve ColumnDefinitions
+	// on the first watch event (critical for printer header initialization).
+	initialListEmpty := true
 
 	// print the current object
 	for idx := range watchObjs {
@@ -711,6 +716,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 		}
 
 		for _, objToPrint := range objsToPrint {
+			initialListEmpty = false
 			objrow, err := g.reconstructObj(objToPrint, mapping, watchObjs[idx].Cluster, string(watch.Added))
 			if err != nil {
 				return err
@@ -733,14 +739,15 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 	}
 	writer.Flush()
 
-	g.watchMultiClusterObj(watchObjs, mapping, outputObjects, printer)
+	g.watchMultiClusterObj(watchObjs, mapping, outputObjects, printer, initialListEmpty)
 
 	return nil
 }
 
 // watchMultiClusterObj watch objects in multi clusters by goroutines
-func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc) {
+func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *meta.RESTMapping, outputObjects *bool, printer printers.ResourcePrinterFunc, initialListEmpty bool) {
 	var wg sync.WaitGroup
+	var headerPrinted sync.Once // marks whether the printer header has been emitted
 
 	writer := printers.GetNewTabWriter(g.Out)
 
@@ -785,8 +792,29 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 					if err != nil {
 						return false, err
 					}
-					// not need to print ColumnDefinitions
-					objrow.ColumnDefinitions = nil
+
+					// ColumnDefinitions handling across goroutines:
+					// - Normal path (initial list was non-empty): the printer header was already
+					//   emitted during the initial list print, so nil out ColumnDefinitions to
+					//   prevent re-printing the header on every event.
+					// - Empty-list path: no prior header was printed. The first watch event from
+					//   whichever goroutine wins the race must carry ColumnDefinitions so that
+					//   HumanReadablePrinter can initialize its header cache. All subsequent
+					//   events (from any goroutine) nil them out. sync.Once guarantees exactly
+					//   one goroutine preserves ColumnDefinitions.
+					if initialListEmpty {
+						firstEvent := false
+						headerPrinted.Do(func() {
+							firstEvent = true
+						})
+						if !firstEvent {
+							objrow.ColumnDefinitions = nil
+						}
+						// Else: firstEvent == true, leave ColumnDefinitions intact so the
+						// printer caches the header.
+					} else {
+						objrow.ColumnDefinitions = nil
+					}
 
 					printObj, err := helper.ToUnstructured(objrow)
 					if err != nil {
