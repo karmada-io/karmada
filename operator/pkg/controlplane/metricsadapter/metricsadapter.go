@@ -70,7 +70,7 @@ func installKarmadaMetricAdapter(client clientset.Interface, cfg *operatorv1alph
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(metricAdapter)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).WithNodeSelector(cfg.CommonSettings.NodeSelector).ForDeployment(metricAdapter)
 
 	if metricAdapter, err = apiclient.CreateOrUpdateDeployment(client, metricAdapter); err != nil {
 		return fmt.Errorf("error when creating deployment for %s, err: %w", metricAdapter.Name, err)
