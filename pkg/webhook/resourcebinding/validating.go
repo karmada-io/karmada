@@ -405,7 +405,7 @@ func isQuotaRelevantFieldChanged(oldRB, newRB *workv1alpha2.ResourceBinding) boo
 	if isScheduledReplicasChanged(oldRB, newRB) {
 		return true
 	}
-	if (len(oldRB.Spec.Components) != 0 || len(newRB.Spec.Components) != 0) && isScheduledClusterChanged(oldRB, newRB) {
+	if (oldRB.Spec.IsMultiTemplateWorkload() || newRB.Spec.IsMultiTemplateWorkload()) && isScheduledClusterChanged(oldRB, newRB) {
 		return true
 	}
 	return isComponentsChanged(oldRB, newRB)

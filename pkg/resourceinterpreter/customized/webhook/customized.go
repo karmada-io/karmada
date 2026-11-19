@@ -25,6 +25,7 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -123,6 +124,23 @@ func (e *CustomizedInterpreter) GetComponents(ctx context.Context, attributes *r
 	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
 		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	return response.Components, matched, nil
+}
+
+// GetPodSelector returns the label selector that identifies the Pods derived from the object.
+// It also returns a matched value to indicate whether there is a matching hook.
+func (e *CustomizedInterpreter) GetPodSelector(ctx context.Context, attributes *request.Attributes) (selector *metav1.LabelSelector, matched bool, err error) {
+	var response *request.ResponseAttributes
+	response, matched, err = e.interpret(ctx, attributes)
+	if err != nil {
+		return
+	}
+	if !matched {
+		return
+	}
+
+	klog.V(4).Infof("Running operation %s for object: %v %s/%s with webhook interpreter.",
+		attributes.Operation, attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
+	return response.PodSelector, matched, nil
 }
 
 // Patch returns the Unstructured object that applied patch response that based on the RequestAttributes.

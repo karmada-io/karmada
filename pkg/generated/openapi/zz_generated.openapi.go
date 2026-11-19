@@ -88,6 +88,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		configv1alpha1.DependentObjectReference{}.OpenAPIModelName():                    schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref),
 		configv1alpha1.HealthInterpretation{}.OpenAPIModelName():                        schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref),
 		configv1alpha1.LocalValueRetention{}.OpenAPIModelName():                         schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref),
+		configv1alpha1.PodSelectorInterpretation{}.OpenAPIModelName():                   schema_pkg_apis_config_v1alpha1_PodSelectorInterpretation(ref),
 		configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName():                  schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref),
 		configv1alpha1.ReplicaRevision{}.OpenAPIModelName():                             schema_pkg_apis_config_v1alpha1_ReplicaRevision(ref),
 		configv1alpha1.RequestStatus{}.OpenAPIModelName():                               schema_pkg_apis_config_v1alpha1_RequestStatus(ref),
@@ -2107,7 +2108,7 @@ func schema_pkg_apis_config_v1alpha1_ComponentResourceRequirement(ref common.Ref
 				Properties: map[string]spec.Schema{
 					"luaScript": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to extract the desired replica count and resource requirements for each component of the resource.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: >\n      function GetComponents(desiredObj)\n          local components = {}\n\n          local jobManagerComponent = {\n              name = \"jobmanager\",\n              replicas = desiredObj.spec.jobManager.replicas\n          }\n          table.insert(components, jobManagerComponent)\n\n          local taskManagerComponent = {\n              name = \"taskmanager\",\n              replicas = desiredObj.spec.taskManager.replicas\n          }\n          table.insert(components, taskManagerComponent)\n\n          return components\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects one return value:\n  - components: the resource requirements for each component.\nThe returned value will be set into a ResourceBinding or ClusterResourceBinding.",
+							Description: "LuaScript holds the Lua script that is used to extract the desired replica count and resource requirements for each component of the resource.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: >\n      function GetComponents(desiredObj)\n          local components = {}\n\n          local jobManagerComponent = {\n              name = \"jobmanager\",\n              replicas = desiredObj.spec.jobManager.replicas\n          }\n          table.insert(components, jobManagerComponent)\n\n          local taskManagerComponent = {\n              name = \"taskmanager\",\n              replicas = desiredObj.spec.taskManager.replicas,\n              podSelector = {\n                  matchLabels = {\n                      component = \"taskmanager\"\n                  }\n              }\n          }\n          table.insert(components, taskManagerComponent)\n\n          return components\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects one return value:\n  - components: the resource requirements for each component. Each component\n      may optionally carry a 'podSelector' that identifies its Pods.\nThe returned value will be set into a ResourceBinding or ClusterResourceBinding.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2145,6 +2146,12 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 							Ref:         ref(configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName()),
 						},
 					},
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSelector describes the rules for Karmada to discover the label selector that identifies the Pods derived from the resource. It is intended for CRD resources with a single pod template whose replicas are discovered by ReplicaResource. For resources discovered by ComponentResource, the selector should be declared on each component instead. It is usually not needed for Kubernetes native resources(Deployment) as Karmada knows how to discover info from them. But if it is set, the built-in discovery rules will be ignored. This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.",
+							Ref:         ref(configv1alpha1.PodSelectorInterpretation{}.OpenAPIModelName()),
+						},
+					},
 					"replicaRevision": {
 						SchemaProps: spec.SchemaProps{
 							Description: "ReplicaRevision describes the rules for Karmada to revise the resource's replica. It would be useful for those CRD resources that declare workload types like Deployment. It is usually not needed for Kubernetes native resources(Deployment, Job) as Karmada knows how to revise replicas for them. But if it is set, the built-in revision rules will be ignored.",
@@ -2179,7 +2186,7 @@ func schema_pkg_apis_config_v1alpha1_CustomizationRules(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName(), configv1alpha1.DependencyInterpretation{}.OpenAPIModelName(), configv1alpha1.HealthInterpretation{}.OpenAPIModelName(), configv1alpha1.LocalValueRetention{}.OpenAPIModelName(), configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ReplicaRevision{}.OpenAPIModelName(), configv1alpha1.StatusAggregation{}.OpenAPIModelName(), configv1alpha1.StatusReflection{}.OpenAPIModelName()},
+			configv1alpha1.ComponentResourceRequirement{}.OpenAPIModelName(), configv1alpha1.DependencyInterpretation{}.OpenAPIModelName(), configv1alpha1.HealthInterpretation{}.OpenAPIModelName(), configv1alpha1.LocalValueRetention{}.OpenAPIModelName(), configv1alpha1.PodSelectorInterpretation{}.OpenAPIModelName(), configv1alpha1.ReplicaResourceRequirement{}.OpenAPIModelName(), configv1alpha1.ReplicaRevision{}.OpenAPIModelName(), configv1alpha1.StatusAggregation{}.OpenAPIModelName(), configv1alpha1.StatusReflection{}.OpenAPIModelName()},
 	}
 }
 
@@ -2319,6 +2326,28 @@ func schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref common.ReferenceCal
 					"luaScript": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LuaScript holds the Lua script that is used to retain runtime values to the desired specification.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: >\n      function Retain(desiredObj, observedObj)\n          desiredObj.spec.fieldFoo = observedObj.spec.fieldFoo\n          return desiredObj\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n  - observedObj: the object represents the configuration that is observed\n      from a specific member cluster.\n\nThe returned object should be a retained configuration which will be applied to member cluster eventually.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"luaScript"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_config_v1alpha1_PodSelectorInterpretation(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodSelectorInterpretation holds the scripts for discovering the label selector that identifies the Pods derived from a resource with a single pod template.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"luaScript": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LuaScript holds the Lua script that is used to discover the label selector of the Pods.\n\nThe script should implement a function as follows:\n\n```\n  luaScript: >\n      function GetPodSelector(desiredObj)\n          return desiredObj.spec.selector\n      end\n```\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects one return value:\n  - podSelector: a label selector(same schema as metav1.LabelSelector) that\n      identifies the Pods derived from the resource. Return nil if the\n      Pods can not be identified.\nThe returned value will be set into a ResourceBinding or ClusterResourceBinding.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -2719,6 +2748,12 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 							},
 						},
 					},
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSelector identifies the Pods derived from the referencing object's pod template. Required if InterpreterOperation is InterpreterOperationInterpretPodSelector.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
 					"dependencies": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Dependencies represents the reference of dependencies object. Required if InterpreterOperation is InterpreterOperationInterpretDependency.",
@@ -2750,7 +2785,7 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			configv1alpha1.DependentObjectReference{}.OpenAPIModelName(), configv1alpha1.RequestStatus{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
+			configv1alpha1.DependentObjectReference{}.OpenAPIModelName(), configv1alpha1.RequestStatus{}.OpenAPIModelName(), v1alpha2.Component{}.OpenAPIModelName(), v1alpha2.ReplicaRequirements{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName(), runtime.RawExtension{}.OpenAPIModelName()},
 	}
 }
 
@@ -7394,12 +7429,18 @@ func schema_pkg_apis_work_v1alpha2_Component(ref common.ReferenceCallback) commo
 							Ref:         ref(v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName()),
 						},
 					},
+					"podSelector": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodSelector identifies the Pods derived from this component's pod template. It is used to locate the Pods of the component in member clusters, for example, when evaluating the binding as a preemption victim. If not set, the Pods of this component can not be located.",
+							Ref:         ref(metav1.LabelSelector{}.OpenAPIModelName()),
+						},
+					},
 				},
 				Required: []string{"name", "replicas"},
 			},
 		},
 		Dependencies: []string{
-			v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName()},
+			v1alpha2.ComponentReplicaRequirements{}.OpenAPIModelName(), metav1.LabelSelector{}.OpenAPIModelName()},
 	}
 }
 
@@ -7847,7 +7888,7 @@ func schema_pkg_apis_work_v1alpha2_ResourceBindingSpec(ref common.ReferenceCallb
 					},
 					"components": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nNote: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above. It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.",
+							Description: "Components represents the requirements of multiple pod templates of the referencing resource. It is designed to support workloads that consist of multiple pod templates, such as distributed training jobs (e.g., PyTorch, TensorFlow) and big data workloads (e.g., FlinkDeployment), where each workload is composed of more than one pod template. It is also capable of representing single-component workloads, such as Deployment.\n\nNote: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above. It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled. For single pod template workloads, it holds exactly one component named 'default' (see DefaultComponentName), which mirrors the legacy Replicas and ReplicaRequirements fields.",
 							Type:        []string{"array"},
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{

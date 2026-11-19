@@ -756,7 +756,7 @@ func (s *Scheduler) updateAssumptionsCache(oldBinding *workv1alpha2.ResourceBind
 		}
 	}
 
-	if len(oldBinding.Spec.Components) > 0 {
+	if oldBinding.Spec.IsMultiTemplateWorkload() {
 		for clusterName := range newClusters {
 			assigningCache.Assume(bindingKey, clusterName, schedulercache.AssumedWorkload{
 				Namespace:  oldBinding.Spec.Resource.Namespace,

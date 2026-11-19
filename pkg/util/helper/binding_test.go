@@ -1619,6 +1619,37 @@ func TestCalculateResourceUsage(t *testing.T) {
 			},
 		},
 		{
+			name: "Calculate usage for single template mirrored into one component uses scheduled replicas",
+			rb: &workv1alpha2.ResourceBinding{
+				Spec: workv1alpha2.ResourceBindingSpec{
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+					Components: []workv1alpha2.Component{
+						{
+							Name:     workv1alpha2.DefaultComponentName,
+							Replicas: 3,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceCPU: resource.MustParse("1"),
+								},
+							},
+						},
+					},
+					Clusters: []workv1alpha2.TargetCluster{
+						{Name: "cluster1", Replicas: 1},
+						{Name: "cluster2", Replicas: 2},
+					},
+				},
+			},
+			expected: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("3"),
+			},
+		},
+		{
 			name: "Calculate usage with replica requirements",
 			rb: &workv1alpha2.ResourceBinding{
 				Spec: workv1alpha2.ResourceBindingSpec{

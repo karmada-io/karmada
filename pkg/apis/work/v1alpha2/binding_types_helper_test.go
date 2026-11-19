@@ -524,3 +524,52 @@ func TestResourceBindingSpec_IsWorkload(t *testing.T) {
 		})
 	}
 }
+
+func TestResourceBindingSpec_IsMultiTemplateWorkload(t *testing.T) {
+	tests := []struct {
+		name string
+		spec *ResourceBindingSpec
+		want bool
+	}{
+		{
+			name: "non-workload without components",
+			spec: &ResourceBindingSpec{},
+			want: false,
+		},
+		{
+			name: "single template workload with legacy fields only",
+			spec: &ResourceBindingSpec{Replicas: 2},
+			want: false,
+		},
+		{
+			name: "single template workload mirrored into one component",
+			spec: &ResourceBindingSpec{
+				Replicas:            2,
+				ReplicaRequirements: &ReplicaRequirements{},
+				Components:          []Component{{Name: DefaultComponentName, Replicas: 2}},
+			},
+			want: false,
+		},
+		{
+			name: "single component interpreted by InterpretComponent",
+			spec: &ResourceBindingSpec{
+				Components: []Component{{Name: "worker", Replicas: 2}},
+			},
+			want: true,
+		},
+		{
+			name: "multiple components",
+			spec: &ResourceBindingSpec{
+				Components: []Component{{Name: "jobmanager", Replicas: 1}, {Name: "taskmanager", Replicas: 2}},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.spec.IsMultiTemplateWorkload(); got != tt.want {
+				t.Errorf("IsMultiTemplateWorkload() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -117,6 +117,9 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 	case configv1alpha1.InterpreterOperationInterpretComponent:
 		res.Components = response.Components
 		return res, nil
+	case configv1alpha1.InterpreterOperationInterpretPodSelector:
+		res.PodSelector = response.PodSelector
+		return res, nil
 	case configv1alpha1.InterpreterOperationInterpretDependency:
 		err := validation.VerifyDependencies(response.Dependencies)
 		if err != nil {

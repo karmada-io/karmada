@@ -18,6 +18,10 @@ limitations under the License.
 
 package v1alpha2
 
+import (
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
+)
+
 // ComponentApplyConfiguration represents a declarative configuration of the Component type for use
 // with apply.
 //
@@ -31,6 +35,11 @@ type ComponentApplyConfiguration struct {
 	Replicas *int32 `json:"replicas,omitempty"`
 	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	ReplicaRequirements *ComponentReplicaRequirementsApplyConfiguration `json:"replicaRequirements,omitempty"`
+	// PodSelector identifies the Pods derived from this component's pod template.
+	// It is used to locate the Pods of the component in member clusters, for example,
+	// when evaluating the binding as a preemption victim.
+	// If not set, the Pods of this component can not be located.
+	PodSelector *v1.LabelSelectorApplyConfiguration `json:"podSelector,omitempty"`
 }
 
 // ComponentApplyConfiguration constructs a declarative configuration of the Component type for use with
@@ -60,5 +69,13 @@ func (b *ComponentApplyConfiguration) WithReplicas(value int32) *ComponentApplyC
 // If called multiple times, the ReplicaRequirements field is set to the value of the last call.
 func (b *ComponentApplyConfiguration) WithReplicaRequirements(value *ComponentReplicaRequirementsApplyConfiguration) *ComponentApplyConfiguration {
 	b.ReplicaRequirements = value
+	return b
+}
+
+// WithPodSelector sets the PodSelector field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PodSelector field is set to the value of the last call.
+func (b *ComponentApplyConfiguration) WithPodSelector(value *v1.LabelSelectorApplyConfiguration) *ComponentApplyConfiguration {
+	b.PodSelector = value
 	return b
 }
