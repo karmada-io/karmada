@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 
@@ -505,6 +506,85 @@ func TestCreateClusterPropagationPolicy(t *testing.T) {
 			}
 			if err := test.verify(test.client, test.promoteOpts); err != nil {
 				t.Errorf("failed to verify creating cluster propagation policy, got error: %v", err)
+			}
+		})
+	}
+}
+
+// TestPrintedPolicyNameMatchesCreatedPolicy verifies that the policy printed by `-o yaml|json` is named the same
+// as the policy that is created when the resource is really promoted.
+func TestPrintedPolicyNameMatchesCreatedPolicy(t *testing.T) {
+	tests := []struct {
+		name          string
+		obj           *unstructured.Unstructured
+		gvr           schema.GroupVersionResource
+		gvk           schema.GroupVersionKind
+		clusterScoped bool
+	}{
+		{
+			name: "cluster-scoped resource",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "rbac.authorization.k8s.io/v1",
+				"kind":       "ClusterRole",
+				"metadata":   map[string]any{"name": "demo-clusterrole"},
+			}},
+			gvr:           schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+			gvk:           schema.GroupVersionKind{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: "ClusterRole"},
+			clusterScoped: true,
+		},
+		{
+			name: "namespace-scoped resource",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata":   map[string]any{"name": "demo-deployment", "namespace": names.NamespaceDefault},
+			}},
+			gvr: schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+			gvk: schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var printed []runtime.Object
+			opts := &CommandPromoteOption{
+				name: test.obj.GetName(),
+				gvk:  test.gvk,
+				// The namespace of the kubeconfig context is set even if the promoted resource is cluster-scoped.
+				Namespace:        names.NamespaceDefault,
+				Cluster:          "member1",
+				AutoCreatePolicy: true,
+				Printer: func(*meta.RESTMapping, *bool, bool, bool) (printers.ResourcePrinterFunc, error) {
+					return func(obj runtime.Object, _ io.Writer) error {
+						printed = append(printed, obj)
+						return nil
+					}, nil
+				},
+			}
+
+			if err := opts.printObjectAndPolicy(test.obj, test.gvr); err != nil {
+				t.Fatalf("failed to print the resource and the policy, got error: %v", err)
+			}
+			if len(printed) != 2 {
+				t.Fatalf("expected the resource and its policy to be printed, but %d objects were printed", len(printed))
+			}
+			printedPolicy, err := meta.Accessor(printed[1])
+			if err != nil {
+				t.Fatalf("failed to get the metadata of the printed policy, got error: %v", err)
+			}
+
+			client := fakekarmadaclient.NewClientset()
+			var createdPolicyName string
+			if test.clusterScoped {
+				createdPolicyName, err = opts.createClusterPropagationPolicy(client, test.gvr)
+			} else {
+				createdPolicyName, err = opts.createPropagationPolicy(client, test.gvr)
+			}
+			if err != nil {
+				t.Fatalf("failed to create the policy, got error: %v", err)
+			}
+
+			if printedPolicy.GetName() != createdPolicyName {
+				t.Errorf("the printed policy is named %q, but promoting the resource creates the policy %q", printedPolicy.GetName(), createdPolicyName)
 			}
 		})
 	}
