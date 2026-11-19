@@ -382,7 +382,7 @@ func sumAssumedWorkloadDemands(assumedWorkloads []AssumedWorkload) (pods int64, 
 				continue
 			}
 			for resName, qty := range c.ReplicaRequirements.ResourceRequest {
-				resources[resName] += quantityAsInt64(qty) * replicas
+				resources[resName] += quantityAsInt64(resName, qty) * replicas
 			}
 		}
 	}
@@ -398,7 +398,7 @@ func perSetRequirement(components []workv1alpha2.Component) map[corev1.ResourceN
 		}
 		replicas := int64(c.Replicas)
 		for resName, qty := range c.ReplicaRequirements.ResourceRequest {
-			baseAmount := quantityAsInt64(qty)
+			baseAmount := quantityAsInt64(resName, qty)
 			resourceRequirements[resName] += baseAmount * replicas
 		}
 	}
@@ -416,21 +416,21 @@ func availableResourceMap(resourceSummary *clusterv1alpha1.ResourceSummary) map[
 		if allocating, ok := resourceSummary.Allocating[key]; ok {
 			a.Sub(allocating)
 		}
-		available[key] = quantityAsInt64(a)
+		available[key] = quantityAsInt64(key, a)
 	}
 	return available
 }
 
-// Converts quantity into an int representation depending on format
-func quantityAsInt64(q resource.Quantity) int64 {
-	switch q.Format {
-	case resource.DecimalSI, resource.DecimalExponent:
+// quantityAsInt64 converts a quantity into an integer so that quantities of the same resource can be
+// compared and summed. The unit depends on the resource name only: CPU is expressed in millicores
+// and every other resource (memory, pods, ephemeral-storage, extended resources, etc.) in its base unit.
+// It must not depend on the format of the quantity (BinarySI/DecimalSI), because the same amount can be
+// written in either format, for example "1G" and "1073741824" are decimal while "1Gi" is binary.
+func quantityAsInt64(name corev1.ResourceName, q resource.Quantity) int64 {
+	if name == corev1.ResourceCPU {
 		return q.MilliValue()
-	case resource.BinarySI:
-		return q.Value()
-	default:
-		return q.Value()
 	}
+	return q.Value()
 }
 
 func allZero(m map[corev1.ResourceName]int64) bool {
