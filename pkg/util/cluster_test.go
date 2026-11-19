@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -546,6 +547,112 @@ func TestObtainClusterID(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("ObtainClusterID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetClusterSet(t *testing.T) {
+	tests := []struct {
+		name       string
+		hostClient client.Client
+		want       sets.Set[string]
+		wantErr    bool
+	}{
+		{
+			name:       "empty cluster list",
+			hostClient: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).Build(),
+			want:       sets.New[string](),
+			wantErr:    false,
+		},
+		{
+			name: "multiple clusters exist",
+			hostClient: fakeclient.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(
+				newCluster("member1"),
+				newCluster("member2"),
+			).Build(),
+			want:    sets.New[string]("member1", "member2"),
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GetClusterSet(tt.hostClient)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClusterSet() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetClusterSet() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetClusterWithKarmadaClient(t *testing.T) {
+	type args struct {
+		client karmadaclientset.Interface
+		name   string
+	}
+	tests := []struct {
+		name       string
+		args       args
+		want       *clusterv1alpha1.Cluster
+		wantExists bool
+		wantErr    bool
+	}{
+		{
+			name: "cluster exists",
+			args: args{
+				client: karmadaclientsetfake.NewClientset(newCluster("member1")),
+				name:   "member1",
+			},
+			want:       newCluster("member1"),
+			wantExists: true,
+			wantErr:    false,
+		},
+		{
+			name: "cluster not found",
+			args: args{
+				client: karmadaclientsetfake.NewClientset(),
+				name:   "nonexistent",
+			},
+			want:       nil,
+			wantExists: false,
+			wantErr:    false,
+		},
+		{
+			name: "client error",
+			args: args{
+				client: func() karmadaclientset.Interface {
+					c := karmadaclientsetfake.NewClientset()
+					c.PrependReactor("get", "*", errorAction)
+					return c
+				}(),
+				name: "member1",
+			},
+			want:       nil,
+			wantExists: false,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, exists, err := GetClusterWithKarmadaClient(tt.args.client, tt.args.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetClusterWithKarmadaClient() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if exists != tt.wantExists {
+				t.Errorf("GetClusterWithKarmadaClient() exists = %v, wantExists %v", exists, tt.wantExists)
+			}
+			if got != nil {
+				// remove fields injected by fake client
+				got.TypeMeta = metav1.TypeMeta{}
+				got.ResourceVersion = ""
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetClusterWithKarmadaClient() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
