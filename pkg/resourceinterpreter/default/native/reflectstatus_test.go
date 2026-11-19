@@ -1177,6 +1177,54 @@ func Test_reflectStatefulSetStatus(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "statefulset status keeps observedGeneration",
+			object: func() *unstructured.Unstructured {
+				sts := &appsv1.StatefulSet{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "StatefulSet",
+						APIVersion: appsv1.SchemeGroupVersion.String(),
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:       "test-statefulset",
+						Namespace:  "test-ns",
+						Generation: 2,
+						Annotations: map[string]string{
+							workv1alpha2.ResourceTemplateGenerationAnnotationKey: "2",
+						},
+					},
+					Status: appsv1.StatefulSetStatus{
+						ObservedGeneration: 2,
+						Replicas:           3,
+						ReadyReplicas:      3,
+						CurrentReplicas:    3,
+						UpdatedReplicas:    3,
+						AvailableReplicas:  3,
+					},
+				}
+				obj, _ := helper.ToUnstructured(sts)
+				return obj
+			}(),
+			want: func() *runtime.RawExtension {
+				status := &WrappedStatefulSetStatus{
+					FederatedGeneration: FederatedGeneration{
+						Generation:                 2,
+						ResourceTemplateGeneration: 2,
+					},
+					StatefulSetStatus: appsv1.StatefulSetStatus{
+						ObservedGeneration: 2,
+						Replicas:           3,
+						ReadyReplicas:      3,
+						CurrentReplicas:    3,
+						UpdatedReplicas:    3,
+						AvailableReplicas:  3,
+					},
+				}
+				raw, _ := helper.BuildStatusRawExtension(status)
+				return raw
+			}(),
+			wantErr: false,
+		},
+		{
 			name: "statefulset without status field",
 			object: func() *unstructured.Unstructured {
 				obj := &unstructured.Unstructured{
