@@ -239,7 +239,7 @@ Similar to submariner's [SERVICE DISCOVERY](https://submariner.io/getting-starte
 
 The workflow of the additional dns server as follows:
 
-![](.\additional-dns-server.jpg)
+![Workflow of the additional DNS server](./additional-dns-server.jpg)
 
 The advantages and disadvantages of this method are as follows:
 

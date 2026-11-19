@@ -42,7 +42,7 @@ ensures development quality.
 - [`deploy-karmada-agent.sh`](deploy-karmada-agent.sh) This script will install Karmada Agent to the specific cluster.
 
 - [`deploy-scheduler-estimator.sh`](deploy-scheduler-estimator.sh) This script will only install Karmada Scheduler 
-  Estimator to the specific cluster. Please follow the [instruction](../docs/scheduler-estimator.md) for more details.
+  Estimator to the specific cluster. Please follow the [instruction](https://karmada.io/docs/userguide/scheduling/scheduler-estimator) for more details.
 
 - [`deploy-agent-and-estimator.sh`](deploy-agent-and-estimator.sh) This script will install Karmada Agent and Karmada 
   Scheduler Estimator to the specific cluster together. If applied, there is no need to use the extra `deploy-karmada-agent.sh`
