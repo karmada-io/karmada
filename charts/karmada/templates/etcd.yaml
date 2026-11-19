@@ -18,6 +18,10 @@ metadata:
 spec:
   replicas: {{ .Values.etcd.internal.replicaCount }}
   serviceName: etcd
+  {{- if gt (int .Values.etcd.internal.replicaCount) 1 }}
+  # Members only become ready once the cluster has quorum, so they must start together.
+  podManagementPolicy: Parallel
+  {{- end }}
   selector:
     matchLabels:
       {{- include "karmada.etcd.labels" . | nindent 6 }}
@@ -173,6 +177,8 @@ spec:
       protocol: TCP
       targetPort: 2380
   clusterIP: None
+  # Members must resolve each other's peer address before any of them is ready.
+  publishNotReadyAddresses: true
   selector:
   {{- include "karmada.etcd.labels" . | nindent 4 }}
 {{- end }}
