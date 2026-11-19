@@ -26,6 +26,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -2616,6 +2617,15 @@ func TestHandleErr(t *testing.T) {
 			expectForget: true,
 		},
 		{
+			name: "terminating namespace calls Forget",
+			err: &apierrors.StatusError{ErrStatus: metav1.Status{
+				Details: &metav1.StatusDetails{
+					Causes: []metav1.StatusCause{{Type: corev1.NamespaceTerminatingCause}},
+				},
+			}},
+			expectForget: true,
+		},
+		{
 			name:              "generic error calls PushBackoffIfNotPresent",
 			err:               fmt.Errorf("some transient error"),
 			expectPushBackoff: true,
@@ -2630,6 +2640,18 @@ func TestHandleErr(t *testing.T) {
 			err: fmt.Errorf("failed to assign replicas: %w",
 				fmt.Errorf("failed to scale up: %w",
 					&framework.UnschedulableError{Message: "insufficient replicas"})),
+			expectPushUnschedulable: true,
+		},
+		{
+			name:                    "bare InsufficientCapacityError calls PushUnschedulableIfNotPresent",
+			err:                     &framework.InsufficientCapacityError{Message: "insufficient cluster capacity"},
+			expectPushUnschedulable: true,
+		},
+		{
+			name: "wrapped InsufficientCapacityError calls PushUnschedulableIfNotPresent",
+			err: fmt.Errorf("failed to schedule: %w",
+				fmt.Errorf("failed to select clusters: %w",
+					&framework.InsufficientCapacityError{Message: "insufficient cluster capacity"})),
 			expectPushUnschedulable: true,
 		},
 	}
