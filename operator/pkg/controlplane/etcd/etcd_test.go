@@ -17,6 +17,7 @@ limitations under the License.
 package etcd
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	fakeclientset "k8s.io/client-go/kubernetes/fake"
 	coretesting "k8s.io/client-go/testing"
@@ -241,6 +243,9 @@ func TestCreateEtcdService(t *testing.T) {
 			if err != nil {
 				t.Errorf("failed to verify etcd peer service: %v", err)
 			}
+			if !service.Spec.PublishNotReadyAddresses {
+				t.Errorf("expected etcd peer service to publish not ready addresses so members can resolve each other before quorum")
+			}
 		}
 
 		if service.Name == util.KarmadaEtcdClientName(name) {
@@ -260,6 +265,29 @@ func TestCreateEtcdService(t *testing.T) {
 				t.Errorf("failed to verify etcd client service: %v", err)
 			}
 		}
+	}
+}
+
+func TestCreateEtcdServiceUpdatesExistingPeerService(t *testing.T) {
+	name := "karmada-demo"
+	namespace := "test"
+
+	existing := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{Name: util.KarmadaEtcdName(name), Namespace: namespace},
+		Spec:       corev1.ServiceSpec{ClusterIP: corev1.ClusterIPNone},
+	}
+	client := fakeclientset.NewClientset(existing)
+
+	if err := createEtcdService(client, name, namespace); err != nil {
+		t.Fatalf("failed to create etcd service %v", err)
+	}
+
+	service, err := client.CoreV1().Services(namespace).Get(context.TODO(), util.KarmadaEtcdName(name), metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("failed to get etcd peer service: %v", err)
+	}
+	if !service.Spec.PublishNotReadyAddresses {
+		t.Errorf("expected the existing etcd peer service to be updated with publishNotReadyAddresses")
 	}
 }
 
