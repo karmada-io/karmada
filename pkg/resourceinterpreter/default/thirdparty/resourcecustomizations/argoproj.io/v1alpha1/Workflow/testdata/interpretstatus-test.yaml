@@ -1,0 +1,159 @@
+# test case for interpreting status of Workflow
+# case1. Running Workflow: only the summary fields are reflected, nodes and stored templates are dropped
+# case2. Succeeded Workflow: finishedAt and conditions are reflected
+# case3. Failed Workflow: message is reflected
+# case4. Workflow without status
+# case5. Workflow with a status that has no summary fields
+
+name: "Workflow interpreting status test - Running"
+description: "Test reflecting status of a running Workflow, nodes, storedTemplates and other bulky fields must not be reflected"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-running
+    namespace: test-workflow
+  spec:
+    entrypoint: main
+    templates:
+      - name: main
+        container:
+          image: busybox
+  status:
+    phase: Running
+    startedAt: "2026-10-01T10:00:00Z"
+    finishedAt: null
+    progress: 1/3
+    estimatedDuration: 30
+    artifactRepositoryRef:
+      default: true
+    nodes:
+      sample-running:
+        id: sample-running
+        name: sample-running
+        phase: Running
+      sample-running-1234:
+        id: sample-running-1234
+        name: sample-running[0].step-a
+        phase: Succeeded
+    storedTemplates:
+      namespaced/main/main:
+        name: main
+    taskResultsCompletionStatus:
+      sample-running-1234: true
+    conditions:
+      - type: PodRunning
+        status: "True"
+operation: InterpretStatus
+output:
+  status:
+    phase: Running
+    startedAt: "2026-10-01T10:00:00Z"
+    progress: 1/3
+    conditions:
+      - type: PodRunning
+        status: "True"
+
+---
+name: "Workflow interpreting status test - Succeeded"
+description: "Test reflecting status of a succeeded Workflow"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-succeeded
+    namespace: test-workflow
+  spec:
+    entrypoint: main
+  status:
+    phase: Succeeded
+    startedAt: "2026-10-01T10:00:00Z"
+    finishedAt: "2026-10-01T10:00:47Z"
+    progress: 3/3
+    conditions:
+      - type: PodRunning
+        status: "False"
+      - type: Completed
+        status: "True"
+    nodes:
+      sample-succeeded:
+        id: sample-succeeded
+        phase: Succeeded
+operation: InterpretStatus
+output:
+  status:
+    phase: Succeeded
+    startedAt: "2026-10-01T10:00:00Z"
+    finishedAt: "2026-10-01T10:00:47Z"
+    progress: 3/3
+    conditions:
+      - type: PodRunning
+        status: "False"
+      - type: Completed
+        status: "True"
+
+---
+name: "Workflow interpreting status test - Failed"
+description: "Test reflecting status of a failed Workflow, the message must be kept"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-failed
+    namespace: test-workflow
+  spec:
+    entrypoint: main
+  status:
+    phase: Failed
+    startedAt: "2026-10-01T10:00:00Z"
+    finishedAt: "2026-10-01T10:00:12Z"
+    progress: 1/2
+    message: "child 'sample-failed-1234' failed"
+    conditions:
+      - type: Completed
+        status: "True"
+operation: InterpretStatus
+output:
+  status:
+    phase: Failed
+    startedAt: "2026-10-01T10:00:00Z"
+    finishedAt: "2026-10-01T10:00:12Z"
+    progress: 1/2
+    message: "child 'sample-failed-1234' failed"
+    conditions:
+      - type: Completed
+        status: "True"
+
+---
+name: "Workflow interpreting status test - no status"
+description: "Test reflecting status of a Workflow that the workflow controller has not processed yet"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-new
+    namespace: test-workflow
+  spec:
+    entrypoint: main
+operation: InterpretStatus
+output:
+  status: {}
+
+---
+name: "Workflow interpreting status test - status without summary fields"
+description: "Test reflecting a status that only holds fields which are not reflected"
+observedObj:
+  apiVersion: argoproj.io/v1alpha1
+  kind: Workflow
+  metadata:
+    name: sample-other
+    namespace: test-workflow
+  spec:
+    entrypoint: main
+  status:
+    artifactRepositoryRef:
+      default: true
+    estimatedDuration: 30
+operation: InterpretStatus
+output:
+  status: {}
