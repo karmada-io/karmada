@@ -550,3 +550,194 @@ func TestObtainClusterID(t *testing.T) {
 		})
 	}
 }
+
+func TestIsClusterReady(t *testing.T) {
+	tests := []struct {
+		name          string
+		clusterStatus *clusterv1alpha1.ClusterStatus
+		want          bool
+	}{
+		{
+			name: "ready condition is True",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ready condition is False",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionFalse,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "ready condition is Unknown",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionUnknown,
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "no conditions present",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{},
+			},
+			want: false,
+		},
+		{
+			name: "multiple conditions with Ready True",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   "ClusterHealthy",
+						Status: metav1.ConditionTrue,
+					},
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionTrue,
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "multiple conditions with Ready False",
+			clusterStatus: &clusterv1alpha1.ClusterStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:   "ClusterHealthy",
+						Status: metav1.ConditionTrue,
+					},
+					{
+						Type:   clusterv1alpha1.ClusterConditionReady,
+						Status: metav1.ConditionFalse,
+					},
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsClusterReady(tt.clusterStatus); got != tt.want {
+				t.Errorf("IsClusterReady() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestClusterAccessCredentialChanged(t *testing.T) {
+	baseSpec := clusterv1alpha1.ClusterSpec{
+		APIEndpoint:                 "https://127.0.0.1:6443",
+		InsecureSkipTLSVerification: false,
+		ProxyURL:                    "http://proxy.example.com:8080",
+		ProxyHeader: map[string]string{
+			"Authorization": "Bearer token",
+		},
+		SyncMode: clusterv1alpha1.Push,
+	}
+
+	tests := []struct {
+		name    string
+		newSpec clusterv1alpha1.ClusterSpec
+		oldSpec clusterv1alpha1.ClusterSpec
+		want    bool
+	}{
+		{
+			name:    "identical specs without credential change",
+			newSpec: baseSpec,
+			oldSpec: baseSpec,
+			want:    false,
+		},
+		{
+			name: "only non-credential fields changed",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.SyncMode = clusterv1alpha1.Pull
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    false,
+		},
+		{
+			name: "APIEndpoint changed",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.APIEndpoint = "https://192.168.1.100:6443"
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    true,
+		},
+		{
+			name: "InsecureSkipTLSVerification changed",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.InsecureSkipTLSVerification = true
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    true,
+		},
+		{
+			name: "ProxyURL changed",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.ProxyURL = "http://new-proxy.example.com:8080"
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    true,
+		},
+		{
+			name: "ProxyHeader value changed",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.ProxyHeader = map[string]string{
+					"Authorization": "Bearer updated-token",
+				}
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    true,
+		},
+		{
+			name: "ProxyHeader added new key",
+			newSpec: func() clusterv1alpha1.ClusterSpec {
+				s := baseSpec
+				s.ProxyHeader = map[string]string{
+					"Authorization": "Bearer token",
+					"X-Custom":      "value",
+				}
+				return s
+			}(),
+			oldSpec: baseSpec,
+			want:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ClusterAccessCredentialChanged(tt.newSpec, tt.oldSpec); got != tt.want {
+				t.Errorf("ClusterAccessCredentialChanged() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
