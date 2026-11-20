@@ -654,19 +654,13 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 		return fmt.Errorf("failed to print the resource template. err: %v", err)
 	}
 	if o.AutoCreatePolicy {
-		var policyName string
-		if o.PolicyName == "" {
-			policyName = names.GeneratePolicyName(o.Namespace, o.name, o.gvk.String())
-		} else {
-			policyName = o.PolicyName
-		}
 		if len(obj.GetNamespace()) == 0 {
-			cpp := buildClusterPropagationPolicy(o.name, policyName, o.Cluster, gvr, o.gvk, o.Deps)
+			cpp := buildClusterPropagationPolicy(o.name, o.policyName(""), o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(cpp, os.Stdout); err != nil {
 				return fmt.Errorf("failed to print the ClusterPropagationPolicy. err: %v", err)
 			}
 		} else {
-			pp := buildPropagationPolicy(o.name, policyName, o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
+			pp := buildPropagationPolicy(o.name, o.policyName(o.Namespace), o.Namespace, o.Cluster, gvr, o.gvk, o.Deps)
 			if err = printer.PrintObj(pp, os.Stdout); err != nil {
 				return fmt.Errorf("failed to print the PropagationPolicy. err: %v", err)
 			}
@@ -676,14 +670,20 @@ func (o *CommandPromoteOption) printObjectAndPolicy(obj *unstructured.Unstructur
 	return nil
 }
 
+// policyName returns the name of the PropagationPolicy(or ClusterPropagationPolicy) for the promoted resource.
+// It is the name specified by '--policy-name' or, if not specified, a name generated from the resource.
+// The namespace is the one of the policy, and it is empty for a ClusterPropagationPolicy, so that the policy
+// printed by '-o yaml|json' is named the same as the one created when promoting the resource.
+func (o *CommandPromoteOption) policyName(namespace string) string {
+	if o.PolicyName != "" {
+		return o.PolicyName
+	}
+	return names.GeneratePolicyName(namespace, o.name, o.gvk.String())
+}
+
 // createPropagationPolicy create PropagationPolicy in karmada control plane
 func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient karmadaclientset.Interface, gvr schema.GroupVersionResource) (string, error) {
-	var policyName string
-	if o.PolicyName == "" {
-		policyName = names.GeneratePolicyName(o.Namespace, o.name, o.gvk.String())
-	} else {
-		policyName = o.PolicyName
-	}
+	policyName := o.policyName(o.Namespace)
 
 	_, err := karmadaClient.PolicyV1alpha1().PropagationPolicies(o.Namespace).Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
@@ -702,12 +702,7 @@ func (o *CommandPromoteOption) createPropagationPolicy(karmadaClient karmadaclie
 
 // createClusterPropagationPolicy create ClusterPropagationPolicy in karmada control plane
 func (o *CommandPromoteOption) createClusterPropagationPolicy(karmadaClient karmadaclientset.Interface, gvr schema.GroupVersionResource) (string, error) {
-	var policyName string
-	if o.PolicyName == "" {
-		policyName = names.GeneratePolicyName("", o.name, o.gvk.String())
-	} else {
-		policyName = o.PolicyName
-	}
+	policyName := o.policyName("")
 
 	_, err := karmadaClient.PolicyV1alpha1().ClusterPropagationPolicies().Get(context.TODO(), policyName, metav1.GetOptions{})
 	if err != nil && apierrors.IsNotFound(err) {
