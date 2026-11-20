@@ -464,32 +464,66 @@ func (c *MultiClusterCache) clientForClusterFunc(cluster string) func() (dynamic
 }
 
 func (c *MultiClusterCache) fillMissingClusterResourceVersion(ctx context.Context, mcv *multiClusterResourceVersion, clusters []string, gvr schema.GroupVersionResource) error {
-	errChan := make(chan error)
-	var lock sync.Mutex
-	var wg sync.WaitGroup
-
+	// Resolve which clusters are actually missing before any worker goroutine starts: mcv.rvs is
+	// read here and written (via mcv.set) inside the workers below, so doing this read up front,
+	// single-threaded, keeps it from racing a concurrent write - unlike a per-worker check, which
+	// would read the map while another worker's mcv.set call is writing to it.
+	missing := make([]string, 0, len(clusters))
 	for _, cluster := range clusters {
-		if _, ok := mcv.rvs[cluster]; ok {
-			continue
+		if _, ok := mcv.rvs[cluster]; !ok {
+			missing = append(missing, cluster)
+		}
+	}
+
+	var lock sync.Mutex
+	return waitAllOrFirstError(missing, func(cluster string) error {
+		klog.V(5).Infof("fillMissingClusterResourceVersion gvr=%v cluster=%v", gvr, cluster)
+		rv, err := c.getClusterResourceVersion(ctx, cluster, gvr)
+		if err != nil {
+			return err
+		}
+		if rv == "" {
+			return nil
 		}
 
-		wg.Add(1)
-		go func(cluster string) {
-			defer wg.Done()
-			klog.V(5).Infof("fillMissingClusterResourceVersion gvr=%v cluster=%v", gvr, cluster)
-			rv, err := c.getClusterResourceVersion(ctx, cluster, gvr)
-			if err != nil {
-				errChan <- err
-				return
-			}
-			if rv == "" {
-				return
-			}
+		lock.Lock()
+		defer lock.Unlock()
+		mcv.set(cluster, rv)
+		return nil
+	})
+}
 
-			lock.Lock()
-			defer lock.Unlock()
-			mcv.set(cluster, rv)
-		}(cluster)
+// waitAllOrFirstError runs fn for every item concurrently and returns as soon
+// as either every goroutine has finished, or one of them returns an error -
+// whichever happens first. errChan is sized to len(items) so a goroutine
+// whose error isn't the one received by the select never blocks forever on
+// its send waiting for a receiver that has already moved on - that used to
+// leak one goroutine permanently for every item beyond the first to fail
+// concurrently.
+//
+// Because errChan is buffered, a failing goroutine can complete its send (and
+// then wg.Done()) without anyone having received it yet. If every goroutine
+// finishes around the same time, waitChan and errChan can both be ready when
+// the select below runs, and select picks between ready cases at random - so
+// a successful-looking case <-waitChan can win even though an error is
+// sitting unread in errChan. Once waitChan does win, every goroutine (error
+// or not) has already called wg.Done(), and per Go's memory model a
+// goroutine's errChan send always completes before its own wg.Done() does -
+// so any error is guaranteed to already be in the buffer, and draining it
+// with a non-blocking receive is enough to tell a real success from one that
+// just raced a buffered error.
+func waitAllOrFirstError(items []string, fn func(item string) error) error {
+	errChan := make(chan error, len(items))
+	var wg sync.WaitGroup
+
+	for _, item := range items {
+		wg.Add(1)
+		go func(item string) {
+			defer wg.Done()
+			if err := fn(item); err != nil {
+				errChan <- err
+			}
+		}(item)
 	}
 
 	waitChan := make(chan struct{}, 1)
@@ -498,12 +532,17 @@ func (c *MultiClusterCache) fillMissingClusterResourceVersion(ctx context.Contex
 		waitChan <- struct{}{}
 	}()
 
-	var err error
 	select {
 	case <-waitChan:
-	case err = <-errChan:
+		select {
+		case err := <-errChan:
+			return err
+		default:
+			return nil
+		}
+	case err := <-errChan:
+		return err
 	}
-	return err
 }
 
 func (c *MultiClusterCache) getClusterResourceVersion(ctx context.Context, cluster string, gvr schema.GroupVersionResource) (string, error) {

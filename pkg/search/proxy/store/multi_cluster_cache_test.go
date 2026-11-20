@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	goruntime "runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -1518,4 +1519,60 @@ func TestMultiClusterCache_fillMissingClusterResourceVersion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestWaitAllOrFirstError covers waitAllOrFirstError, the fan-out-and-collect-first-error helper
+// fillMissingClusterResourceVersion is built on. The concurrent-errors case reproduces a goroutine
+// leak that existed before this helper was extracted: errChan used to be unbuffered, so when 2+
+// items fail concurrently, only the one the select receives gets a receiver - every other failing
+// item's goroutine blocks forever on its own send and is never reclaimed.
+func TestWaitAllOrFirstError(t *testing.T) {
+	t.Run("all succeed", func(t *testing.T) {
+		err := waitAllOrFirstError([]string{"a", "b", "c"}, func(string) error { return nil })
+		assert.NoError(t, err)
+	})
+
+	t.Run("one fails", func(t *testing.T) {
+		err := waitAllOrFirstError([]string{"a", "b"}, func(item string) error {
+			if item == "b" {
+				return fmt.Errorf("boom")
+			}
+			return nil
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("concurrent errors from every item return promptly and don't leak goroutines", func(t *testing.T) {
+		items := make([]string, 50)
+		for i := range items {
+			items[i] = fmt.Sprintf("item-%d", i)
+		}
+
+		baseline := goruntime.NumGoroutine()
+
+		done := make(chan error, 1)
+		go func() {
+			done <- waitAllOrFirstError(items, func(item string) error {
+				return fmt.Errorf("boom from %s", item)
+			})
+		}()
+
+		select {
+		case err := <-done:
+			assert.Error(t, err)
+		case <-time.After(5 * time.Second):
+			t.Fatal("waitAllOrFirstError() did not return within 5s")
+		}
+
+		// Returning isn't enough on its own - on the unfixed code, every item's goroutine except
+		// the one the select received blocks forever on errChan and never reaches wg.Done(). Poll
+		// NumGoroutine() back down to baseline to prove nothing was left stuck mid-send.
+		pollErr := wait.PollUntilContextTimeout(context.Background(), 50*time.Millisecond, 2*time.Second, true,
+			func(context.Context) (bool, error) {
+				return goruntime.NumGoroutine() <= baseline+1, nil // +1: slack for GC/runtime bookkeeping goroutines
+			})
+		if pollErr != nil {
+			t.Fatalf("goroutine count did not return to baseline - got %d, baseline %d (leak)", goruntime.NumGoroutine(), baseline)
+		}
+	})
 }
