@@ -364,13 +364,25 @@ func TryRunCommand(f func() error, failureThreshold int) error {
 		Factor:   2, // double the timeout for every failure
 		Steps:    failureThreshold,
 	}
-	return wait.ExponentialBackoff(backoff, func() (bool, error) {
-		err := f()
-		if err != nil {
+	return tryRunCommand(f, backoff)
+}
+
+// tryRunCommand is TryRunCommand with a caller-provided backoff, so that tests don't have to wait for the real one.
+func tryRunCommand(f func() error, backoff wait.Backoff) error {
+	var lastErr error
+	err := wait.ExponentialBackoff(backoff, func() (bool, error) {
+		lastErr = f()
+		if lastErr != nil {
 			// Retry until the timeout
 			return false, nil
 		}
 		// The last f() call was a success, return cleanly
 		return true, nil
 	})
+	if err != nil && lastErr != nil {
+		// The condition above never returns an error, so err is only the generic timeout.
+		// Return the error of the last attempt instead, as it tells the user what went wrong.
+		return lastErr
+	}
+	return err
 }
