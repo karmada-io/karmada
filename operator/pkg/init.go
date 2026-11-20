@@ -82,6 +82,7 @@ type initData struct {
 	controlplaneConfig      *rest.Config
 	controlplaneAddress     string
 	remoteClient            clientset.Interface
+	proxyURL                string
 	karmadaClient           clientset.Interface
 	dnsDomain               string
 	CRDTarball              operatorv1alpha1.CRDTarball
@@ -138,12 +139,28 @@ func newRunData(opt *InitOptions) (*initData, error) {
 	// if there is no endpoint message, we are consider that the local cluster
 	// is remote cluster to install karmada.
 	var remoteClient clientset.Interface
+	var proxyURL string
 	if util.IsInCluster(opt.Karmada.Spec.HostCluster) {
 		remoteClient = localClusterClient
+
+		if opt.Kubeconfig.Proxy != nil {
+			proxy, err := opt.Kubeconfig.Proxy(nil)
+			if err != nil {
+				return nil, err
+			}
+			if proxy != nil {
+				proxyURL = proxy.String()
+			}
+		}
 	} else {
 		remoteClient, err = util.BuildClientFromSecretRef(localClusterClient, opt.Karmada.Spec.HostCluster.SecretRef)
 		if err != nil {
 			return nil, fmt.Errorf("error when creating cluster client to install karmada, err: %w", err)
+		}
+
+		proxyURL, err = util.GetKubeConfigProxyURLFromSecretRef(localClusterClient, opt.Karmada.Spec.HostCluster.SecretRef)
+		if err != nil {
+			return nil, fmt.Errorf("error retrieving kubeConfig proxy-url for karmada installation, err: %w", err)
 		}
 	}
 
@@ -171,6 +188,7 @@ func newRunData(opt *InitOptions) (*initData, error) {
 		karmadaVersion:          version,
 		controlplaneAddress:     address,
 		remoteClient:            remoteClient,
+		proxyURL:                proxyURL,
 		CRDTarball:              opt.CRDTarball,
 		CustomCertificateConfig: opt.CustomCertificateConfig,
 		karmadaDataDir:          opt.KarmadaDataDir,
@@ -192,6 +210,10 @@ func (data *initData) GetNamespace() string {
 
 func (data *initData) RemoteClient() clientset.Interface {
 	return data.remoteClient
+}
+
+func (data *initData) GetProxyURL() string {
+	return data.proxyURL
 }
 
 func (data *initData) KarmadaClient() clientset.Interface {

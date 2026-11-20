@@ -115,7 +115,11 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 	}
 
 	// store rest config to RunData.
-	config, err := clientcmd.RESTConfigFromKubeConfig(configBytes)
+	adminKarmadaConfigBytes, err := setKubeConfigProxyURL(data.GetProxyURL(), configBytes)
+	if err != nil {
+		return err
+	}
+	config, err := clientcmd.RESTConfigFromKubeConfig(adminKarmadaConfigBytes)
 	if err != nil {
 		return err
 	}
@@ -123,6 +127,17 @@ func runUploadAdminKubeconfig(r workflow.RunData) error {
 
 	klog.V(2).InfoS("[UploadAdminKubeconfig] Successfully created secret of karmada apiserver kubeconfig", "karmada", klog.KObj(data))
 	return nil
+}
+
+func setKubeConfigProxyURL(proxyURL string, configBytes []byte) (proxyConfigBytes []byte, err error) {
+	proxyConfigBytes = configBytes
+	if proxyURL != "" {
+		proxyConfigBytes, err = util.SetKubeConfigProxyURL(configBytes, proxyURL)
+		if err != nil {
+			return nil, fmt.Errorf("set kubeConfig proxy-url failed: %w", err)
+		}
+	}
+	return proxyConfigBytes, nil
 }
 
 func getNodePortFromAPIServerService(service *corev1.Service) int32 {
