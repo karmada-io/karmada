@@ -24,6 +24,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,6 +35,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -45,6 +47,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
+	"github.com/karmada-io/karmada/pkg/util/names"
 	testingutil "github.com/karmada-io/karmada/pkg/util/testing"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -63,6 +66,7 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 	if rs == nil {
 		return &ResourceBindingController{
 			Client:          c,
+			APIReader:       c,
 			RESTMapper:      testing2.RestMapper,
 			InformerManager: genericmanager.NewSingleClusterInformerManager(context.TODO(), tempDyClient, 0, fedinformer.StripUnusedFields),
 			DynamicClient:   tempDyClient,
@@ -93,6 +97,7 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 
 	return &ResourceBindingController{
 		Client:          c,
+		APIReader:       c,
 		RESTMapper:      helper.NewGroupRESTMapper(rs.Kind, meta.RESTScopeNamespace),
 		InformerManager: testingutil.NewSingleClusterInformerManagerByRS(src, obj),
 		DynamicClient:   tempDyClient,
@@ -170,6 +175,56 @@ func TestResourceBindingController_Reconcile(t *testing.T) {
 				t.Errorf("Reconcile() got = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestResourceBindingController_Reconcile_DeleteWorkMissedByCache(t *testing.T) {
+	ctx := context.Background()
+	rb := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test-rb",
+			Namespace:  "default",
+			Labels:     map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "rb-id"},
+			Finalizers: []string{util.BindingControllerFinalizer},
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Resource: workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default", Name: "test-cm"},
+		},
+		Status: workv1alpha2.ResourceBindingStatus{
+			AggregatedStatus: []workv1alpha2.AggregatedStatusItem{{ClusterName: "member1"}},
+		},
+	}
+	work := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      names.GenerateWorkName("ConfigMap", "test-cm", "default"),
+			Namespace: names.GenerateExecutionSpaceName("member1"),
+			Labels:    map[string]string{workv1alpha2.ResourceBindingPermanentIDLabel: "rb-id"},
+		},
+	}
+
+	apiClient := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(rb, work).Build()
+	if err := apiClient.Delete(ctx, rb); err != nil {
+		t.Fatalf("Failed to mark rb as deleting: %v", err)
+	}
+	// The stale cache has not observed the Work yet; all other requests reach the API server.
+	cacheClient := interceptor.NewClient(apiClient, interceptor.Funcs{
+		List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+			if _, ok := list.(*workv1alpha1.WorkList); ok {
+				return nil
+			}
+			return c.List(ctx, list, opts...)
+		},
+	})
+	c := &ResourceBindingController{Client: cacheClient, APIReader: apiClient, EventRecorder: record.NewFakeRecorder(1024)}
+
+	if _, err := c.Reconcile(ctx, controllerruntime.Request{NamespacedName: client.ObjectKeyFromObject(rb)}); err != nil {
+		t.Fatalf("Reconcile() unexpected error: %v", err)
+	}
+	if err := apiClient.Get(ctx, client.ObjectKeyFromObject(work), &workv1alpha1.Work{}); !apierrors.IsNotFound(err) {
+		t.Errorf("Expected Work missed by the cache to be deleted, got err: %v", err)
+	}
+	if err := apiClient.Get(ctx, client.ObjectKeyFromObject(rb), &workv1alpha2.ResourceBinding{}); !apierrors.IsNotFound(err) {
+		t.Errorf("Expected rb to be gone after its finalizer was removed, got err: %v", err)
 	}
 }
 
