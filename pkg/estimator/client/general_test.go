@@ -1479,6 +1479,45 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 			// Available memory: 8Gi - 2Gi = 6Gi, each set needs 1073741824 bytes (1Gi) => 6 sets.
 			expected: 6,
 		},
+		{
+			name: "small requests whose resource bound does not fit in an int32",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("110"),
+							corev1.ResourceCPU:    resource.MustParse("8"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("50m"),
+							corev1.ResourceMemory: resource.MustParse("100m"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("100m"),
+						},
+					},
+				},
+			},
+			// Per set: 150m CPU and 2 bytes of memory (100m rounds up to 1 byte per component).
+			// Memory alone would allow 16Gi / 2 sets, more than an int32 can hold; CPU limits it to 8000m / 150m = 53.
+			expected: 53,
+		},
 	}
 
 	estimator := NewGeneralEstimator()

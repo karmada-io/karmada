@@ -227,9 +227,10 @@ func resourceBoundedSets(podBound int32, perSet map[corev1.ResourceName]int64, a
 			return 0, false
 		}
 
-		resBound := int32(available[resName] / req) // #nosec G115: integer overflow conversion int64 -> int32
-		if resBound < maxSets {
-			maxSets = resBound
+		// Compare in int64: with a small request the quotient can be larger than an int32.
+		resBound := available[resName] / req
+		if resBound < int64(maxSets) {
+			maxSets = int32(resBound) // #nosec G115: resBound is smaller than maxSets here, so it fits in int32
 		}
 	}
 	return maxSets, true
