@@ -28,6 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/resource"
+	kubectlapply "k8s.io/kubectl/pkg/cmd/apply"
+	kubectldelete "k8s.io/kubectl/pkg/cmd/delete"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -37,6 +39,18 @@ import (
 )
 
 func TestValidateApplyCommand(t *testing.T) {
+	createMember1 := func(client karmadaclientset.Interface) error {
+		_, err := client.ClusterV1alpha1().Clusters().Create(context.TODO(), &clusterv1alpha1.Cluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "member1",
+			},
+		}, metav1.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create cluster %s, got: %v", "member1", err)
+		}
+		return nil
+	}
+
 	tests := []struct {
 		name      string
 		applyOpts *CommandApplyOptions
@@ -67,21 +81,52 @@ func TestValidateApplyCommand(t *testing.T) {
 		{
 			name: "Validate_WithExistentCluster_Validated",
 			applyOpts: &CommandApplyOptions{
+				Clusters:            []string{"member1"},
+				karmadaClient:       fakekarmadaclient.NewClientset(),
+				kubectlApplyOptions: &kubectlapply.ApplyOptions{},
+			},
+			prep:    createMember1,
+			wantErr: false,
+		},
+		{
+			name: "Validate_WithExistentClusterAndPruneWithoutAllOrSelector_Rejected",
+			applyOpts: &CommandApplyOptions{
 				Clusters:      []string{"member1"},
 				karmadaClient: fakekarmadaclient.NewClientset(),
+				kubectlApplyOptions: &kubectlapply.ApplyOptions{
+					Prune:         true,
+					DeleteOptions: &kubectldelete.DeleteOptions{},
+				},
 			},
-			prep: func(client karmadaclientset.Interface) error {
-				_, err := client.ClusterV1alpha1().Clusters().Create(context.TODO(), &clusterv1alpha1.Cluster{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "member1",
-					},
-				}, metav1.CreateOptions{})
-				if err != nil {
-					return fmt.Errorf("failed to create cluster %s, got: %v", "member1", err)
-				}
-				return nil
+			prep:    createMember1,
+			wantErr: true,
+			errMsg:  "all resources selected for prune without explicitly passing --all",
+		},
+		{
+			name: "Validate_WithExistentClusterAndForceConflictsWithoutServerSide_Rejected",
+			applyOpts: &CommandApplyOptions{
+				Clusters:      []string{"member1"},
+				karmadaClient: fakekarmadaclient.NewClientset(),
+				kubectlApplyOptions: &kubectlapply.ApplyOptions{
+					ForceConflicts: true,
+				},
 			},
-			wantErr: false,
+			prep:    createMember1,
+			wantErr: true,
+			errMsg:  "--force-conflicts only works with --server-side",
+		},
+		{
+			name: "Validate_WithAllClustersAndForceConflictsWithoutServerSide_Rejected",
+			applyOpts: &CommandApplyOptions{
+				AllClusters:   true,
+				karmadaClient: fakekarmadaclient.NewClientset(),
+				kubectlApplyOptions: &kubectlapply.ApplyOptions{
+					ForceConflicts: true,
+				},
+			},
+			prep:    func(karmadaclientset.Interface) error { return nil },
+			wantErr: true,
+			errMsg:  "--force-conflicts only works with --server-side",
 		},
 	}
 	for _, test := range tests {
