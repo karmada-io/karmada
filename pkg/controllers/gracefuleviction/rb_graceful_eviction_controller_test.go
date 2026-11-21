@@ -18,18 +18,22 @@ package gracefuleviction
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -250,7 +254,7 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 				GracefulEvictionTimeout: 5 * time.Minute,
 			}
 
-			retryAfter, err := c.syncBinding(context.TODO(), tc.binding)
+			retryAfter, err := c.syncBinding(context.TODO(), types.NamespacedName{Namespace: tc.binding.Namespace, Name: tc.binding.Name})
 
 			if tc.expectedError {
 				assert.Error(t, err)
@@ -267,5 +271,95 @@ func TestRBGracefulEvictionController_syncBinding(t *testing.T) {
 
 			assert.Equal(t, tc.expectedEvictionLen, len(updatedBinding.Spec.GracefulEvictionTasks))
 		})
+	}
+}
+
+// conflictPatchInterceptor returns an interceptor.Funcs that injects a
+// Conflict error on the first n Patch calls for the given GroupResource and
+// then lets subsequent Patch calls flow through. It models the
+// optimistic-lock collision the controller is expected to absorb when the
+// taint-manager writes Spec.GracefulEvictionTasks concurrently.
+func conflictPatchInterceptor(gr schema.GroupResource, name string, n int32) interceptor.Funcs {
+	remaining := n
+	return interceptor.Funcs{
+		Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+			if atomic.LoadInt32(&remaining) > 0 {
+				atomic.AddInt32(&remaining, -1)
+				return apierrors.NewConflict(gr, name, errStaleResourceVersion)
+			}
+			return c.Patch(ctx, obj, patch, opts...)
+		},
+	}
+}
+
+var errStaleResourceVersion = &constErr{"the object has been modified; please apply your changes to the latest version and try again"}
+
+type constErr struct{ s string }
+
+func (e *constErr) Error() string { return e.s }
+
+func TestRBGracefulEvictionController_syncBinding_retryOnConflict(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, workv1alpha2.Install(scheme))
+
+	now := metav1.Now()
+	binding := &workv1alpha2.ResourceBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "conflict-rb",
+			Namespace: "default",
+		},
+		Spec: workv1alpha2.ResourceBindingSpec{
+			Clusters: []workv1alpha2.TargetCluster{
+				{Name: "member1"},
+			},
+			GracefulEvictionTasks: []workv1alpha2.GracefulEvictionTask{
+				{
+					FromCluster:       "member1",
+					CreationTimestamp: &metav1.Time{Time: now.Add(-10 * time.Minute)}, // expired ⇒ will be removed by patch
+				},
+			},
+		},
+	}
+
+	gr := schema.GroupResource{Group: "work.karmada.io", Resource: "resourcebindings"}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(binding).
+		WithInterceptorFuncs(conflictPatchInterceptor(gr, binding.Name, 2)).
+		Build()
+
+	c := &RBGracefulEvictionController{
+		Client:                  fakeClient,
+		EventRecorder:           record.NewFakeRecorder(10),
+		GracefulEvictionTimeout: 5 * time.Minute,
+	}
+
+	if _, err := c.syncBinding(context.TODO(), types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}); err != nil {
+		t.Fatalf("syncBinding returned error after transient conflicts: %v", err)
+	}
+
+	got := &workv1alpha2.ResourceBinding{}
+	if err := fakeClient.Get(context.TODO(), types.NamespacedName{Namespace: binding.Namespace, Name: binding.Name}, got); err != nil {
+		t.Fatalf("failed to refetch binding: %v", err)
+	}
+	if len(got.Spec.GracefulEvictionTasks) != 0 {
+		t.Errorf("expected expired eviction task to be removed after retry-on-conflict, still have %d task(s)", len(got.Spec.GracefulEvictionTasks))
+	}
+}
+
+func TestRBGracefulEvictionController_syncBinding_notFoundSurfacedToReconcile(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, workv1alpha2.Install(scheme))
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	c := &RBGracefulEvictionController{
+		Client:                  fakeClient,
+		EventRecorder:           record.NewFakeRecorder(10),
+		GracefulEvictionTimeout: 5 * time.Minute,
+	}
+
+	_, err := c.syncBinding(context.TODO(), types.NamespacedName{Namespace: "default", Name: "missing"})
+	if err == nil || !apierrors.IsNotFound(err) {
+		t.Fatalf("expected NotFound error so Reconcile can short-circuit, got %v", err)
 	}
 }
