@@ -1427,6 +1427,52 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 	}
 }
 
+func TestMaxAvailableComponentSets_MixedQuantityFormats(t *testing.T) {
+	cluster := &clusterv1alpha1.Cluster{
+		Status: clusterv1alpha1.ClusterStatus{
+			ResourceSummary: &clusterv1alpha1.ResourceSummary{
+				Allocatable: corev1.ResourceList{
+					corev1.ResourcePods:   resource.MustParse("100"),
+					corev1.ResourceCPU:    resource.MustParse("10"),
+					corev1.ResourceMemory: resource.MustParse("8Gi"),
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		request  string
+		expected int32
+	}{
+		{name: "decimal SI", request: "1G", expected: 8},
+		{name: "decimal bytes", request: "1073741824", expected: 8},
+		{name: "binary SI", request: "1Gi", expected: 8},
+		{name: "binary mebibytes", request: "1000Mi", expected: 8},
+		{name: "decimal SI bounds sets", request: "4G", expected: 2},
+	}
+
+	estimator := NewGeneralEstimator()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			components := []workv1alpha2.Component{
+				{
+					Name:     "worker",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse(tt.request),
+						},
+					},
+				},
+			}
+			result := estimator.maxAvailableComponentSets(cluster, components, nil)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
 	defer setFeatureGateDuringTest(t, features.FeatureGate, features.SchedulingOvercommitProtection, true)()
 	// Base cluster: 100 pods, 10 CPU, 8Gi memory available.
