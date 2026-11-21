@@ -173,12 +173,14 @@ func removeServiceAccountIrrelevantField(workload *unstructured.Unstructured) er
 	// If 'secrets' exists in ServiceAccount, remove the automatic generation secrets (e.g. default-token-xxx)
 	if exist && len(secrets) > 0 {
 		tokenPrefix := fmt.Sprintf("%s-token-", workload.GetName())
-		for idx := 0; idx < len(secrets); idx++ {
-			if strings.HasPrefix(secrets[idx].(map[string]any)["name"].(string), tokenPrefix) {
-				secrets = append(secrets[:idx], secrets[idx+1:]...)
+		retainedSecrets := make([]any, 0, len(secrets))
+		for _, secret := range secrets {
+			if strings.HasPrefix(secret.(map[string]any)["name"].(string), tokenPrefix) {
+				continue
 			}
+			retainedSecrets = append(retainedSecrets, secret)
 		}
-		_ = unstructured.SetNestedSlice(workload.Object, secrets, "secrets")
+		_ = unstructured.SetNestedSlice(workload.Object, retainedSecrets, "secrets")
 	}
 	return nil
 }

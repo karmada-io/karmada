@@ -333,3 +333,67 @@ func getShouldNotRemoveFields(t *test) ([]field, error) {
 	}
 	return shouldNotRemoveFields, nil
 }
+
+func TestRemoveServiceAccountIrrelevantField(t *testing.T) {
+	newSecrets := func(names ...string) []any {
+		secrets := make([]any, 0, len(names))
+		for _, name := range names {
+			secrets = append(secrets, map[string]any{"name": name})
+		}
+		return secrets
+	}
+
+	tests := []struct {
+		name     string
+		secrets  []any
+		expected []string
+	}{
+		{
+			name:     "single token secret is removed",
+			secrets:  newSecrets("foo-token-6pgxf", "foo-dockercfg-zdr2j"),
+			expected: []string{"foo-dockercfg-zdr2j"},
+		},
+		{
+			name:     "consecutive token secrets are all removed",
+			secrets:  newSecrets("foo-token-6pgxf", "foo-token-9hk2d", "foo-dockercfg-zdr2j"),
+			expected: []string{"foo-dockercfg-zdr2j"},
+		},
+		{
+			name:     "only token secrets",
+			secrets:  newSecrets("foo-token-6pgxf", "foo-token-9hk2d", "foo-token-x7c4q"),
+			expected: []string{},
+		},
+		{
+			name:     "no token secret",
+			secrets:  newSecrets("foo-dockercfg-zdr2j", "bar-token-6pgxf"),
+			expected: []string{"foo-dockercfg-zdr2j", "bar-token-6pgxf"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workload := &unstructured.Unstructured{
+				Object: map[string]any{
+					"kind":     util.ServiceAccountKind,
+					"metadata": map[string]any{"name": "foo"},
+					"secrets":  tt.secrets,
+				},
+			}
+			if err := removeServiceAccountIrrelevantField(workload); err != nil {
+				t.Fatalf("removeServiceAccountIrrelevantField() returned error: %v", err)
+			}
+
+			secrets, _, err := unstructured.NestedSlice(workload.Object, "secrets")
+			if err != nil {
+				t.Fatalf("failed to get secrets: %v", err)
+			}
+			got := make([]string, 0, len(secrets))
+			for _, secret := range secrets {
+				got = append(got, secret.(map[string]any)["name"].(string))
+			}
+			if fmt.Sprint(got) != fmt.Sprint(tt.expected) {
+				t.Errorf("expected secrets %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
