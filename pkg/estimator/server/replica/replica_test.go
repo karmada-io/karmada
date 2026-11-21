@@ -464,6 +464,20 @@ func TestGetUnschedulablePodsOfCustomWorkload(t *testing.T) {
 	got, err = GetUnschedulablePodsOfWorkload(workload, time.Hour, listers)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(0), got)
+
+	// A custom resource that is also called Deployment is matched by owner references,
+	// not through the ReplicaSets of a built-in Deployment.
+	customDeployment := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.com/v1",
+		"kind":       "Deployment",
+		"metadata":   map[string]any{"name": "custom", "namespace": "default", "uid": "custom-uid"},
+	}}
+	listers.PodLister = &mockPodLister{pods: map[string][]*corev1.Pod{"default": {
+		pod("custom-pending", owner("example.com/v1", "Deployment", "custom", "custom-uid"), true),
+	}}}
+	got, err = GetUnschedulablePodsOfWorkload(customDeployment, 5*time.Minute, listers)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(1), got)
 }
 
 func TestPodUnschedulable(t *testing.T) {

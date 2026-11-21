@@ -130,6 +130,9 @@ func TestSupportedWorkloadGVKs(t *testing.T) {
 		"apps/v1/",
 		"/Deployment",
 		"a/b/c/Kind",
+		"apps /v1/Deployment",
+		"apps/v1/Deploy ment",
+		"Apps/v1/Deployment",
 	}}
 	gvks, errs := o.SupportedWorkloadGVKs()
 	want := []schema.GroupVersionKind{
@@ -140,7 +143,7 @@ func TestSupportedWorkloadGVKs(t *testing.T) {
 	if !reflect.DeepEqual(gvks, want) {
 		t.Errorf("SupportedWorkloadGVKs() = %v, want %v", gvks, want)
 	}
-	if len(errs) != 4 {
-		t.Errorf("SupportedWorkloadGVKs() returned %d errors, want 4: %v", len(errs), errs)
+	if len(errs) != 7 {
+		t.Errorf("SupportedWorkloadGVKs() returned %d errors, want 7: %v", len(errs), errs)
 	}
 }

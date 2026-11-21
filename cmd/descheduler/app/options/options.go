@@ -18,12 +18,14 @@ package options
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
@@ -161,6 +163,9 @@ func (o *Options) SupportedWorkloadGVKs() ([]schema.GroupVersionKind, []error) {
 	return gvks, errs
 }
 
+// workloadKindRegexp matches a Kubernetes kind, which is a CamelCase identifier.
+var workloadKindRegexp = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*$`)
+
 func parseWorkloadGVK(s string) (schema.GroupVersionKind, error) {
 	s = strings.TrimSpace(s)
 	i := strings.LastIndex(s, "/")
@@ -171,5 +176,10 @@ func parseWorkloadGVK(s string) (schema.GroupVersionKind, error) {
 	if err != nil || gv.Version == "" {
 		return schema.GroupVersionKind{}, fmt.Errorf("invalid workload %q, expected <apiVersion>/<kind>", s)
 	}
-	return gv.WithKind(s[i+1:]), nil
+	kind := s[i+1:]
+	if (gv.Group != "" && len(validation.IsDNS1123Subdomain(gv.Group)) > 0) ||
+		len(validation.IsDNS1035Label(gv.Version)) > 0 || !workloadKindRegexp.MatchString(kind) {
+		return schema.GroupVersionKind{}, fmt.Errorf("invalid workload %q, expected <apiVersion>/<kind>", s)
+	}
+	return gv.WithKind(kind), nil
 }

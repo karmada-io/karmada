@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	listappsv1 "k8s.io/client-go/listers/apps/v1"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
@@ -35,6 +36,10 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	utilworkload "github.com/karmada-io/karmada/pkg/util/lifted"
 )
+
+// appsDeploymentGroupKind identifies the built-in Deployment. A custom resource that
+// is also named Deployment belongs to another group and is not handled like it.
+var appsDeploymentGroupKind = schema.GroupKind{Group: appsv1.GroupName, Kind: util.DeploymentKind}
 
 // ListerWrapper is a wrapper which wraps the pod lister and replicaset lister.
 type ListerWrapper struct {
@@ -51,8 +56,8 @@ func GetUnschedulablePodsOfWorkload(unstructObj *unstructured.Unstructured, thre
 	// Workloads could be classified into two types. The one is which owns ReplicaSet
 	// and the other is which owns Pod directly. Deployments go through their newest
 	// ReplicaSet; any other kind is matched by controller owner references.
-	switch unstructObj.GetKind() {
-	case util.DeploymentKind:
+	switch unstructObj.GroupVersionKind().GroupKind() {
+	case appsDeploymentGroupKind:
 		deployment := &appsv1.Deployment{}
 		if err := helper.ConvertToTypedObject(unstructObj, deployment); err != nil {
 			return 0, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)

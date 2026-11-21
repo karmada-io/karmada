@@ -68,6 +68,7 @@ Generic flags:
       --scheduler-estimator-service-namespace string   The namespace to be used for discovering scheduler estimator services. (default "karmada-system")
       --scheduler-estimator-service-prefix string      The prefix of scheduler estimator service name (default "karmada-scheduler-estimator")
       --scheduler-estimator-timeout duration           Specifies the timeout period of calling the scheduler estimator service. (default 3s)
+      --supported-workloads strings                    Comma-separated list of workload types the descheduler reschedules, each as <apiVersion>/<kind> (e.g. apps/v1/Deployment,batch.volcano.sh/v1alpha1/Job). Custom types need a resource interpreter that reports replicas and readyReplicas, and pods owned by the workload directly or through a ReplicaSet. (default [apps/v1/Deployment])
       --unschedulable-threshold duration               The period of pod unschedulable condition. This value is considered as a classification standard of unschedulable replicas. (default 5m0s)
 ```
 
