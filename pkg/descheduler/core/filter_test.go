@@ -18,9 +18,11 @@ package core
 
 import (
 	"encoding/json"
+	"slices"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
@@ -77,7 +79,7 @@ func TestFilterBindings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filtered := FilterBindings(tt.bindings)
+			filtered := FilterBindings(tt.bindings, DefaultSupportedGVKs)
 			if len(filtered) != tt.expected {
 				t.Errorf("FilterBindings() returned %d bindings, expected %d", len(filtered), tt.expected)
 			}
@@ -151,11 +153,37 @@ func TestValidateGVK(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := validateGVK(tt.reference)
+			res := validateGVK(tt.reference, DefaultSupportedGVKs)
 			if res != tt.expected {
 				t.Errorf("validateGVK() = %v, want %v", res, tt.expected)
 			}
 		})
+	}
+}
+
+func TestFilterBindingsWithCustomGVKs(t *testing.T) {
+	gvks := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "batch.volcano.sh", Version: "v1alpha1", Kind: "Job"},
+	}
+	bindings := []*workv1alpha2.ResourceBinding{
+		createBinding("deployment", "apps/v1", "Deployment", createValidPlacement()),
+		createBinding("vcjob", "batch.volcano.sh/v1alpha1", "Job", createValidPlacement()),
+		createBinding("vcjob-static", "batch.volcano.sh/v1alpha1", "Job", createInvalidPlacement()),
+		createBinding("batch-job", "batch/v1", "Job", createValidPlacement()),
+	}
+
+	filtered := FilterBindings(bindings, gvks)
+	var names []string
+	for _, b := range filtered {
+		names = append(names, b.Name)
+	}
+	if !slices.Equal(names, []string{"deployment", "vcjob"}) {
+		t.Errorf("FilterBindings() = %v, want [deployment vcjob]", names)
+	}
+
+	if got := FilterBindings(bindings[:2], nil); len(got) != 0 {
+		t.Errorf("FilterBindings() with no supported GVKs returned %d bindings, want 0", len(got))
 	}
 }
 

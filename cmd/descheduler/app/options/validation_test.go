@@ -17,10 +17,12 @@ limitations under the License.
 package options
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	componentbaseconfig "k8s.io/component-base/config"
 )
@@ -92,6 +94,12 @@ func TestValidateKarmadaDescheduler(t *testing.T) {
 			}),
 			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("DeschedulingInterval"), metav1.Duration{Duration: -1 * time.Second}, "must be greater than or equal to 0")},
 		},
+		"invalid SupportedWorkloads": {
+			opt: New(func(option *Options) {
+				option.SupportedWorkloads = []string{"apps/v1/Deployment", "Deployment"}
+			}),
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SupportedWorkloads"), []string{"apps/v1/Deployment", "Deployment"}, `invalid workload "Deployment", expected <apiVersion>/<kind>`)},
+		},
 		"invalid UnschedulableThreshold": {
 			opt: New(func(option *Options) {
 				option.UnschedulableThreshold = metav1.Duration{Duration: -1 * time.Second}
@@ -110,5 +118,29 @@ func TestValidateKarmadaDescheduler(t *testing.T) {
 				t.Fatalf("Expected error: %s, got %s", testCase.expectedErrs[i], err.Error())
 			}
 		}
+	}
+}
+
+func TestSupportedWorkloadGVKs(t *testing.T) {
+	o := &Options{SupportedWorkloads: []string{
+		"apps/v1/Deployment",
+		" batch.volcano.sh/v1alpha1/Job ",
+		"v1/ReplicationController",
+		"Deployment",
+		"apps/v1/",
+		"/Deployment",
+		"a/b/c/Kind",
+	}}
+	gvks, errs := o.SupportedWorkloadGVKs()
+	want := []schema.GroupVersionKind{
+		{Group: "apps", Version: "v1", Kind: "Deployment"},
+		{Group: "batch.volcano.sh", Version: "v1alpha1", Kind: "Job"},
+		{Group: "", Version: "v1", Kind: "ReplicationController"},
+	}
+	if !reflect.DeepEqual(gvks, want) {
+		t.Errorf("SupportedWorkloadGVKs() = %v, want %v", gvks, want)
+	}
+	if len(errs) != 4 {
+		t.Errorf("SupportedWorkloadGVKs() returned %d errors, want 4: %v", len(errs), errs)
 	}
 }

@@ -17,10 +17,13 @@ limitations under the License.
 package options
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	componentbaseconfig "k8s.io/component-base/config"
 
@@ -32,6 +35,7 @@ const (
 	defaultEstimatorPort          = 10352
 	defaultDeschedulingInterval   = 2 * time.Minute
 	defaultUnschedulableThreshold = 5 * time.Minute
+	defaultSupportedWorkload      = "apps/v1/Deployment"
 )
 
 var (
@@ -81,6 +85,9 @@ type Options struct {
 	// It can be set to "0" to disable serving the health probe.
 	// Defaults to ":10358".
 	HealthProbeBindAddress string
+	// SupportedWorkloads lists the workload types the descheduler handles, each as
+	// "<apiVersion>/<kind>", e.g. "apps/v1/Deployment".
+	SupportedWorkloads []string
 }
 
 // NewOptions builds a default descheduler options.
@@ -133,6 +140,36 @@ func (o *Options) AddFlags(fs *pflag.FlagSet) {
 	fs.DurationVar(&o.DeschedulingInterval.Duration, "descheduling-interval", defaultDeschedulingInterval, "Time interval between two consecutive descheduler executions. Setting this value instructs the descheduler to run in a continuous loop at the interval specified.")
 	fs.DurationVar(&o.UnschedulableThreshold.Duration, "unschedulable-threshold", defaultUnschedulableThreshold, "The period of pod unschedulable condition. This value is considered as a classification standard of unschedulable replicas.")
 	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The TCP address that the server should bind to for serving prometheus metrics(e.g. 127.0.0.1:8080, :8080). It can be set to \"0\" to disable the metrics serving. Defaults to 0.0.0.0:8080.")
+	fs.StringSliceVar(&o.SupportedWorkloads, "supported-workloads", []string{defaultSupportedWorkload}, "Comma-separated list of workload types the descheduler reschedules, each as <apiVersion>/<kind> (e.g. apps/v1/Deployment,batch.volcano.sh/v1alpha1/Job). Custom types need a resource interpreter that reports replicas and readyReplicas, and pods owned by the workload directly or through a ReplicaSet.")
 	fs.StringVar(&o.HealthProbeBindAddress, "health-probe-bind-address", ":10358", "The TCP address that the server should bind to for serving health probes(e.g. 127.0.0.1:10358, :10358). It can be set to \"0\" to disable serving the health probe. Defaults to 0.0.0.0:10358.")
 	o.ProfileOpts.AddFlags(fs)
+}
+
+// SupportedWorkloadGVKs parses SupportedWorkloads. It returns the GVKs that
+// parsed and one error per entry that did not.
+func (o *Options) SupportedWorkloadGVKs() ([]schema.GroupVersionKind, []error) {
+	var gvks []schema.GroupVersionKind
+	var errs []error
+	for _, w := range o.SupportedWorkloads {
+		gvk, err := parseWorkloadGVK(w)
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		gvks = append(gvks, gvk)
+	}
+	return gvks, errs
+}
+
+func parseWorkloadGVK(s string) (schema.GroupVersionKind, error) {
+	s = strings.TrimSpace(s)
+	i := strings.LastIndex(s, "/")
+	if i <= 0 || i == len(s)-1 {
+		return schema.GroupVersionKind{}, fmt.Errorf("invalid workload %q, expected <apiVersion>/<kind>", s)
+	}
+	gv, err := schema.ParseGroupVersion(s[:i])
+	if err != nil || gv.Version == "" {
+		return schema.GroupVersionKind{}, fmt.Errorf("invalid workload %q, expected <apiVersion>/<kind>", s)
+	}
+	return gv.WithKind(s[i+1:]), nil
 }

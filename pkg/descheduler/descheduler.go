@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	v1core "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -74,6 +75,7 @@ type Descheduler struct {
 
 	unschedulableThreshold time.Duration
 	deschedulingInterval   time.Duration
+	supportedGVKs          []schema.GroupVersionKind
 	deschedulerWorker      util.AsyncWorker
 }
 
@@ -100,6 +102,11 @@ func NewDescheduler(karmadaClient karmadaclientset.Interface, kubeClient kuberne
 		schedulerEstimatorServicePrefix:    opts.SchedulerEstimatorServicePrefix,
 		unschedulableThreshold:             opts.UnschedulableThreshold.Duration,
 		deschedulingInterval:               opts.DeschedulingInterval.Duration,
+	}
+	// The options are validated before this point, so parse errors can't happen here.
+	desched.supportedGVKs, _ = opts.SupportedWorkloadGVKs()
+	if len(desched.supportedGVKs) == 0 {
+		desched.supportedGVKs = core.DefaultSupportedGVKs
 	}
 	// ignore the error here because the informers haven't been started
 	_ = desched.bindingInformer.SetTransform(fedinformer.StripUnusedFields)
@@ -164,7 +171,7 @@ func (d *Descheduler) descheduleOnce() {
 	if err != nil {
 		klog.Errorf("List all ResourceBindings error: %v", err)
 	}
-	bindings = core.FilterBindings(bindings)
+	bindings = core.FilterBindings(bindings, d.supportedGVKs)
 	for _, binding := range bindings {
 		d.deschedulerWorker.Enqueue(binding)
 	}
