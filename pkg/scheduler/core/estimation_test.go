@@ -33,13 +33,15 @@ import (
 
 // mockReplicaEstimator is a mock implementation of ReplicaEstimator for testing
 type mockReplicaEstimator struct {
+	maxAvailableReplicasResponse      []workv1alpha2.TargetCluster
+	maxAvailableReplicasError         error
 	maxAvailableComponentSetsResponse []estimatorclient.ComponentSetEstimationResponse
 	maxAvailableComponentSetsError    error
 	lastComponentSetRequest           estimatorclient.ComponentSetEstimationRequest
 }
 
 func (m *mockReplicaEstimator) MaxAvailableReplicas(_ context.Context, _ estimatorclient.ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error) {
-	return nil, nil
+	return m.maxAvailableReplicasResponse, m.maxAvailableReplicasError
 }
 
 func (m *mockReplicaEstimator) MaxAvailableComponentSets(_ context.Context, req estimatorclient.ComponentSetEstimationRequest) ([]estimatorclient.ComponentSetEstimationResponse, error) {
@@ -266,15 +268,29 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			},
 		},
 		{
-			name: "unauthentic replica — cluster skipped in result",
+			name: "unauthentic replica — sentinel preserved for the caller",
 			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
 				{Name: "cluster1", Sets: estimatorclient.UnauthenticReplica},
 				{Name: "cluster2", Sets: 150},
 				{Name: "cluster3", Sets: 250},
 			},
 			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: estimatorclient.UnauthenticReplica},
 				{Name: "cluster2", Replicas: 150},
 				{Name: "cluster3", Replicas: 250},
+			},
+		},
+		{
+			name: "duplicate cluster entries — the minimum wins",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster2", Sets: 0},
+				{Name: "cluster2", Sets: 3},
+				{Name: "cluster1", Sets: 150},
+				{Name: "cluster1", Sets: 50},
+			},
+			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 50},
+				{Name: "cluster2", Replicas: 0},
 			},
 		},
 		{
@@ -295,6 +311,48 @@ func Test_calculateMultiTemplateAvailableSets(t *testing.T) {
 			mockError:      errors.New("estimator error"),
 			expectedResult: nil,
 			expectedError:  true,
+		},
+		{
+			name: "estimator error with zero-only response — returns nil result",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: 0},
+				{Name: "cluster2", Sets: 0},
+				{Name: "cluster3", Sets: 0},
+			},
+			mockError:      errors.New("estimator error"),
+			expectedResult: nil,
+			expectedError:  true,
+		},
+		{
+			name: "duplicate name with sentinel — sentinel preserved",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: estimatorclient.UnauthenticReplica},
+				{Name: "cluster1", Sets: 0},
+				{Name: "cluster2", Sets: 3},
+				{Name: "cluster3", Sets: 4},
+			},
+			mockError: errors.New("cluster1 unavailable"),
+			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: estimatorclient.UnauthenticReplica},
+				{Name: "cluster2", Replicas: 3},
+				{Name: "cluster3", Replicas: 4},
+			},
+			expectedError: true,
+		},
+		{
+			name: "estimator error with partial results — valid clusters are preserved",
+			mockResponse: []estimatorclient.ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: estimatorclient.UnauthenticReplica},
+				{Name: "cluster2", Sets: 150},
+				{Name: "cluster3", Sets: 250},
+			},
+			mockError: errors.New("cluster1 unavailable"),
+			expectedResult: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: estimatorclient.UnauthenticReplica},
+				{Name: "cluster2", Replicas: 150},
+				{Name: "cluster3", Replicas: 250},
+			},
+			expectedError: true,
 		},
 		{
 			name:           "empty estimator response — returns empty result",

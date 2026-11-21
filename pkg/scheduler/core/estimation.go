@@ -85,22 +85,40 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 	namespacedKey := names.NamespacedKey(estCtx.spec.Resource.Namespace, estCtx.spec.Resource.Name)
 	resp, err := estCtx.estimator.MaxAvailableComponentSets(ctx, req)
 	if err != nil {
-		klog.Errorf("Failed to calculate available component set with estimator(%s) for workload(%s, kind=%s, %s): %v",
+		// The caller decides whether this is a partial or a total failure and logs
+		// accordingly; usable per-cluster results may still be present in resp.
+		klog.V(4).Infof("Estimator(%s) returned an error while estimating component sets for workload(%s, kind=%s, %s): %v",
 			estCtx.estimatorName, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey, err)
-		return nil, err
 	}
 
-	// Use a map to safely update replicas regardless of order.
+	// Use maps to safely update replicas regardless of order. Track the clusters the
+	// estimator explicitly reported as unavailable so they are not logged as missing.
 	resMap := make(map[string]int32, len(resp))
+	unavailable := make(map[string]struct{}, len(resp))
 	for i := range resp {
 		if resp[i].Sets == estimatorclient.UnauthenticReplica {
+			unavailable[resp[i].Name] = struct{}{}
 			continue
 		}
-		resMap[resp[i].Name] = resp[i].Sets
+		if current, ok := resMap[resp[i].Name]; !ok || resp[i].Sets < current {
+			resMap[resp[i].Name] = resp[i].Sets
+		}
 	}
 
 	result := make([]workv1alpha2.TargetCluster, 0, len(estCtx.clusters))
+	hasValue := false
+	hasFailure := false
 	for _, cluster := range estCtx.clusters {
+		if _, failed := unavailable[cluster.Name]; failed {
+			klog.V(4).Infof("The estimator(%s) reported cluster(%s) as unavailable when estimating for workload(%s, kind=%s, %s).",
+				estCtx.estimatorName, cluster.Name, estCtx.spec.Resource.APIVersion, estCtx.spec.Resource.Kind, namespacedKey)
+			// Preserve the sentinel so callers can distinguish a partial result
+			// from a zero-filled error result.
+			result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: estimatorclient.UnauthenticReplica})
+			hasFailure = true
+			continue
+		}
+
 		sets, ok := resMap[cluster.Name]
 		if !ok {
 			klog.Warningf("The estimator(%s) missed estimation from cluster(%s) when estimating for workload(%s, kind=%s, %s).",
@@ -108,8 +126,16 @@ func calculateMultiTemplateAvailableSets(ctx context.Context, estCtx multiTempla
 			continue
 		}
 		result = append(result, workv1alpha2.TargetCluster{Name: cluster.Name, Replicas: sets})
+		hasValue = true
 	}
-	return result, nil
+
+	// Match the caller's partial-result rule: an error is only accompanied by usable
+	// results when at least one requested cluster succeeded and at least one failed.
+	partial := hasValue && hasFailure
+	if err != nil && !partial {
+		return nil, err
+	}
+	return result, err
 }
 
 // buildAssumedWorkloadsByCluster builds a map of assumed workloads for each cluster based on the assigning cache.

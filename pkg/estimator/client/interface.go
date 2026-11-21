@@ -24,9 +24,12 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
-// UnauthenticReplica is special replica number returned by estimator in case of estimator can't calculate the available
-// replicas.
-// The scheduler should discard the estimator's result and back-off to rely on other estimator's result.
+// UnauthenticReplica is a special replica number returned by an estimator for a single cluster when the estimator
+// cannot calculate the value for that cluster. For example, the scheduler ignores only that cluster's value while
+// keeping the values of the remaining clusters.
+// An estimator may also return usable per-cluster results together with an aggregate error. Consumers that choose to
+// tolerate partial results must use this sentinel to skip the affected cluster. Consumers that treat an error as fatal,
+// such as the descheduler, keep discarding the whole batch.
 const UnauthenticReplica = -1
 
 var (
@@ -38,8 +41,11 @@ var (
 // based on resource availability and node constraints.
 type ReplicaEstimator interface {
 	// MaxAvailableReplicas returns the maximum number of replicas of a single-component workload that each cluster can host.
+	// When an error is returned, implementations must set UnauthenticReplica for every cluster
+	// that could not be estimated; successful clusters may still carry their real value.
 	MaxAvailableReplicas(ctx context.Context, req ReplicaEstimationRequest) ([]workv1alpha2.TargetCluster, error)
 	// MaxAvailableComponentSets returns the maximum number of complete multi-component sets (in terms of replicas) that each cluster can host.
+	// The same per-cluster UnauthenticReplica rule applies when an error is returned.
 	MaxAvailableComponentSets(ctx context.Context, req ComponentSetEstimationRequest) ([]ComponentSetEstimationResponse, error)
 }
 
