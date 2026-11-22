@@ -29,6 +29,7 @@ desiredObj:
                   resources:
                     requests:
                       cpu: 100m
+                      memory: 1Gi
                   env:
                     - name: CONFIG_DATA
                       valueFrom:
@@ -47,6 +48,17 @@ desiredObj:
                 - name: config-volume
                   configMap:
                     name: app-config
+      cloneSetTemplate:
+        spec:
+          template:
+            spec:
+              containers:
+                - name: worker
+                  image: nginx:latest
+                  resources:
+                    requests:
+                      cpu: 1
+                      memory: 512Mi
     topologySpread:
       - topologyKey: kubernetes.io/hostname
         maxSkew: 1
@@ -55,4 +67,5 @@ output:
   replica: 3
   requires:
     resourceRequest:
-      cpu: 100m
+      cpu: "1"
+      memory: 1Gi
