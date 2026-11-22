@@ -16,31 +16,34 @@ desiredObj:
       matchLabels:
         app: sample
     template:
-      metadata:
-        labels:
-          app: sample
-      spec:
-        containers:
-          - name: nginx
-            image: nginx:latest
-            env:
-              - name: CONFIG_DATA
-                valueFrom:
-                  configMapKeyRef:
+      deploymentTemplate:
+        spec:
+          template:
+            metadata:
+              labels:
+                app: sample
+            spec:
+              containers:
+                - name: nginx
+                  image: nginx:latest
+                  env:
+                    - name: CONFIG_DATA
+                      valueFrom:
+                        configMapKeyRef:
+                          name: app-config
+                          key: config
+                    - name: SECRET_DATA
+                      valueFrom:
+                        secretKeyRef:
+                          name: app-secret
+                          key: token
+                  volumeMounts:
+                    - name: config-volume
+                      mountPath: /etc/config
+              volumes:
+                - name: config-volume
+                  configMap:
                     name: app-config
-                    key: config
-              - name: SECRET_DATA
-                valueFrom:
-                  secretKeyRef:
-                    name: app-secret
-                    key: token
-            volumeMounts:
-              - name: config-volume
-                mountPath: /etc/config
-        volumes:
-          - name: config-volume
-            configMap:
-              name: app-config
     topologySpread:
       - topologyKey: kubernetes.io/hostname
         maxSkew: 1
