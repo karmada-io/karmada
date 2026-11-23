@@ -136,7 +136,8 @@ func Run(ctx context.Context, opts *options.Options) error {
 
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
-		panic(err)
+		klog.Errorf("Failed to get kubernetes config: %v", err)
+		return fmt.Errorf("failed to get kubernetes config: %w", err)
 	}
 	config.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(opts.KubeAPIQPS, opts.KubeAPIBurst)
 
