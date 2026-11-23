@@ -139,6 +139,7 @@ func TestGetBindingByLabel(t *testing.T) {
 			bindingList: &workv1alpha2.ResourceBindingList{
 				Items: []workv1alpha2.ResourceBinding{
 					{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
 						Spec: workv1alpha2.ResourceBindingSpec{
 							Resource: workv1alpha2.ObjectReference{
 								APIVersion: "apps/v1",
@@ -149,6 +150,67 @@ func TestGetBindingByLabel(t *testing.T) {
 					},
 				},
 			},
+		},
+		{
+			name: "Same-named resources in other namespaces of a ClusterPropagationPolicy",
+			resourceLabel: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-policy-id",
+			},
+			resourceRef: autoscalingv2.CrossVersionObjectReference{
+				Kind:       "Deployment",
+				Name:       "test-deployment",
+				APIVersion: "apps/v1",
+			},
+			bindingList: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "other"},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Name:       "test-deployment",
+							},
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "default"},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Name:       "test-deployment",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Binding only exists in another namespace",
+			resourceLabel: map[string]string{
+				policyv1alpha1.ClusterPropagationPolicyPermanentIDLabel: "test-cluster-policy-id",
+			},
+			resourceRef: autoscalingv2.CrossVersionObjectReference{
+				Kind:       "Deployment",
+				Name:       "test-deployment",
+				APIVersion: "apps/v1",
+			},
+			bindingList: &workv1alpha2.ResourceBindingList{
+				Items: []workv1alpha2.ResourceBinding{
+					{
+						ObjectMeta: metav1.ObjectMeta{Namespace: "other"},
+						Spec: workv1alpha2.ResourceBindingSpec{
+							Resource: workv1alpha2.ObjectReference{
+								APIVersion: "apps/v1",
+								Kind:       "Deployment",
+								Name:       "test-deployment",
+							},
+						},
+					},
+				},
+			},
+			expectedError: "no binding matches the target resource",
 		},
 		{
 			name:          "Empty resource label",
@@ -190,7 +252,7 @@ func TestGetBindingByLabel(t *testing.T) {
 					})
 			}
 
-			binding, err := controller.getBindingByLabel(ctx, tt.resourceLabel, tt.resourceRef)
+			binding, err := controller.getBindingByLabel(ctx, "default", tt.resourceLabel, tt.resourceRef)
 
 			if tt.expectedError != "" {
 				assert.EqualError(t, err, tt.expectedError)
@@ -198,6 +260,7 @@ func TestGetBindingByLabel(t *testing.T) {
 				assert.NoError(t, err)
 				assert.NotNil(t, binding)
 				assert.Equal(t, tt.resourceRef.Name, binding.Spec.Resource.Name)
+				assert.Equal(t, "default", binding.Namespace)
 			}
 
 			mockClient.AssertExpectations(t)
