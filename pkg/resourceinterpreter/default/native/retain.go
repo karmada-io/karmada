@@ -36,6 +36,7 @@ type retentionInterpreter func(desired *unstructured.Unstructured, observed *uns
 func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionInterpreter {
 	s := make(map[schema.GroupVersionKind]retentionInterpreter)
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = retainWorkloadReplicas
+	s[appsv1.SchemeGroupVersion.WithKind(util.StatefulSetKind)] = retainWorkloadReplicas
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = retainPodFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = lifted.RetainServiceFields
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceAccountKind)] = lifted.RetainServiceAccountFields
