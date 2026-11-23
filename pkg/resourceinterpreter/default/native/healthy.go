@@ -18,6 +18,7 @@ package native
 
 import (
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
@@ -41,6 +42,8 @@ func getAllDefaultHealthInterpreter() map[schema.GroupVersionKind]healthInterpre
 	s[corev1.SchemeGroupVersion.WithKind(util.PersistentVolumeClaimKind)] = interpretPersistentVolumeClaimHealth
 	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = interpretPodHealth
 	s[policyv1.SchemeGroupVersion.WithKind(util.PodDisruptionBudgetKind)] = interpretPodDisruptionBudgetHealth
+	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = interpretJobHealth
+	s[batchv1.SchemeGroupVersion.WithKind(util.CronJobKind)] = interpretCronJobHealth
 	return s
 }
 
