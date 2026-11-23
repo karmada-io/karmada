@@ -308,6 +308,125 @@ func TestRetainServiceAccountFields(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "desired imagePullSecrets entry without a name",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"imagePullSecrets": []interface{}{
+						map[string]interface{}{},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			expectedErr:          false,
+			expectedSecretsValue: nil,
+			expectedImagePullSecretsValue: []interface{}{
+				map[string]interface{}{},
+			},
+		},
+		{
+			name: "observed imagePullSecrets entry without a name",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"imagePullSecrets": []interface{}{
+						map[string]interface{}{},
+					},
+				},
+			},
+			expectedErr:          false,
+			expectedSecretsValue: nil,
+			expectedImagePullSecretsValue: []interface{}{
+				map[string]interface{}{},
+			},
+		},
+		{
+			name: "nameless imagePullSecrets entries in both desired and observed are merged into one",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"imagePullSecrets": []interface{}{
+						map[string]interface{}{},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"imagePullSecrets": []interface{}{
+						map[string]interface{}{},
+						map[string]interface{}{
+							"name": "foo",
+						},
+					},
+				},
+			},
+			expectedErr:          false,
+			expectedSecretsValue: nil,
+			expectedImagePullSecretsValue: []interface{}{
+				map[string]interface{}{},
+				map[string]interface{}{
+					"name": "foo",
+				},
+			},
+		},
+		{
+			name: "desired secrets entry without a name",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{},
+					},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": "test-token",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedSecretsValue: []interface{}{
+				map[string]interface{}{},
+				map[string]interface{}{
+					"name": "test-token",
+				},
+			},
+			expectedImagePullSecretsValue: nil,
+		},
+		{
+			name: "desired secrets entry is not an object",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{"test"},
+				},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			expectedErr: true,
+		},
+		{
+			name: "observed secrets entry has a name that is not a string",
+			desiredObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+			observedObj: &unstructured.Unstructured{
+				Object: map[string]interface{}{
+					"secrets": []interface{}{
+						map[string]interface{}{
+							"name": int64(1),
+						},
+					},
+				},
+			},
+			expectedErr: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

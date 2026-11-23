@@ -108,6 +108,18 @@ func RetainServiceAccountFields(desired, observed *unstructured.Unstructured) (*
 	return desired, nil
 }
 
+// secretReferenceName returns the name of an entry of the 'secrets' or 'imagePullSecrets' field.
+// The name is optional in both ObjectReference and LocalObjectReference, so an entry
+// without one is valid and yields an empty name.
+func secretReferenceName(ref interface{}) (string, error) {
+	refMap, ok := ref.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("unexpected secret reference of type %T", ref)
+	}
+	name, _, err := unstructured.NestedString(refMap, "name")
+	return name, err
+}
+
 // retainSecretsField merges a given secrets field (e.g. 'secrets' or 'imagePullSecrets') in the service account.
 func retainSecretsField(desired, observed *unstructured.Unstructured, fieldName string) error {
 	var mergedSecrets []interface{}
@@ -120,7 +132,10 @@ func retainSecretsField(desired, observed *unstructured.Unstructured, fieldName 
 
 	if ok && len(desiredSecrets) > 0 {
 		for _, desiredSecret := range desiredSecrets {
-			secretName := desiredSecret.(map[string]interface{})["name"].(string)
+			secretName, err := secretReferenceName(desiredSecret)
+			if err != nil {
+				return fmt.Errorf("error reading %s from desired service account: %w", fieldName, err)
+			}
 			mergedSecrets = append(mergedSecrets, desiredSecret)
 			isSecretExistMap[secretName] = struct{}{}
 		}
@@ -133,7 +148,10 @@ func retainSecretsField(desired, observed *unstructured.Unstructured, fieldName 
 
 	if ok && len(secrets) > 0 {
 		for _, secret := range secrets {
-			secretName := secret.(map[string]interface{})["name"].(string)
+			secretName, err := secretReferenceName(secret)
+			if err != nil {
+				return fmt.Errorf("error reading %s from service account: %w", fieldName, err)
+			}
 			if _, exist := isSecretExistMap[secretName]; exist {
 				continue
 			}
