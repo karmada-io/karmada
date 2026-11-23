@@ -121,9 +121,12 @@ func DeCompress(file, targetPath string) error {
 				return err
 			}
 			if err := ioCopyN(outFile, tr); err != nil {
+				outFile.Close()
 				return err
 			}
-			outFile.Close()
+			if err := outFile.Close(); err != nil {
+				return err
+			}
 		default:
 			fmt.Printf("unknown type: %v in %s\n", header.Typeflag, header.Name)
 		}
