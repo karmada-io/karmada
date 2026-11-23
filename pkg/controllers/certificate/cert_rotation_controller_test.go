@@ -223,6 +223,87 @@ users:
 			signer:    true,
 			wantErr:   true,
 		},
+		{
+			// The kubeconfig maps hold pointers, so a current-context that names no
+			// entry in "contexts" yields a nil *api.Context.
+			name: "current context is not present in contexts",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret"},
+				Data: map[string][]byte{"karmada-kubeconfig": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://192.168.0.180:56016
+  name: kind-member1
+contexts:
+- context:
+    cluster: kind-member1
+    user: kind-member1
+  name: member1
+current-context: not-a-context
+kind: Config
+preferences: {}
+users:
+- name: kind-member1
+  user: {}
+`)},
+			},
+			threshold: 0,
+			signer:    false,
+			wantErr:   true,
+		},
+		{
+			// A context with no user set at all resolves to an empty name, which is
+			// not a valid lookup key for AuthInfos either.
+			name: "current context does not name a user",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret"},
+				Data: map[string][]byte{"karmada-kubeconfig": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://192.168.0.180:56016
+  name: kind-member1
+contexts:
+- name: member1
+current-context: member1
+kind: Config
+preferences: {}
+users:
+- name: kind-member1
+  user: {}
+`)},
+			},
+			threshold: 0,
+			signer:    false,
+			wantErr:   true,
+		},
+		{
+			// Likewise, a context may reference a user that "users" does not define,
+			// yielding a nil *api.AuthInfo.
+			name: "context references a user that is not present in users",
+			secret: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Namespace: "ns1", Name: "secret"},
+				Data: map[string][]byte{"karmada-kubeconfig": []byte(`apiVersion: v1
+clusters:
+- cluster:
+    server: https://192.168.0.180:56016
+  name: kind-member1
+contexts:
+- context:
+    cluster: kind-member1
+    user: not-a-user
+  name: member1
+current-context: member1
+kind: Config
+preferences: {}
+users:
+- name: kind-member1
+  user: {}
+`)},
+			},
+			threshold: 0,
+			signer:    false,
+			wantErr:   true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
