@@ -26,23 +26,26 @@ verify, then cluster B" by hand, with no defined failure behavior and
 no observable progress.
 
 This proposal adds an opt-in `rolloutStrategy` to `PropagationSpec`.
-In `Staged` mode, Karmada updates one cluster at a time in alphabetical
-order; each cluster must pass a gate (health, conditions, minimum
-success time) within a per-cluster timeout before the next one is
-released. The logic is a `pkg/rollout/` library called from the
-existing binding controllers: no new controller, no data-plane change.
+In `Staged` mode, Karmada releases one cluster at a time in name order;
+each cluster must pass a gate (health, conditions, minimum success
+time) within a per-cluster timeout before the next is released. Any
+change to what a cluster would receive (template, OverridePolicy, or
+ConfigMap/Secret data) is staged, tracked by a hash of each cluster's
+rendered manifest. The logic is a `pkg/rollout/` library called from
+the existing binding controllers: no new controller, no data-plane
+change.
 
 ## Motivation
 
 All-at-once propagation is the right default but unsafe for:
 
-- **Restart-sensitive stateful services** — e.g. a Trino coordinator
+- **Restart-sensitive stateful services**, e.g. a Trino coordinator
   (single coordinator, ~30s unavailable per restart). Restarting every
   cluster at once takes the service offline.
-- **Blast-radius-sensitive cluster infrastructure** — ingress
+- **Blast-radius-sensitive cluster infrastructure**: ingress
   controllers, admission webhooks, CoreDNS overrides (typically
   `ClusterPropagationPolicy`).
-- **Tenant-driven validation** — smoke tests or custom readiness
+- **Tenant-driven validation**: smoke tests or custom readiness
   signals between clusters, beyond `Health == Healthy`.
 
 The [dispatch-suspension proposal](../dispatch-suspension/README.md)
@@ -52,33 +55,36 @@ automating it as a Non-Goal. This proposal takes up that Non-Goal.
 ### Goals
 
 - Ordered, one-cluster-at-a-time rollout across the clusters selected
-  by a single PP or CPP, in deterministic (sorted) order.
+  by a single PP or CPP.
+- Stage every change to a cluster's rendered manifest, not only
+  changes that bump the template's `metadata.generation`.
 - A per-cluster gate (`RequireHealthy`, `RequiredConditions`,
-  `MinSuccessTime`) and a per-cluster `Timeout`.
-- A declared failure policy (`Pause | Continue`).
+  `MinSuccessTime`), a per-cluster `Timeout`, and a declared failure
+  policy (`Pause | Continue`).
 - Reuse existing primitives (`Work.spec.suspendDispatching`,
-  `AggregatedStatusItem`); add control logic and a few status fields.
+  `AggregatedStatusItem`); add control logic and status fields only.
 - Opt-in per policy, behind alpha feature gate `StagedPropagation`;
-  no-op for existing policies.
-- Same support for `PropagationPolicy` and `ClusterPropagationPolicy`.
+  same support for PP and CPP.
 
 ### Non-Goals
 
 - Traffic-shifting canary / blue-green (Argo Rollouts, Flagger, mesh).
 - Per-replica progressive rollout within a cluster (`rollingUpdate`).
 - A general workflow engine (DAGs, per-step scripts).
-- Automatic workload rollback. v1 stops the rollout; reverting the
-  template is a GitOps concern.
+- Automatic rollback. v1 stops the rollout; reverting the template is
+  a GitOps concern.
 - Coordination across policies or across bindings.
 - Grouping, batching, or user-specified order (possible v2).
+- Combining `Staged` with application failover in v1 (see Reschedule
+  and failover). Cluster failover is supported.
 
 ## Proposal
 
 Setting `rolloutStrategy.type: Staged` on a PP/CPP makes the binding
-controller release clusters one at a time by writing per-cluster
-suspension onto the `ResourceBinding` / `ClusterResourceBinding`.
-Scheduling, overrides, Work generation, execution, and status
-aggregation are unchanged.
+controller release clusters one at a time by setting
+`suspendDispatching` on each cluster's Work, recording progress in the
+`ResourceBinding` / `ClusterResourceBinding` status. Scheduling,
+overrides, execution, and status aggregation are unchanged.
 
 ### User Stories
 
@@ -127,62 +133,61 @@ Interpreter contract for `RequiredConditions`).
 
 #### Story 3: Automatic pause on failure
 
-If a cluster fails its gate (times out before becoming Healthy, or a
-required condition never becomes `True`), I want the rollout to pause
-so the remaining clusters stay on the previous version until I
-intervene. My template is in git, so Karmada does not need to roll
-back.
+If a cluster fails its gate, I want the rollout to pause so the
+remaining clusters stay on the previous version until I intervene. My
+template is in git, so Karmada does not need to roll back.
 
 ### Notes/Constraints/Caveats
 
-- **Suspension is a union.** A cluster is suspended if either the user
-  (`Dispatching`, `DispatchingOnClusters`) or the rollout
-  (`Rollout.SuspendedClusters`) suspends it. Rollout progress never
-  releases a user-suspended cluster.
-- **Per-binding rollout.** A PP selecting N templates produces N
-  bindings, each rolling out independently.
-- **v1alpha2 bindings only.** `spec.suspension.rollout` and
-  `status.rollout` exist only in `work/v1alpha2` (the storage
-  version), like `spec.suspension` itself. The served `v1alpha1`
-  version gets no conversion for them, so writing a binding through
-  `v1alpha1` drops rollout state just as it already drops
-  `spec.suspension`. Karmada's own controllers use `v1alpha2` only.
+- **Scope.** Only resources selected by a `Staged` policy are staged,
+  each binding independently. Replica counts are excluded, so scaling,
+  rebalancing, and failover replica moves reach released clusters
+  immediately; a suspended cluster gets them when released.
+- **Dependent resources are not coordinated.** A ConfigMap in a
+  `Staged` policy gets its own rollout, gated on the ConfigMap's own
+  (always Healthy) status, not on the pods that mount it. To gate a
+  config change on workload health, reference it from the pod template
+  (e.g. a checksum annotation).
+- **Enable `Staged` as its own step.** If a policy change to `Staged`
+  and a template change land together, the detector handles them
+  independently, and the template change may go out all at once first.
+- **The gate is checked once per change.** A cluster that becomes
+  Unhealthy after passing is a monitoring or failover concern.
+- **Suspension is a union.** User suspension (`spec.suspension`) and
+  rollout suspension combine; rollout progress never releases a
+  user-suspended cluster. Overlap emits a warning, not a rejection.
+- **v1alpha2 only.** `spec.rolloutStrategy` and `status.rollout` exist
+  only in `work/v1alpha2`, like `spec.suspension`; writing a binding
+  through `v1alpha1` drops them.
 
 ### Risks and Mitigations
 
 | Risk | Mitigation |
-|---|---|
-| Detector and binding controller both write `RB.spec.suspension` | Rollout state lives in a separate field (`Suspension.Rollout`) that the detector never clears (see API changes). |
-| Gate reads status left over from the previous template version | The gate only evaluates fresh status (see Status freshness). |
-| Unreachable cluster stalls the rollout | Its status is `Unknown` (not passed); `Timeout` bounds the wait; `Pause` protects later clusters. |
-| `Healthy` is a weak signal | `RequiredConditions` (e.g. `Available`, or a custom `SmokeTestsPassed`). Karmada observes conditions; it does not run tests. |
-| Binding controller restarts mid-rollout | `Compute` is a pure function; state is recovered from `status.rollout` and `spec.suspension.rollout`. |
+| --- | --- |
+| Gate reads status left over from the previous version | Gate evaluates only fresh status (Status freshness). |
+| Rollout steps churn the scheduler and other controllers | Rollout writes only `status.rollout`, which doesn't bump generation. |
+| Controller restart or lost status mid-rollout | Desired hashes are recomputed; state is in status; losing it re-verifies every cluster, never releases one. |
+| Unreachable cluster stalls the rollout | Its status is not fresh; `Timeout` bounds the wait; `Pause` protects later clusters. |
+| `Healthy` is a weak signal | `RequiredConditions`. Karmada observes conditions; it does not run tests. |
+| A Karmada upgrade changes how manifests render, changing every hash | Karmada metadata is excluded from the hash; a residual change causes a staged (not all-at-once) rollout. |
 
 ## Design Details
 
-The PP/CPP declares the rollout (`spec.rolloutStrategy`). Each binding
-carries the per-workload state: which clusters are held
-(`spec.suspension.rollout`) and progress (`status.rollout`). This
-mirrors Deployment (policy) and ReplicaSet (per-instance state).
+The PP/CPP declares the rollout (`spec.rolloutStrategy`); each binding
+records progress in `status.rollout`. Which clusters are held is
+derived on every reconcile, never stored. `ClusterResourceBinding`
+embeds the same spec and status types, so everything below applies to
+CRB unchanged.
 
 ### API changes
 
-**Policy.** Add `RolloutStrategy` to `PropagationSpec` (shared by PP
-and CPP):
+**Policy** (`PropagationSpec`, shared by PP and CPP):
 
 ```go
-// pkg/apis/policy/v1alpha1/propagation_types.go
 type PropagationSpec struct {
     // ... existing fields ...
     RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
-
-type RolloutStrategyType string
-
-const (
-    RolloutStrategyAllAtOnce RolloutStrategyType = "AllAtOnce" // existing behavior
-    RolloutStrategyStaged    RolloutStrategyType = "Staged"
-)
 
 type RolloutStrategy struct {
     // +kubebuilder:validation:Enum=AllAtOnce;Staged
@@ -191,343 +196,370 @@ type RolloutStrategy struct {
     Staged *StagedRollout      `json:"staged,omitempty"` // required when Type=Staged
 }
 
-// StagedRollout releases one cluster at a time in sorted order.
 type StagedRollout struct {
     Gate      *RolloutGate          `json:"gate,omitempty"`      // default {}
     Timeout   *metav1.Duration      `json:"timeout,omitempty"`   // per cluster; default 30m
     OnFailure *RolloutFailurePolicy `json:"onFailure,omitempty"` // default {action: Pause}
 }
 
-// RolloutGate must be met by each cluster before the next is released.
 type RolloutGate struct {
     RequireHealthy     *bool                  `json:"requireHealthy,omitempty"` // default true
     RequiredConditions []ConditionRequirement `json:"requiredConditions,omitempty"`
     MinSuccessTime     *metav1.Duration       `json:"minSuccessTime,omitempty"` // default 0
 }
 
-// ConditionRequirement matches a condition in the workload's
-// status.conditions[]. A missing condition counts as Unknown.
+// Matches a condition in the workload's status.conditions[];
+// a missing condition counts as Unknown.
 type ConditionRequirement struct {
-    Type string `json:"type"` // e.g. "Available", "SmokeTestsPassed"
+    Type string `json:"type"`
     // +kubebuilder:validation:Enum=True;False;Unknown
     // +kubebuilder:default=True
     Status metav1.ConditionStatus `json:"status,omitempty"`
 }
-
-type RolloutFailureAction string
-
-const (
-    RolloutFailureActionPause    RolloutFailureAction = "Pause"
-    RolloutFailureActionContinue RolloutFailureAction = "Continue"
-)
 
 type RolloutFailurePolicy struct {
     // +kubebuilder:validation:Enum=Pause;Continue
     // +kubebuilder:default=Pause
     Action RolloutFailureAction `json:"action"`
 }
+
+type RolloutStrategyType string  // "AllAtOnce" (existing behavior) | "Staged"
+type RolloutFailureAction string // "Pause" | "Continue"
+type RolloutPhase string         // "Pending" | "Progressing" | "Succeeded" | "Failed"
+type ClusterRolloutState string  // "Verified" | "Gating" | "Suspended" | "Failed"
 ```
 
-A cluster passes the gate when its status is fresh (see Status
-freshness), `RequireHealthy` (if true) holds, and every
-`RequiredConditions` entry matches, all continuously for
-`MinSuccessTime`. Only condition `type` and `status` are compared, so
-heartbeat updates don't reset the clock; any change away from the
-required status does. `Timeout` is per cluster: its clock starts when
-the cluster becomes current and resets for the next one, so the
-worst case is `N × Timeout`.
+A cluster passes the gate when its status is fresh, `RequireHealthy`
+holds (if set), and every `RequiredConditions` entry matches, all
+continuously for `MinSuccessTime`. Only condition `type` and `status`
+are compared, so heartbeats don't reset the clock. `Timeout` starts
+when a cluster becomes current; worst case is `N × Timeout`.
 
-**Binding spec.** Add `RolloutStrategy` (copied from the policy) and
-`Suspension.Rollout` (controller-owned):
+**Binding spec.** `ResourceBindingSpec` gains `RolloutStrategy`, which
+the detector copies from the policy like `Failover` and
+`ConflictResolution`. The binding controller never writes the
+binding's spec.
 
-```go
-// pkg/apis/work/v1alpha2/binding_types.go
-type ResourceBindingSpec struct {
-    // ... existing fields (Placement, Failover, ConflictResolution, etc.) ...
-    RolloutStrategy *policyv1alpha1.RolloutStrategy `json:"rolloutStrategy,omitempty"` // NEW
-}
-
-type Suspension struct {
-    policyv1alpha1.Suspension `json:",inline"`
-    Scheduling *bool              `json:"scheduling,omitempty"`
-    Rollout    *RolloutSuspension `json:"rollout,omitempty"` // NEW
-}
-
-type RolloutSuspension struct {
-    // CurrentCluster is the cluster being gated. Empty when Pending or Succeeded.
-    CurrentCluster string `json:"currentCluster,omitempty"`
-    // SuspendedClusters is every target that is neither current nor completed.
-    SuspendedClusters []string `json:"suspendedClusters,omitempty"`
-}
-```
-
-- The detector copies `RolloutStrategy` from the PP/CPP the same way
-  it copies `Failover` and `ConflictResolution`
-  (`BuildResourceBinding`, `BuildClusterResourceBinding`, and the
-  binding update path). Binding controllers read it only from the
-  binding, so policy edits reach them through the existing RB/CRB
-  watch.
-- `Rollout` is a sibling of `Scheduling`, outside the embedded
-  `policyv1alpha1.Suspension` that the detector rewrites. Today
-  `util.MergePolicySuspension` returns `nil` when the policy has no
-  suspension and `Scheduling` is nil, which would drop `Rollout`; its
-  nil check becomes `Scheduling == nil && Rollout == nil`.
-- `shouldSuspendDispatching` (`pkg/controllers/binding/common.go`)
-  takes the union of user-declared and rollout suspension.
-
-**Binding status.** Add `Rollout`:
+**Binding status.**
 
 ```go
 type ResourceBindingStatus struct {
     // ... existing fields ...
-    Rollout *RolloutStatus `json:"rollout,omitempty"` // NEW
+    Rollout *RolloutStatus `json:"rollout,omitempty"`
 }
 
 type RolloutStatus struct {
-    // ObservedGeneration is the resource template's metadata.generation
-    // (not the RB/CRB's) this rollout is driving toward.
-    ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-    // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed;Superseded
+    // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed
     Phase RolloutPhase `json:"phase"`
-
-    // CurrentCluster is the cluster being gated; when Failed, the cluster that failed.
+    // CurrentCluster is the cluster being gated; when Failed, the one that failed.
     CurrentCluster string `json:"currentCluster,omitempty"`
-    // CompletedClusters passed the gate for ObservedGeneration, in order.
-    CompletedClusters []string `json:"completedClusters,omitempty"`
+    // +listType=map
+    // +listMapKey=name
+    Clusters []ClusterRolloutStatus `json:"clusters,omitempty"`
 
-    // GateSatisfiedSince is when CurrentCluster began continuously passing
-    // the gate; nil on flap. Persisted so MinSuccessTime survives restarts.
-    GateSatisfiedSince *metav1.Time `json:"gateSatisfiedSince,omitempty"`
-    // CurrentClusterStartedAt starts the current cluster's Timeout clock.
+    // Persisted so MinSuccessTime and Timeout survive restarts.
+    GateSatisfiedSince      *metav1.Time `json:"gateSatisfiedSince,omitempty"`
     CurrentClusterStartedAt *metav1.Time `json:"currentClusterStartedAt,omitempty"`
     StartedAt               *metav1.Time `json:"startedAt,omitempty"`
     CompletedAt             *metav1.Time `json:"completedAt,omitempty"`
-
-    // Well-known types: "Progressing", "Healthy", "ConditionsMet".
-    Conditions []metav1.Condition `json:"conditions,omitempty"`
-    Message    string             `json:"message,omitempty"`
+    Conditions              []metav1.Condition `json:"conditions,omitempty"`
+    Message                 string             `json:"message,omitempty"`
 }
 
-type RolloutPhase string
-
-const (
-    RolloutPhasePending     RolloutPhase = "Pending"
-    RolloutPhaseProgressing RolloutPhase = "Progressing"
-    RolloutPhaseSucceeded   RolloutPhase = "Succeeded"
-    RolloutPhaseFailed      RolloutPhase = "Failed"
-    // Superseded: the template generation changed mid-rollout. The next
-    // reconcile clears CompletedClusters and restarts from the first
-    // cluster. Distinct from Failed so dashboards can tell them apart.
-    RolloutPhaseSuperseded RolloutPhase = "Superseded"
-)
+type ClusterRolloutStatus struct {
+    Name string `json:"name"`
+    // Display only: Verified | Gating | Suspended | Failed.
+    State ClusterRolloutState `json:"state,omitempty"`
+    // Last rendered hash; used to detect a new change while Failed.
+    DesiredHash string `json:"desiredHash,omitempty"`
+    // Last hash that passed the gate (or was forced past by Continue).
+    VerifiedHash string `json:"verifiedHash,omitempty"`
+    // Hash that failed the gate under Pause; cleared when the cluster passes.
+    FailedHash string `json:"failedHash,omitempty"`
+}
 ```
 
-`ClusterResourceBinding` embeds `ResourceBindingSpec` /
-`ResourceBindingStatus`, so all of the above applies to CRB unchanged.
+Phases: `Pending` (no targets yet), `Progressing`, `Succeeded` (every
+cluster up to date), `Failed` (a cluster failed under `Pause`). A
+cluster is **up to date** when its desired hash equals its
+`VerifiedHash`.
 
-### Interpreter contract for `RequiredConditions`
+### Manifest hash
 
-`RequiredConditions` reads the member workload's
-`.status.conditions[]` from `AggregatedStatusItem.Status`, so
-`InterpretStatus` must preserve `Conditions`. Native reflectors do for
-`Job`, `Ingress`, and CRDs using `reflectWholeStatus`, but drop them
-for `Deployment`, `DaemonSet`, `StatefulSet`, and `ReplicaSet`.
+The template's `metadata.generation` misses OverridePolicy edits
+(Works are re-rendered without a template change) and kinds with no
+generation (ConfigMap, Secret). The rollout is therefore keyed on a
+hash of each cluster's rendered manifest.
 
-Fix: add `Conditions` (with `LastUpdateTime` stripped, to avoid
-`Work.Status` churn) to `Wrapped{Deployment,DaemonSet,StatefulSet,ReplicaSet}Status`
-and their `reflect*Status` functions. Aggregators read only
-replica/generation fields, so the federated resource's
-`.status.conditions[]` is unchanged. Custom interpreters
-(`ResourceInterpreterCustomization` or webhook) must preserve
-`Conditions` themselves; otherwise the cluster fails with
-`Reason=ConditionsMissing` after `Timeout`.
+`rollout.ManifestHash` takes the manifest after `ReviseReplica`, Job
+completions, and `ApplyOverridePolicies`, then:
 
-The same change also adds `ObservedGeneration` to the StatefulSet
-reflector, which today drops it (Deployment, DaemonSet, and ReplicaSet
-already copy it). Staged propagation doesn't need this (see Status
-freshness), but it fixes an existing bug: StatefulSet aggregation
-compares `member.ObservedGeneration >= member.Generation`, so the
-federated StatefulSet's `status.observedGeneration` never advances
-today.
+1. applies the same pruning `CreateOrUpdateWork` does
+   (`prune.RemoveIrrelevantFields`: `status`, `resourceVersion`, `uid`,
+   ...). Without this, every status update Karmada writes back to the
+   template would change the hash. It also makes a rendered manifest
+   hash identically to its stored copy in the Work;
+2. zeroes replica fields through the interpreter's `ReviseReplica`;
+3. drops Karmada-managed metadata (`util.ManagedResourceLabels`,
+   `util.ManagedResourceAnnotations`, the hash annotation itself);
+4. returns a version-prefixed SHA-256 of the JSON, e.g. `v1:9c2e…`.
+   Changing the algorithm requires a new prefix.
+
+Each cluster has three values:
+
+| Value | Meaning | Where it lives |
+| --- | --- | --- |
+| desired | what the cluster should run | recomputed every reconcile; written as annotation `work.karmada.io/manifest-hash` in the Work's manifest |
+| reported | what the cluster runs | read from that annotation on the member object (see Status freshness) |
+| verified | last hash that passed the gate | `status.rollout.clusters[].verifiedHash` |
+
+Desired needs no storage: it is a deterministic function of the
+template, OverridePolicies, and binding spec. The annotation is added
+only for `Staged` bindings and is listed in
+`util.ManagedResourceAnnotations`, so it is stripped when a resource
+stops being managed.
 
 ### Status freshness
 
-`AggregatedStatusItem.Applied` / `Health` / conditions carry no
-template revision, so right after a template change they still
-describe the previous version. The gate only evaluates a cluster once
-its status is fresh.
-
-Only the four replica-based reflectors report generation fields; every
-other kind (Jobs, CRDs) goes through `reflectWholeStatus`, which
-doesn't. So freshness does not rely on the interpreter. The
-work-status controller reads three values directly from the member
-object when it reflects status, and records them next to `Status`:
+`Health` and conditions carry no revision, so right after a change
+they still describe the old manifest. When reflecting status, the
+work-status controller also records, from the same member-object
+snapshot:
 
 ```go
-// Added to both workv1alpha1.ManifestStatus and
-// workv1alpha2.AggregatedStatusItem (copied by assembleWorkStatus).
-ResourceTemplateGeneration int64  `json:"resourceTemplateGeneration,omitempty"` // resourcetemplate.karmada.io/generation annotation
-MemberGeneration           int64  `json:"memberGeneration,omitempty"`           // metadata.generation
-MemberObservedGeneration   *int64 `json:"memberObservedGeneration,omitempty"`   // status.observedGeneration; nil if unset
+// Added to workv1alpha1.ManifestStatus and workv1alpha2.AggregatedStatusItem.
+ManifestHash             string `json:"manifestHash,omitempty"`             // work.karmada.io/manifest-hash
+MemberGeneration         int64  `json:"memberGeneration,omitempty"`         // metadata.generation
+MemberObservedGeneration *int64 `json:"memberObservedGeneration,omitempty"` // status.observedGeneration
 ```
 
-A cluster is fresh when:
+These are read from object metadata, not through the interpreter
+(only four native reflectors report generations). A cluster is fresh
+when:
 
-- `ResourceTemplateGeneration >= RolloutStatus.ObservedGeneration`
-  (the new template reached this cluster), and
-- `MemberObservedGeneration >= MemberGeneration` (the member controller
-  processed it), skipped when `MemberObservedGeneration` is nil.
+- `ManifestHash == desired` (the new manifest reached the member), and
+- `MemberObservedGeneration >= MemberGeneration` (the member's
+  controller processed it). Skipped when `MemberObservedGeneration` is
+  unset or `MemberGeneration` is 0 (kinds that don't track generation).
 
-Until then the cluster has not passed and the `MinSuccessTime` clock
-does not start. Many operators never set `status.observedGeneration`;
-for those kinds only the first check applies, so there is a short
-window after apply where status may still describe the old version.
-Users should set `MinSuccessTime` (or a `RequiredConditions` entry the
-operator only sets for the new version) to cover it.
+Because the hash and health come from one snapshot, a matching hash
+means the health describes the new manifest. An empty hash is never
+fresh. The gate and its `MinSuccessTime` clock start only once a
+cluster is fresh. Operators that never set `observedGeneration` leave
+a short window after apply; `MinSuccessTime` covers it.
+
+### Interpreter contract for `RequiredConditions`
+
+`RequiredConditions` reads `.status.conditions[]` from
+`AggregatedStatusItem.Status`. Native reflectors keep conditions for
+`Job` and for kinds using `reflectWholeStatus` (most CRDs), but drop
+them for `Deployment`, `DaemonSet`, `StatefulSet`, and `ReplicaSet`: their
+`Wrapped*Status` types embed the full Kubernetes status, but the
+`reflect*Status` functions copy only replica fields. Fix: also copy
+`Conditions`, stripping Deployment's `LastUpdateTime` (it changes on
+every progress update) to avoid `Work.Status` churn. Aggregators don't
+read them, so federated status is unchanged. Custom interpreters must
+preserve `Conditions`; otherwise the cluster fails with
+`Reason=ConditionsMissing` after `Timeout`.
 
 ### Rollout reconciliation
 
-When the binding's `spec.rolloutStrategy.type` is `Staged`, the binding
-controller calls
+For `Staged` bindings, `ensureWork` is split into render and write,
+with the rollout decision between them:
 
 ```text
-Compute(strategy, prevStatus, aggregatedStatus, targetClusters, templateGeneration, now)
-  -> (suspendedClusters, newStatus, requeueAfter)
+syncBinding
+ ├─ 1. render: per target cluster → manifest, desired[cluster] = ManifestHash(manifest)
+ ├─ 2. Compute(strategy, prevStatus, aggregatedStatus, desired, now)
+ │       -> (suspendedClusters, newStatus, requeueAfter)
+ │     write status.rollout
+ └─ 3. CreateOrUpdateWork(manifest, suspendDispatching) per cluster
 ```
 
-writes `spec.suspension.rollout` and `status.rollout`, and requeues.
-`ensureWork` then applies the suspension through
-`shouldSuspendDispatching` as today.
+- **Targets** are `mergeTargetClusters(spec.Clusters, spec.RequiredBy)`,
+  the set `ensureWork` already dispatches to, sorted by name.
+- **Suspended set**: every target that is not up to date, except
+  `CurrentCluster`; empty when `Succeeded`. It is passed in memory to
+  `shouldSuspendDispatching`, which unions it with `spec.suspension`.
+  Each cluster's `state` mirrors it.
+- **Passing the gate** sets `VerifiedHash = desired` and clears
+  `FailedHash`.
+- **No leak.** `Compute` sees a new hash before the Work carrying it is
+  written, so a change to a released cluster is suspended in the same
+  Work update that delivers it.
+- **Status only.** Rollout steps never bump the binding's generation,
+  so the scheduler, dependencies distributor, and graceful eviction
+  controller don't react. `status.rollout` is persisted before any Work
+  it releases, so a crash in between can't release a cluster without
+  its predecessor's `VerifiedHash` on record.
+- **Trigger.** Both binding controllers filter events with
+  `GenerationChangedPredicate`, so status changes never reach them
+  today. The RB/CRB watch becomes `Or(GenerationChanged,
+  aggregatedStatusChanged)`, the latter only for `Staged` bindings and
+  ignoring `status.rollout`. Timers use `requeueAfter`.
 
-- **`targetClusters`** is `mergeTargetClusters(spec.Clusters,
-  spec.RequiredBy)`, the same set `ensureWork` dispatches to, sorted
-  by name. `CurrentCluster` is the first one not in
-  `CompletedClusters`.
-- **`templateGeneration`** is the resource template's
-  `metadata.generation`, which the binding controller already fetches
-  and stamps on each Work as `resourcetemplate.karmada.io/generation`.
-  The RB/CRB's own generation is never compared, so the controller's
-  own `spec.suspension.rollout` writes don't restart the rollout.
-- **Reconcile trigger.** A rollout-aware predicate also wakes the
-  binding controller on aggregated-status changes. The execution
-  controller needs no change.
+```mermaid
+stateDiagram-v2
+    direction TB
+    state adopt <<choice>>
 
-![State machine](<staged rollout.png>)
+    [*] --> adopt : Staged, no status.rollout<br/>(adopt released Works as verified)
+    adopt --> Pending : no targets yet
+    adopt --> Succeeded : every target up to date
+    adopt --> Progressing : some target not up to date
 
-`SuspendedClusters` per phase:
+    Pending --> Progressing : scheduler adds targets
 
-- **Pending** / **Superseded** — every target.
-- **Progressing** — every target except `CurrentCluster` and
-  `CompletedClusters`.
-- **Succeeded** — none.
-- **Failed** — every target after `CurrentCluster`;
-  `CompletedClusters` stay released.
+    Progressing --> Progressing : CurrentCluster passes gate, or fails with Continue<br/>verifiedHash = desired, then next target from current position
+    Progressing --> Succeeded : every target up to date
+    Progressing --> Failed : Timeout or ApplicationFailure eviction, onFailure = Pause<br/>(failedHash = desired)
 
-**Leaving Staged mode.** If the binding's `rolloutStrategy` is nil or `AllAtOnce`, or if the `StagedPropagation` feature gate is disabled while the binding still has a `Staged` strategy, the binding controller clears `spec.suspension.rollout` and `status.rollout` before `ensureWork`, releasing every cluster. Otherwise nothing would clear the leftover suspension.
-the leftover suspension.
+    Succeeded --> Progressing : new change<br/>(start at first target)
+    Failed --> Progressing : new change<br/>(start at failed cluster)
+```
+
+**Entering Staged mode (adoption).** Staging applies to changes made
+after it is enabled. When `status.rollout` is absent, every target
+whose Work exists and is not suspended is adopted with
+`VerifiedHash = ManifestHash(the Work's current manifest)`. So enabling
+`Staged` on a deployed workload goes straight to `Succeeded`, and the
+hash annotation is added in the same Work write (top-level metadata;
+no pod restart). Targets with no Work (a new workload or cluster) or a
+user-suspended Work are not adopted and are gated normally. Adoption
+reads the Work because member objects carry no hash annotation yet;
+whatever is in a released Work was dispatched already.
+
+**Leaving Staged mode.** When the strategy is unset or `AllAtOnce`, or
+the feature gate is disabled, `Compute` isn't called, nothing is
+suspended, and `status.rollout` is cleared so a later re-entry adopts
+afresh.
+
+### Rollout order
+
+`CurrentCluster` is the first target that is not up to date, searching
+by name from the current position (the previous `currentCluster`) and
+wrapping around. With no rollout in progress, the search starts at the
+first target.
+
+- **Change after `Succeeded`**: starts at the first target.
+- **Change mid-rollout**: `CurrentCluster` keeps its slot (its gate
+  restarts), then the rollout continues and wraps around to clusters
+  that passed the old hash. Restarting from the first target would
+  starve the tail when changes arrive faster than a full rollout.
+- **Change after `Failed`**: the position is the failed cluster, so the
+  fix is gated there first instead of the cluster being held on a
+  known-bad version.
+
+If changes arrive faster than a single cluster's gate, nothing can be
+verified under any order; batch changes or shorten `MinSuccessTime`.
 
 ### Reschedule and failover
 
-The scheduler can change `spec.clusters` at any time, including for
-failover; `Compute` simply recomputes the sorted target list each
-reconcile.
+`Compute` re-reads the target list every reconcile.
 
-- **Cluster added.** If it sorts after `CurrentCluster`, it joins the
-  suspended tail. If it sorts before and is not completed, it becomes
-  `CurrentCluster` and is gated fresh, so no cluster is released
-  without passing the gate for the current generation.
-- **Cluster removed.** It is dropped from `CompletedClusters`. If it
-  was `CurrentCluster`, the rollout moves to the next target without
-  failing.
-- **All clusters removed.** The rollout returns to `Pending` with
-  `CompletedClusters` cleared, like a new binding.
+- **Cluster added** (placement change or failover replacement): not up
+  to date; released when the rollout reaches it.
+- **Cluster removed** (placement change or taint-based cluster
+  failover): its entry is dropped. If it was `CurrentCluster`, the
+  rollout moves on; the next cluster is still gated. Removing the
+  failed cluster does not leave `Failed`.
+- **All clusters removed**: back to `Pending`.
+
+An evicted cluster is no longer a target, so it never receives a newer
+manifest; its Work is kept or deleted per `PurgeMode` as today.
+
+**Application failover is rejected with `Staged` in v1.** It evicts on
+the same health signal the gate uses, so a bad version on
+`CurrentCluster` would look like a removal, and the rollout would carry
+it to the next cluster and to each replacement. The webhook rejects
+the combination. As a safety net, an `ApplicationFailure` eviction of
+`CurrentCluster` (`spec.gracefulEvictionTasks`) counts as a gate
+failure. Cluster failover can't be excluded this way, since it is
+triggered by cluster taints rather than a policy opt-in.
+
+**Known limitation.** A failover replacement has nothing running, so
+holding it means no workload. Mid-rollout, a replacement runs nothing
+until the rollout reaches it (or, under `Failed`, until the user
+recovers). Outside a rollout it is released immediately.
 
 ### Failure handling
 
-- **Pause** (default) — set `Phase=Failed`, keep later clusters
-  suspended, emit `RolloutClusterFailed`, stop requeuing. To recover,
-  either change the template (restarts from the first cluster) or
-  remove `rolloutStrategy` (releases everything; see Leaving Staged
-  mode).
-- **Continue** — mark the cluster completed despite the failure, emit
-  a `Warning` event, and move on.
+- **Pause** (default): `Phase=Failed`, `FailedHash = desired`,
+  `VerifiedHash` unchanged; clusters that are not up to date stay
+  suspended. The rollout stays `Failed`, without re-gating, until a new
+  change arrives: a target with an entry renders a hash different from
+  its recorded `DesiredHash`. Evictions and replacements don't resume
+  it. To recover, push a fix (gated on the failed cluster first) or
+  remove `rolloutStrategy`. To retry the same version, make a no-op
+  template change (e.g. an annotation).
+- **Continue**: `VerifiedHash = desired` despite the failure; emit a
+  `Warning` event and move on.
 
-### Feature gate and defaulting
+### Feature gate, validation, and defaulting
 
 - Feature gate `StagedPropagation` (alpha). When disabled, the webhook
-  rejects `rolloutStrategy.type: Staged`; `AllAtOnce` is still
-  accepted.
-- With `rolloutStrategy` unset or `AllAtOnce`, behavior is unchanged
-  and `pkg/rollout/` is not called, apart from clearing leftover
-  rollout state.
+  rejects `type: Staged`.
+- The webhook rejects `Staged` together with `failover.application`,
+  alongside the existing rule that `failover.application` requires
+  `propagateDeps`.
 - Defaults: `Type=AllAtOnce`, `Timeout=30m`, `OnFailure.Action=Pause`,
-  `Gate.RequireHealthy=true`, `Gate.MinSuccessTime=0`. An omitted
-  `gate` defaults to `{}`, so `gate: nil` and `gate: {}` behave the
-  same.
-
-### Corner cases
-
-- **Deletion during rollout** — `spec.suspendDispatching` does not
-  block Work deletion; the binding controller clears
-  `spec.suspension.rollout` on the deletion reconcile.
-- **Overlap with user suspension** — user suspension wins (union). A
-  warning is emitted; the policy is not rejected.
+  `Gate.RequireHealthy=true`, `Gate.MinSuccessTime=0`; omitted `gate`
+  means `{}`.
 
 ### Test Plan
 
-**Unit** (`pkg/rollout.Compute`, webhook, detector, helpers):
+**Unit** (`pkg/rollout`, webhook, detector, work-status controller):
 
-- Validation: `type: Staged` requires `staged`; non-empty condition
-  `type`; duration bounds.
-- Transitions: `Pending → Progressing → Succeeded` in sort order;
-  `Progressing → Failed` on `Timeout`; `Superseded → Progressing` on
-  template change.
-- `RequiredConditions` evaluation, with a missing condition treated as
-  `Unknown`.
-- Stale status: after a template change, old `Healthy` / condition data
-  with a lower `ResourceTemplateGeneration`, or with
-  `MemberObservedGeneration < MemberGeneration`, neither passes the
-  gate nor starts `MinSuccessTime`; a nil `MemberObservedGeneration`
-  skips only the second check.
-- Work-status controller records the three generation fields for a
-  native kind and for a CRD using `reflectWholeStatus`.
-- Reschedule: add / remove / reorder never releases an unverified
-  cluster.
-- `shouldSuspendDispatching` union.
-- Leaving Staged mode from `Failed` or `Progressing` clears rollout
-  state and releases every cluster.
-- Detector copies `rolloutStrategy` onto RB/CRB on create and on policy
-  update.
-- `MergePolicySuspension` with a nil policy suspension preserves
-  `Rollout` and `Scheduling`.
-- Native reflectors round-trip `Conditions` for the four replica-based
-  kinds; aggregators do not copy them to the federated resource.
-- StatefulSet reflector preserves `ObservedGeneration`, and the
-  federated StatefulSet's `status.observedGeneration` advances.
+- Validation, defaults, and rejection of `Staged` +
+  `failover.application` on create and update.
+- `ManifestHash`: deterministic; changes on template, OverridePolicy,
+  and ConfigMap data edits; unchanged by replicas, Karmada metadata,
+  and template `status` / `resourceVersion`; equal for a rendered
+  manifest and its stored Work copy.
+- Transitions and order: sort order from `Succeeded`; mid-rollout
+  change keeps `CurrentCluster` and wraps; fix after `Failed` starts at
+  the failed cluster; an OverridePolicy on one cluster re-gates only
+  that cluster.
+- Freshness: mismatched or empty hash, or `observedGeneration <
+  generation`, neither passes nor starts the clock; skip rules for
+  unset values.
+- Failure: `Failed` persists without re-gating; evicting the failed
+  cluster or adding a replacement doesn't resume it; a new hash does.
+  `Continue` sets `VerifiedHash`.
+- Adoption: a deployed workload enters `Succeeded`; targets with no
+  Work or a suspended Work are gated.
+- Failover: taint eviction of `CurrentCluster` moves on;
+  `ApplicationFailure` eviction counts as a gate failure.
+- Reconcile: rollout writes only status (generation unchanged across a
+  rollout); the predicate fires on `aggregatedStatus` only; restarts
+  and crashes between writes never release an unverified cluster.
+- Reflectors keep `Conditions` for the four replica-based kinds.
 
 **Integration & E2E:**
 
-- N-cluster Deployment rollout: `Work.spec.suspendDispatching` toggles
-  in sort order.
-- `OnFailure: Pause` with a stuck-Unhealthy workload: later clusters
-  stay suspended.
-- Condition-driven promotion (`Available` `False → True`, and Story
-  2's `SmokeTestsPassed`).
-- CPP with mixed namespaced and cluster-scoped targets.
-- Argo CD / Flux sync of the PP does not fight the rollout (we never
-  write to the PP).
-- Mid-rollout reschedule: a cluster inserted ahead of `CurrentCluster`
-  is gated fresh.
+- N-cluster rollout toggles `suspendDispatching` in order; `Pause`
+  holds later clusters.
+- Condition-driven promotion (`Available`, `SmokeTestsPassed`).
+- After `Succeeded`, an OverridePolicy edit and a ConfigMap change each
+  roll out in order.
+- CPP with namespaced and cluster-scoped targets; Argo CD / Flux sync
+  of the PP doesn't fight the rollout.
 
 ## Alternatives
 
-- **Suspension on PP / CPP spec instead of RB / CRB.** Rejected: causes
-  GitOps drift (Argo CD / Flux fight the rollout), fans out through the
-  detector on every transition, and collides with user suspension in
-  the same field.
-- **Dedicated `karmada-rollout` controller.** Rejected for v1: its only
-  output (`RB.spec.suspension.rollout`) is consumed by the binding
-  controller anyway, so it adds an inter-controller hand-off. The API
-  doesn't depend on which controller writes it, so extracting one later
-  is mechanical.
+- **Suspension on PP / CPP spec.** Rejected: GitOps drift, detector
+  fan-out on every step, collision with user suspension.
+- **Storing held clusters in RB / CRB spec** (an earlier
+  `spec.suspension.rollout`). Rejected: it duplicates `status.rollout`,
+  and every write bumps generation and wakes the scheduler.
+- **Dedicated rollout controller.** Rejected for v1: it would need a
+  stored hand-off to the binding controller. `pkg/rollout/` is a pure
+  library, so extracting one later is possible.
+
+## Future work
+
+- **Application failover with `Staged`**: how health-driven evictions
+  count toward the gate, and what a replacement runs mid-rollout.
+- **Early release of replacements** whose hash already passed on
+  another cluster, to close the capacity gap.
+- **Explicit retry** of the same hash without a no-op template change.
