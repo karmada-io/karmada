@@ -110,6 +110,8 @@ type ClusterStatusController struct {
 	ClusterFailureThreshold metav1.Duration
 	// clusterConditionCache stores the condition status of each cluster.
 	clusterConditionCache clusterConditionStore
+	// prevProbeResults caches the previous raw probe result per cluster for transition detection.
+	prevProbeResults sync.Map
 
 	ClusterCacheSyncTimeout metav1.Duration
 	RateLimiterOptions      ratelimiterflag.Options
@@ -134,6 +136,7 @@ func (c *ClusterStatusController) Reconcile(ctx context.Context, req controllerr
 			c.GenericInformerManager.Stop(req.NamespacedName.Name)
 			c.TypedInformerManager.Stop(req.NamespacedName.Name)
 			c.clusterConditionCache.delete(req.NamespacedName.Name)
+			c.prevProbeResults.Delete(req.NamespacedName.Name)
 			metrics.CleanupMetricsForCluster(req.NamespacedName.Name)
 
 			// stop lease controller after the cluster is gone.
@@ -180,9 +183,24 @@ func (c *ClusterStatusController) SetupWithManager(mgr controllerruntime.Manager
 
 func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster *clusterv1alpha1.Cluster) error {
 	start := time.Now()
+	var online, healthy bool
+	var readyCondition *metav1.Condition
+
+	// record the previous ready condition status
+	prevReadyStatus := metav1.ConditionFalse
+	if prev := meta.FindStatusCondition(cluster.Status.Conditions, clusterv1alpha1.ClusterConditionReady); prev != nil {
+		prevReadyStatus = prev.Status
+	}
+
 	defer func() {
 		metrics.RecordClusterStatus(cluster)
 		metrics.RecordClusterSyncStatusDuration(cluster, start)
+		metrics.RecordClusterHealthProbeSuccess(cluster.Name, online, healthy)
+		metrics.RecordClusterHealthProbeTotal(cluster.Name, online, healthy)
+		if readyCondition != nil {
+			metrics.RecordClusterReadySince(cluster.Name, prevReadyStatus, readyCondition.Status, start)
+			metrics.RecordClusterConditionLastTransition(cluster.Name, prevReadyStatus, readyCondition.Status, start)
+		}
 	}()
 
 	currentClusterStatus := *cluster.Status.DeepCopy()
@@ -193,13 +211,23 @@ func (c *ClusterStatusController) syncClusterStatus(ctx context.Context, cluster
 		klog.ErrorS(err, "Failed to create a ClusterClient for the given member cluster", "cluster", cluster.Name)
 		observedReadyCondition := util.NewCondition(clusterv1alpha1.ClusterConditionReady, statusCollectionFailed,
 			fmt.Sprintf("failed to create a ClusterClient: %v", err), metav1.ConditionFalse)
-		readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+		readyCondition = c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 		return updateStatusCondition(ctx, c.Client, cluster, *readyCondition)
 	}
 
-	online, healthy := getClusterHealthStatus(clusterClient)
+	probeStart := time.Now()
+	online, healthy = getClusterHealthStatus(clusterClient)
+	metrics.RecordClusterHealthProbeDuration(cluster.Name, probeStart) // time the health probe duration and record the metric
+
+	// Record raw probe state transitions (before threshold adjustment)
 	observedReadyCondition := generateReadyCondition(online, healthy)
-	readyCondition := c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
+	if prev, ok := c.prevProbeResults.Load(cluster.Name); ok {
+		metrics.RecordClusterHealthTransition(cluster.Name, prev.(metav1.ConditionStatus), observedReadyCondition.Status)
+	}
+	c.prevProbeResults.Store(cluster.Name, observedReadyCondition.Status)
+
+	// generate ready condition with threshold adjustment based on the probe result and previous condition status.
+	readyCondition = c.clusterConditionCache.thresholdAdjustedReadyCondition(cluster, &observedReadyCondition)
 
 	// cluster is offline after retry timeout, update cluster status immediately and return.
 	if !online && readyCondition.Status != metav1.ConditionTrue {
