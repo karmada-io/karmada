@@ -169,7 +169,7 @@ spec:
             jm_requires.resourceRequest.cpu = jm_cpu
           end
           if jm_memory ~= nil then
-            jm_requires.resourceRequest.memory = kube.getResourceQuantity(jm_memory)
+            jm_requires.resourceRequest.memory = kube.parseFlinkMemory(jm_memory)
           end
           apply_pod_template(pt_spec, jm_requires)
 
@@ -203,7 +203,7 @@ spec:
             tm_requires.resourceRequest.cpu = tm_cpu
           end
           if tm_memory ~= nil then
-            tm_requires.resourceRequest.memory = kube.getResourceQuantity(tm_memory)
+            tm_requires.resourceRequest.memory = kube.parseFlinkMemory(tm_memory)
           end
           apply_pod_template(pt_spec, tm_requires)
 
@@ -286,17 +286,17 @@ spec:
           local jm_memory = get(observedObj, {"spec","jobManager","resource","memory"})
           local tm_memory = get(observedObj, {"spec","taskManager","resource","memory"})
           if jm_memory ~= nil and tm_memory ~= nil then
-            local jm_memory_value = kube.getResourceQuantity(jm_memory)
-            local tm_memory_value = kube.getResourceQuantity(tm_memory)
+            local jm_memory_value = kube.parseFlinkMemory(jm_memory)
+            local tm_memory_value = kube.parseFlinkMemory(tm_memory)
             if jm_memory_value > tm_memory_value then
-              requires.resourceRequest.memory = jm_memory
+              requires.resourceRequest.memory = jm_memory_value
             else
-              requires.resourceRequest.memory = tm_memory
+              requires.resourceRequest.memory = tm_memory_value
             end
           elseif jm_memory ~= nil then
-            requires.resourceRequest.memory = jm_memory
+            requires.resourceRequest.memory = kube.parseFlinkMemory(jm_memory)
           elseif tm_memory ~= nil then
-            requires.resourceRequest.memory = tm_memory
+            requires.resourceRequest.memory = kube.parseFlinkMemory(tm_memory)
           end
 
           -- Until multiple podTemplates are supported, interpreter will only take affinity, toleration, and priorityclass input to common podTemplate
