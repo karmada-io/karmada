@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,9 +53,13 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 		klog.Warning("The kubernetes cluster does not have a Master role.")
 	} else {
 		for _, v := range masterNodes.Items {
-			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(v.Status.Addresses[0].Address))
+			if ip := getNodeIP(v.Status.Addresses); ip != nil {
+				i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, ip)
+			}
 		}
-		return nil
+		if len(i.KarmadaAPIServerIP) != 0 {
+			return nil
+		}
 	}
 
 	klog.Info("Randomly select 3 Node IPs in the kubernetes cluster.")
@@ -63,15 +68,27 @@ func (i *CommandInitOption) getKarmadaAPIServerIP() error {
 		return err
 	}
 
-	for number := range 3 {
-		if number >= len(nodes.Items) {
+	for _, node := range nodes.Items {
+		if len(i.KarmadaAPIServerIP) >= 3 {
 			break
 		}
-		i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, utils.StringToNetIP(nodes.Items[number].Status.Addresses[0].Address))
+		if ip := getNodeIP(node.Status.Addresses); ip != nil {
+			i.KarmadaAPIServerIP = append(i.KarmadaAPIServerIP, ip)
+		}
 	}
 
 	if len(i.KarmadaAPIServerIP) == 0 {
 		return fmt.Errorf("karmada apiserver ip is empty")
+	}
+	return nil
+}
+
+// getNodeIP returns the first parseable IP address from the node address list.
+func getNodeIP(addresses []corev1.NodeAddress) net.IP {
+	for _, address := range addresses {
+		if ip := net.ParseIP(address.Address); ip != nil {
+			return ip
+		}
 	}
 	return nil
 }
