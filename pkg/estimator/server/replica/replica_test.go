@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	listappsv1 "k8s.io/client-go/listers/apps/v1"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
@@ -386,6 +387,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 			listers := &ListerWrapper{
 				PodLister:        podLister,
 				ReplicaSetLister: rsLister,
+				PodIndexer:       newPodIndexer(t, tt.pods),
 			}
 
 			result, err := GetUnschedulablePodsOfWorkload(tt.workload, tt.threshold, listers)
@@ -454,6 +456,7 @@ func TestGetUnschedulablePodsOfCustomWorkload(t *testing.T) {
 	listers := &ListerWrapper{
 		PodLister:        &mockPodLister{pods: map[string][]*corev1.Pod{"default": pods}},
 		ReplicaSetLister: &mockReplicaSetLister{replicaSets: map[string][]*appsv1.ReplicaSet{"default": replicaSets}},
+		PodIndexer:       newPodIndexer(t, pods),
 	}
 
 	got, err := GetUnschedulablePodsOfWorkload(workload, 5*time.Minute, listers)
@@ -472,12 +475,38 @@ func TestGetUnschedulablePodsOfCustomWorkload(t *testing.T) {
 		"kind":       "Deployment",
 		"metadata":   map[string]any{"name": "custom", "namespace": "default", "uid": "custom-uid"},
 	}}
-	listers.PodLister = &mockPodLister{pods: map[string][]*corev1.Pod{"default": {
+	customPods := []*corev1.Pod{
 		pod("custom-pending", owner("example.com/v1", "Deployment", "custom", "custom-uid"), true),
-	}}}
+	}
+	listers.PodLister = &mockPodLister{pods: map[string][]*corev1.Pod{"default": customPods}}
+	listers.PodIndexer = newPodIndexer(t, customPods)
 	got, err = GetUnschedulablePodsOfWorkload(customDeployment, 5*time.Minute, listers)
 	assert.NoError(t, err)
 	assert.Equal(t, int32(1), got)
+}
+
+func newPodIndexer(t *testing.T, pods []*corev1.Pod) cache.Indexer {
+	t.Helper()
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{PodsByControllerUIDIndex: IndexPodByControllerUID})
+	for _, pod := range pods {
+		if err := indexer.Add(pod); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return indexer
+}
+
+func TestListControlledPodsNeedsIndexer(t *testing.T) {
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "batch.volcano.sh/v1alpha1",
+		"kind":       "Job",
+		"metadata":   map[string]any{"name": "train", "namespace": "default", "uid": "job-uid"},
+	}}
+	_, err := GetUnschedulablePodsOfWorkload(workload, 0, &ListerWrapper{
+		PodLister:        &mockPodLister{},
+		ReplicaSetLister: &mockReplicaSetLister{},
+	})
+	assert.Error(t, err)
 }
 
 func TestPodUnschedulable(t *testing.T) {

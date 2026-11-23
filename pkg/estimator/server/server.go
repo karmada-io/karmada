@@ -100,7 +100,9 @@ func NewEstimatorServer(
 	cachedDiscoClient := cacheddiscovery.NewMemCacheClient(discoveryClient)
 	restMapper := restmapper.NewDeferredDiscoveryRESTMapper(cachedDiscoClient)
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0)
-	informerFactory.InformerFor(&corev1.Pod{}, newPodInformer)
+	podInformer := informerFactory.InformerFor(&corev1.Pod{}, newPodInformer)
+	// ignore the error here because the informer hasn't been started
+	_ = podInformer.AddIndexers(cache.Indexers{replica.PodsByControllerUIDIndex: replica.IndexPodByControllerUID})
 
 	es := &AccurateSchedulerEstimatorServer{
 		clusterName:     opts.ClusterName,
@@ -111,6 +113,7 @@ func NewEstimatorServer(
 		replicaLister: &replica.ListerWrapper{
 			PodLister:        informerFactory.Core().V1().Pods().Lister(),
 			ReplicaSetLister: informerFactory.Apps().V1().ReplicaSets().Lister(),
+			PodIndexer:       podInformer.GetIndexer(),
 		},
 		parallelizer: parallelize.NewParallelizer(opts.Parallelism),
 		Cache:        schedcache.New(durationToExpireAssumedPod, ctx.Done()),

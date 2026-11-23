@@ -22,7 +22,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	listappsv1 "k8s.io/client-go/listers/apps/v1"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util"
@@ -41,10 +41,29 @@ import (
 // is also named Deployment belongs to another group and is not handled like it.
 var appsDeploymentGroupKind = schema.GroupKind{Group: appsv1.GroupName, Kind: util.DeploymentKind}
 
+// PodsByControllerUIDIndex is the name of the pod informer index that maps the UID
+// of a controller to the pods it controls.
+const PodsByControllerUIDIndex = "byControllerUID"
+
+// IndexPodByControllerUID is the index function for PodsByControllerUIDIndex.
+func IndexPodByControllerUID(obj any) ([]string, error) {
+	pod, ok := obj.(*corev1.Pod)
+	if !ok {
+		return nil, nil
+	}
+	ref := metav1.GetControllerOf(pod)
+	if ref == nil {
+		return nil, nil
+	}
+	return []string{string(ref.UID)}, nil
+}
+
 // ListerWrapper is a wrapper which wraps the pod lister and replicaset lister.
 type ListerWrapper struct {
 	listcorev1.PodLister
 	listappsv1.ReplicaSetLister
+	// PodIndexer is the indexer of the pod informer, with PodsByControllerUIDIndex.
+	PodIndexer cache.Indexer
 }
 
 // GetUnschedulablePodsOfWorkload will return how many unschedulable pods a workload derives.
@@ -116,61 +135,51 @@ func listDeploymentPods(deployment *appsv1.Deployment, listers *ListerWrapper) (
 // listControlledPods returns the pods that the workload controls, either directly
 // or through a ReplicaSet that it controls. This covers custom workloads (CRDs)
 // that create pods themselves, like most batch and AI operators do, and the ones
-// that create ReplicaSets the way a Deployment does.
+// that create ReplicaSets the way a Deployment does. Pods are looked up by the UID
+// of their controller in the pod informer index, so no namespace is listed in full.
 func listControlledPods(workload *unstructured.Unstructured, listers *ListerWrapper) ([]*corev1.Pod, error) {
 	uid := workload.GetUID()
 	if uid == "" {
 		return nil, fmt.Errorf("workload(%s) of kind(%s) has no UID", klog.KObj(workload).String(), workload.GetKind())
 	}
+	if listers.PodIndexer == nil {
+		return nil, fmt.Errorf("pod indexer with index %q is not set", PodsByControllerUIDIndex)
+	}
 
-	pods, err := listers.PodLister.Pods(workload.GetNamespace()).List(labels.Everything())
+	res, err := podsControlledBy(listers.PodIndexer, workload.GetNamespace(), uid)
 	if err != nil {
 		return nil, err
 	}
 
-	// ReplicaSet UID -> whether the workload controls it.
-	ownedReplicaSets := map[types.UID]bool{}
-	var res []*corev1.Pod
-	for _, pod := range pods {
-		ref := metav1.GetControllerOf(pod)
-		if ref == nil {
+	replicaSets, err := listers.ReplicaSetLister.ReplicaSets(workload.GetNamespace()).List(labels.Everything())
+	if err != nil {
+		return nil, err
+	}
+	for _, rs := range replicaSets {
+		ref := metav1.GetControllerOf(rs)
+		if ref == nil || ref.UID != uid {
 			continue
 		}
-		if ref.UID == uid {
-			res = append(res, pod)
-			continue
+		pods, err := podsControlledBy(listers.PodIndexer, workload.GetNamespace(), rs.UID)
+		if err != nil {
+			return nil, err
 		}
-		if ref.Kind != util.ReplicaSetKind || ref.APIVersion != appsv1.SchemeGroupVersion.String() {
-			continue
-		}
-		owned, checked := ownedReplicaSets[ref.UID]
-		if !checked {
-			if owned, err = replicaSetControlledBy(listers, pod.Namespace, ref, uid); err != nil {
-				return nil, err
-			}
-			ownedReplicaSets[ref.UID] = owned
-		}
-		if owned {
-			res = append(res, pod)
-		}
+		res = append(res, pods...)
 	}
 	return res, nil
 }
 
-// replicaSetControlledBy reports whether the ReplicaSet that ref points to exists
-// and is controlled by the object with the given UID.
-func replicaSetControlledBy(listers *ListerWrapper, namespace string, ref *metav1.OwnerReference, uid types.UID) (bool, error) {
-	rs, err := listers.ReplicaSetLister.ReplicaSets(namespace).Get(ref.Name)
+// podsControlledBy returns the pods in namespace whose controller has the given UID.
+func podsControlledBy(indexer cache.Indexer, namespace string, uid types.UID) ([]*corev1.Pod, error) {
+	objs, err := indexer.ByIndex(PodsByControllerUIDIndex, string(uid))
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
+		return nil, err
+	}
+	var pods []*corev1.Pod
+	for _, obj := range objs {
+		if pod, ok := obj.(*corev1.Pod); ok && pod.Namespace == namespace {
+			pods = append(pods, pod)
 		}
-		return false, err
 	}
-	// A ReplicaSet recreated under the same name is a different object.
-	if rs == nil || rs.UID != ref.UID {
-		return false, nil
-	}
-	rsRef := metav1.GetControllerOf(rs)
-	return rsRef != nil && rsRef.UID == uid, nil
+	return pods, nil
 }
