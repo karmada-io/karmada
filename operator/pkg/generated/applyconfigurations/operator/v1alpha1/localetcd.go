@@ -150,6 +150,19 @@ func (b *LocalEtcdApplyConfiguration) WithAffinity(value *corev1.AffinityApplyCo
 	return b
 }
 
+// WithTopologySpreadConstraints adds the given value to the TopologySpreadConstraints field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the TopologySpreadConstraints field.
+func (b *LocalEtcdApplyConfiguration) WithTopologySpreadConstraints(values ...*corev1.TopologySpreadConstraintApplyConfiguration) *LocalEtcdApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithTopologySpreadConstraints")
+		}
+		b.CommonSettingsApplyConfiguration.TopologySpreadConstraints = append(b.CommonSettingsApplyConfiguration.TopologySpreadConstraints, *values[i])
+	}
+	return b
+}
+
 // WithVolumeData sets the VolumeData field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the VolumeData field is set to the value of the last call.
