@@ -1,0 +1,269 @@
+apiVersion: config.karmada.io/v1alpha1
+kind: ResourceInterpreterCustomization
+metadata:
+  name: declarative-configuration-helmrelease-v2
+spec:
+  target:
+    apiVersion: helm.toolkit.fluxcd.io/v2
+    kind: HelmRelease
+  customizations:
+    replicaResource:
+      luaScript: >
+        function GetReplicas(obj)
+          -- 'replicaCount' is the conventional Helm chart value for the number of replicas.
+          if obj.spec ~= nil and obj.spec.values ~= nil and type(obj.spec.values.replicaCount) == 'number' then
+            return obj.spec.values.replicaCount, {}
+          end
+          return 0, {}
+        end
+    replicaRevision:
+      luaScript: >
+        function ReviseReplica(obj, desiredReplica)
+          if obj.spec ~= nil and obj.spec.values ~= nil and type(obj.spec.values.replicaCount) == 'number' then
+            obj.spec.values.replicaCount = desiredReplica
+          end
+          return obj
+        end
+    healthInterpretation:
+      luaScript: >
+        function InterpretHealth(observedObj)
+          if observedObj.status == nil or observedObj.status.conditions == nil then
+            return false
+          end
+          if observedObj.metadata ~= nil and observedObj.metadata.generation ~= nil and observedObj.status.observedGeneration ~= nil then
+            if observedObj.metadata.generation ~= observedObj.status.observedGeneration then
+              return false
+            end
+          end
+          for conditionIndex = 1, #observedObj.status.conditions do
+            if observedObj.status.conditions[conditionIndex].type == 'Ready' and observedObj.status.conditions[conditionIndex].status == 'True' then
+              return true
+            end
+          end
+          return false
+        end
+    statusAggregation:
+      luaScript: >
+        function AggregateStatus(desiredObj, statusItems)
+          if desiredObj.status == nil then
+            desiredObj.status = {}
+          end
+          if desiredObj.metadata.generation == nil then
+            desiredObj.metadata.generation = 0
+          end
+          if desiredObj.status.observedGeneration == nil then
+            desiredObj.status.observedGeneration = 0
+          end
+
+          -- If the HelmRelease is not spread to any cluster, its status also should be aggregated
+          if statusItems == nil then
+            desiredObj.status.observedGeneration = desiredObj.metadata.generation
+            desiredObj.status.conditions = {}
+            return desiredObj
+          end
+
+          local conditions = {}
+          local generation = desiredObj.metadata.generation
+          local observedGeneration = desiredObj.status.observedGeneration
+          local helmChart = desiredObj.status.helmChart
+          local storageNamespace = desiredObj.status.storageNamespace
+          local lastAttemptedGeneration = desiredObj.status.lastAttemptedGeneration
+          local lastAttemptedRevision = desiredObj.status.lastAttemptedRevision
+          local lastAttemptedConfigDigest = desiredObj.status.lastAttemptedConfigDigest
+          local lastAttemptedReleaseAction = desiredObj.status.lastAttemptedReleaseAction
+          local failures = 0
+          local installFailures = 0
+          local upgradeFailures = 0
+
+          -- Count all members that their status is updated to the latest generation
+          local observedResourceTemplateGenerationCount = 0
+
+          local conditionsIndex = 1
+          for i = 1, #statusItems do
+            local status = statusItems[i].status
+            if status ~= nil then
+              if status.helmChart ~= nil and status.helmChart ~= '' then
+                helmChart = status.helmChart
+              end
+              if status.storageNamespace ~= nil and status.storageNamespace ~= '' then
+                storageNamespace = status.storageNamespace
+              end
+              if status.lastAttemptedGeneration ~= nil then
+                lastAttemptedGeneration = status.lastAttemptedGeneration
+              end
+              if status.lastAttemptedRevision ~= nil and status.lastAttemptedRevision ~= '' then
+                lastAttemptedRevision = status.lastAttemptedRevision
+              end
+              if status.lastAttemptedConfigDigest ~= nil and status.lastAttemptedConfigDigest ~= '' then
+                lastAttemptedConfigDigest = status.lastAttemptedConfigDigest
+              end
+              if status.lastAttemptedReleaseAction ~= nil and status.lastAttemptedReleaseAction ~= '' then
+                lastAttemptedReleaseAction = status.lastAttemptedReleaseAction
+              end
+              if status.failures ~= nil then
+                failures = failures + status.failures
+              end
+              if status.installFailures ~= nil then
+                installFailures = installFailures + status.installFailures
+              end
+              if status.upgradeFailures ~= nil then
+                upgradeFailures = upgradeFailures + status.upgradeFailures
+              end
+              if status.conditions ~= nil then
+                for conditionIndex = 1, #status.conditions do
+                  local condition = status.conditions[conditionIndex]
+                  condition.message = statusItems[i].clusterName..'='..(condition.message or '')
+                  local hasCondition = false
+                  for index = 1, #conditions do
+                    if conditions[index].type == condition.type and conditions[index].status == condition.status and conditions[index].reason == condition.reason then
+                      conditions[index].message = conditions[index].message..', '..condition.message
+                      hasCondition = true
+                      break
+                    end
+                  end
+                  if not hasCondition then
+                    conditions[conditionsIndex] = condition
+                    conditionsIndex = conditionsIndex + 1
+                  end
+                end
+              end
+            end
+
+            -- Check if the member's status is updated to the latest generation
+            local resourceTemplateGeneration = 0
+            if status ~= nil and status.resourceTemplateGeneration ~= nil then
+              resourceTemplateGeneration = status.resourceTemplateGeneration
+            end
+            local memberGeneration = 0
+            if status ~= nil and status.generation ~= nil then
+              memberGeneration = status.generation
+            end
+            local memberObservedGeneration = 0
+            if status ~= nil and status.observedGeneration ~= nil then
+              memberObservedGeneration = status.observedGeneration
+            end
+            if resourceTemplateGeneration == generation and memberGeneration == memberObservedGeneration then
+              observedResourceTemplateGenerationCount = observedResourceTemplateGenerationCount + 1
+            end
+          end
+
+          -- Update the observed generation based on the observedResourceTemplateGenerationCount
+          if observedResourceTemplateGenerationCount == #statusItems then
+            desiredObj.status.observedGeneration = generation
+          else
+            desiredObj.status.observedGeneration = observedGeneration
+          end
+
+          desiredObj.status.conditions = conditions
+          desiredObj.status.helmChart = helmChart
+          desiredObj.status.storageNamespace = storageNamespace
+          desiredObj.status.lastAttemptedGeneration = lastAttemptedGeneration
+          desiredObj.status.lastAttemptedRevision = lastAttemptedRevision
+          desiredObj.status.lastAttemptedConfigDigest = lastAttemptedConfigDigest
+          desiredObj.status.lastAttemptedReleaseAction = lastAttemptedReleaseAction
+          desiredObj.status.failures = failures
+          desiredObj.status.installFailures = installFailures
+          desiredObj.status.upgradeFailures = upgradeFailures
+          return desiredObj
+        end
+    retention:
+      luaScript: >
+        function Retain(desiredObj, observedObj)
+          if observedObj.spec.suspend ~= nil then
+            desiredObj.spec.suspend = observedObj.spec.suspend
+          end
+          return desiredObj
+        end
+    statusReflection:
+      luaScript: >
+        function ReflectStatus(observedObj)
+          local status = {}
+          if observedObj == nil or observedObj.status == nil then
+            return status
+          end
+
+          status.conditions = observedObj.status.conditions
+          status.observedGeneration = observedObj.status.observedGeneration
+          status.helmChart = observedObj.status.helmChart
+          status.storageNamespace = observedObj.status.storageNamespace
+          status.lastAttemptedGeneration = observedObj.status.lastAttemptedGeneration
+          status.lastAttemptedRevision = observedObj.status.lastAttemptedRevision
+          status.lastAttemptedConfigDigest = observedObj.status.lastAttemptedConfigDigest
+          status.lastAttemptedReleaseAction = observedObj.status.lastAttemptedReleaseAction
+          status.failures = observedObj.status.failures
+          status.installFailures = observedObj.status.installFailures
+          status.upgradeFailures = observedObj.status.upgradeFailures
+
+          -- handle resource generation report
+          if observedObj.metadata == nil then
+            return status
+          end
+          status.generation = observedObj.metadata.generation
+
+          if observedObj.metadata.annotations == nil then
+            return status
+          end
+          local resourceTemplateGeneration = tonumber(observedObj.metadata.annotations["resourcetemplate.karmada.io/generation"])
+          if resourceTemplateGeneration ~= nil then
+            status.resourceTemplateGeneration = resourceTemplateGeneration
+          end
+
+          return status
+        end
+    dependencyInterpretation:
+      luaScript: >
+        function GetDependencies(desiredObj)
+          local dependentSecrets = {}
+          local dependentSas = {}
+          local dependentCms = {}
+          local refs = {}
+          local idx = 1
+          if desiredObj.spec.valuesFrom ~= nil then
+            local valuesFrom = desiredObj.spec.valuesFrom
+            for valuesIndex = 1, #valuesFrom do
+              if valuesFrom[valuesIndex].kind == 'Secret' then
+                dependentSecrets[valuesFrom[valuesIndex].name] = true
+              end
+              if valuesFrom[valuesIndex].kind == 'ConfigMap' then
+                dependentCms[valuesFrom[valuesIndex].name] = true
+              end
+            end
+          end
+          if desiredObj.spec.chart ~= nil and desiredObj.spec.chart.spec ~= nil and desiredObj.spec.chart.spec.verify ~= nil and desiredObj.spec.chart.spec.verify.secretRef ~= nil and desiredObj.spec.chart.spec.verify.secretRef.name ~= '' then
+            dependentSecrets[desiredObj.spec.chart.spec.verify.secretRef.name] = true
+          end
+          if desiredObj.spec.kubeConfig ~= nil and desiredObj.spec.kubeConfig.secretRef ~= nil and desiredObj.spec.kubeConfig.secretRef.name ~= '' then
+            dependentSecrets[desiredObj.spec.kubeConfig.secretRef.name] = true
+          end
+          if desiredObj.spec.serviceAccountName ~= nil and desiredObj.spec.serviceAccountName ~= '' then
+            dependentSas[desiredObj.spec.serviceAccountName] = true
+          end
+          for key, value in pairs(dependentSecrets) do
+            local dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'Secret'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentSas) do
+            local dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ServiceAccount'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          for key, value in pairs(dependentCms) do
+            local dependObj = {}
+            dependObj.apiVersion = 'v1'
+            dependObj.kind = 'ConfigMap'
+            dependObj.name = key
+            dependObj.namespace = desiredObj.metadata.namespace
+            refs[idx] = dependObj
+            idx = idx + 1
+          end
+          return refs
+        end
