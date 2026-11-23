@@ -24,10 +24,13 @@ import (
 	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 )
@@ -267,6 +270,115 @@ func TestIsEndpointSliceManagedByKarmada(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsEndpointSliceManagedByKarmada(tt.labels); got != tt.want {
 				t.Errorf("IsEndpointSliceManagedByKarmada() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+func TestGetProviderClusters(t *testing.T) {
+	tests := []struct {
+		name    string
+		mcs     *networkingv1alpha1.MultiClusterService
+		objects []client.Object
+		want    sets.Set[string]
+		wantErr bool
+	}{
+		{
+			name: "provider clusters specified",
+			mcs: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					ProviderClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+				},
+			},
+			want: sets.New("member1", "member2"),
+		},
+		{
+			name: "provider clusters empty returns all clusters",
+			mcs:  &networkingv1alpha1.MultiClusterService{},
+			objects: []client.Object{
+				&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+				},
+				&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member2"},
+				},
+			},
+			want: sets.New("member1", "member2"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().
+				WithScheme(gclient.NewSchema()).
+				WithObjects(tt.objects...).
+				Build()
+
+			got, err := GetProviderClusters(c, tt.mcs)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetProviderClusters() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !got.Equal(tt.want) {
+				t.Fatalf("GetProviderClusters() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetConsumerClusters(t *testing.T) {
+	tests := []struct {
+		name    string
+		mcs     *networkingv1alpha1.MultiClusterService
+		objects []client.Object
+		want    sets.Set[string]
+		wantErr bool
+	}{
+		{
+			name: "consumer clusters specified",
+			mcs: &networkingv1alpha1.MultiClusterService{
+				Spec: networkingv1alpha1.MultiClusterServiceSpec{
+					ConsumerClusters: []networkingv1alpha1.ClusterSelector{
+						{Name: "member1"},
+						{Name: "member2"},
+					},
+				},
+			},
+			want: sets.New("member1", "member2"),
+		},
+		{
+			name: "consumer clusters empty returns all clusters",
+			mcs:  &networkingv1alpha1.MultiClusterService{},
+			objects: []client.Object{
+				&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member1"},
+				},
+				&clusterv1alpha1.Cluster{
+					ObjectMeta: metav1.ObjectMeta{Name: "member2"},
+				},
+			},
+			want: sets.New("member1", "member2"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := fake.NewClientBuilder().
+				WithScheme(gclient.NewSchema()).
+				WithObjects(tt.objects...).
+				Build()
+
+			got, err := GetConsumerClusters(c, tt.mcs)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetConsumerClusters() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !got.Equal(tt.want) {
+				t.Fatalf("GetConsumerClusters() = %v, want %v", got, tt.want)
 			}
 		})
 	}
