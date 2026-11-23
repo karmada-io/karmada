@@ -158,6 +158,11 @@ const (
 	// Only necessary for those resource types that have dependencies resources and expect the dependencies be propagated
 	// together, like Deployment depends on ConfigMap/Secret.
 	InterpreterOperationInterpretDependency InterpreterOperation = "InterpretDependency"
+
+	// InterpreterOperationInterpretSchedulingResult indicates that karmada wants to customize the scheduling result.
+	// This allows customizing how replicas are distributed among clusters, especially for handling remainders
+	// or when member clusters have modified replica counts that should be reflected back to the control plane.
+	InterpreterOperationInterpretSchedulingResult InterpreterOperation = "InterpretSchedulingResult"
 )
 
 // Rule is a tuple of APIGroups, APIVersion, and Kinds.
