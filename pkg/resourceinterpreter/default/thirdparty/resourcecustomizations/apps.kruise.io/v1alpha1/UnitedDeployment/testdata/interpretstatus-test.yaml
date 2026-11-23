@@ -53,6 +53,7 @@ observedObj:
     updatedReplicas: 3
     availableReplicas: 3
     collisionCount: 0
+    labelSelector: app=sample
     observedGeneration: 1
     conditions:
       - type: Available
@@ -72,6 +73,7 @@ output:
     updatedReplicas: 3
     readyReplicas: 3
     availableReplicas: 3
+    labelSelector: app=sample
     observedGeneration: 1
     conditions:
       - type: Available

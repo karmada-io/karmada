@@ -65,6 +65,7 @@ statusItems:
       availableReplicas: 2
       currentReplicas: 2
       currentRevision: sample-5675547df7
+      labelSelector: app=sample
       generation: 1
       resourceTemplateGeneration: 1
       observedGeneration: 1
@@ -80,6 +81,7 @@ statusItems:
       availableReplicas: 2
       currentReplicas: 2
       currentRevision: sample-5675547df7
+      labelSelector: app=sample
       generation: 1
       observedGeneration: 1
       resourceTemplateGeneration: 1
@@ -146,6 +148,7 @@ output:
       updatedReadyReplicas: 4
       updateRevision: sample-5675547df7
       currentRevision: sample-5675547df7
+      labelSelector: app=sample
       observedGeneration: 1
 ---
 name: "StatefulSet with partially ready replicas"
@@ -198,6 +201,7 @@ output:
       updatedReadyReplicas: 3
       currentRevision: ""
       updateRevision: ""
+      labelSelector: ""
       observedGeneration: 2
 ---
 name: "StatefulSet with mixed observed generations"
@@ -244,6 +248,7 @@ output:
       updatedReadyReplicas: 0
       currentRevision: ""
       updateRevision: ""
+      labelSelector: ""
       observedGeneration: 2
 ---
 name: "StatefulSet with no status items"
@@ -320,3 +325,4 @@ output:
       updatedReadyReplicas: 0
       updateRevision: ""
       currentRevision: ""
+      labelSelector: ""
