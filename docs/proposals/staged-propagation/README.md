@@ -183,108 +183,400 @@ CRB unchanged.
 
 ### API changes
 
-**Policy** (`PropagationSpec`, shared by PP and CPP):
+All new fields are optional, so no API version changes. Who writes
+what:
+
+| Resource | Field | Written by | Purpose |
+| --- | --- | --- | --- |
+| PP / CPP | `spec.rolloutStrategy` | user | declares the rollout |
+| RB / CRB | `spec.rolloutStrategy` | detector (copied from the policy) | input to the binding controller |
+| RB / CRB | `status.rollout` | binding controller | rollout progress; the only persisted rollout state |
+| RB / CRB | `status.conditions[type=RolloutProgressing]` | binding controller | rollout summary for humans and tooling |
+| Work | annotation `work.karmada.io/manifest-hash` in the manifest | binding controller | desired hash, carried to the member |
+| Work | `status.manifestStatuses[].{manifestHash, memberGeneration, memberObservedGeneration}` | work-status controller | freshness data read from the member object |
+| RB / CRB | `status.aggregatedStatus[].{same three}` | rb-status controller (`assembleWorkStatus`) | freshness data for `Compute` |
+
+#### PropagationPolicy / ClusterPropagationPolicy
+
+`PropagationSpec` is shared by PP and CPP (`policy.karmada.io/v1alpha1`).
 
 ```go
 type PropagationSpec struct {
     // ... existing fields ...
+
+    // RolloutStrategy declares how changes to the selected resources are
+    // rolled out to their target clusters.
+    // nil means AllAtOnce: every cluster is updated as soon as the change
+    // is rendered (today's behavior).
+    // +optional
     RolloutStrategy *RolloutStrategy `json:"rolloutStrategy,omitempty"`
 }
 
+type RolloutStrategyType string
+
+const (
+    // RolloutStrategyAllAtOnce updates every target cluster at once.
+    RolloutStrategyAllAtOnce RolloutStrategyType = "AllAtOnce"
+    // RolloutStrategyStaged updates one target cluster at a time, gating
+    // each before the next is released. Requires the StagedPropagation
+    // feature gate.
+    RolloutStrategyStaged RolloutStrategyType = "Staged"
+)
+
 type RolloutStrategy struct {
+    // Type is the rollout strategy.
     // +kubebuilder:validation:Enum=AllAtOnce;Staged
     // +kubebuilder:default=AllAtOnce
-    Type   RolloutStrategyType `json:"type"`
-    Staged *StagedRollout      `json:"staged,omitempty"` // required when Type=Staged
+    Type RolloutStrategyType `json:"type"`
+
+    // Staged configures a Staged rollout. Required when Type is Staged;
+    // must be unset when Type is AllAtOnce.
+    // +optional
+    Staged *StagedRollout `json:"staged,omitempty"`
 }
 
+// StagedRollout releases target clusters one at a time, in cluster name
+// order. Each released cluster must pass Gate within Timeout before the
+// next one is released.
 type StagedRollout struct {
-    Gate      *RolloutGate          `json:"gate,omitempty"`      // default {}
-    Timeout   *metav1.Duration      `json:"timeout,omitempty"`   // per cluster; default 30m
-    OnFailure *RolloutFailurePolicy `json:"onFailure,omitempty"` // default {action: Pause}
+    // Gate is what a released cluster must satisfy before the next
+    // cluster is released. nil means {} (all gate defaults).
+    // +optional
+    Gate *RolloutGate `json:"gate,omitempty"`
+
+    // Timeout is how long a released cluster has to pass Gate, measured
+    // from when it is released. On expiry the cluster fails and OnFailure
+    // applies. Must be > 0. Defaults to 30m.
+    // +optional
+    Timeout *metav1.Duration `json:"timeout,omitempty"`
+
+    // OnFailure is what happens when a cluster fails Gate.
+    // nil means {action: Pause}.
+    // +optional
+    OnFailure *RolloutFailurePolicy `json:"onFailure,omitempty"`
 }
 
+// RolloutGate is evaluated per cluster, only once the cluster's status
+// reflects the new manifest (see Status freshness). All set checks must
+// hold continuously for MinSuccessTime.
 type RolloutGate struct {
-    RequireHealthy     *bool                  `json:"requireHealthy,omitempty"` // default true
+    // RequireHealthy requires the resource's health in that cluster
+    // (AggregatedStatusItem.Health, from the resource interpreter) to be
+    // Healthy. Defaults to true.
+    // +optional
+    RequireHealthy *bool `json:"requireHealthy,omitempty"`
+
+    // RequiredConditions are conditions that must be present in the
+    // member resource's status.conditions[] with the given status.
+    // +optional
     RequiredConditions []ConditionRequirement `json:"requiredConditions,omitempty"`
-    MinSuccessTime     *metav1.Duration       `json:"minSuccessTime,omitempty"` // default 0
+
+    // MinSuccessTime is how long the checks must hold continuously
+    // before the cluster passes. Any check turning false resets the
+    // clock. Must be >= 0 and < Timeout. Defaults to 0.
+    // +optional
+    MinSuccessTime *metav1.Duration `json:"minSuccessTime,omitempty"`
 }
 
-// Matches a condition in the workload's status.conditions[];
-// a missing condition counts as Unknown.
+// ConditionRequirement matches a condition by type in the member
+// resource's status.conditions[]. A missing condition counts as Unknown.
+// If the condition carries observedGeneration, it matches only when that
+// is >= the member resource's metadata.generation.
 type ConditionRequirement struct {
+    // Type is the condition type, e.g. "Available" or "SmokeTestsPassed".
+    // +kubebuilder:validation:MinLength=1
     Type string `json:"type"`
+
+    // Status is the required condition status. Defaults to True.
     // +kubebuilder:validation:Enum=True;False;Unknown
     // +kubebuilder:default=True
+    // +optional
     Status metav1.ConditionStatus `json:"status,omitempty"`
 }
 
+type RolloutFailureAction string
+
+const (
+    // RolloutFailureActionPause stops the rollout: clusters not yet
+    // updated stay on their current version until a new change arrives
+    // or the strategy is removed.
+    RolloutFailureActionPause RolloutFailureAction = "Pause"
+    // RolloutFailureActionContinue records the failure and releases the
+    // next cluster.
+    RolloutFailureActionContinue RolloutFailureAction = "Continue"
+)
+
 type RolloutFailurePolicy struct {
+    // Action is the failure action.
     // +kubebuilder:validation:Enum=Pause;Continue
     // +kubebuilder:default=Pause
     Action RolloutFailureAction `json:"action"`
 }
-
-type RolloutStrategyType string  // "AllAtOnce" (existing behavior) | "Staged"
-type RolloutFailureAction string // "Pause" | "Continue"
-type RolloutPhase string         // "Pending" | "Progressing" | "Succeeded" | "Failed"
-type ClusterRolloutState string  // "Verified" | "Gating" | "Suspended" | "Failed"
 ```
 
-A cluster passes the gate when its status is fresh, `RequireHealthy`
-holds (if set), and every `RequiredConditions` entry matches, all
-continuously for `MinSuccessTime`. Only condition `type` and `status`
-are compared, so heartbeats don't reset the clock. `Timeout` starts
-when a cluster becomes current; worst case is `N × Timeout`.
+Only condition `type` and `status` are compared, so heartbeat updates
+don't reset the `MinSuccessTime` clock. `Timeout` is per cluster, so
+the worst case for a whole rollout is `N × Timeout`. Validation and
+defaults are summarized in Feature gate, validation, and defaulting.
 
-**Binding spec.** `ResourceBindingSpec` gains `RolloutStrategy`, which
-the detector copies from the policy like `Failover` and
-`ConflictResolution`. The binding controller never writes the
-binding's spec.
+#### ResourceBinding / ClusterResourceBinding
 
-**Binding status.**
+`ClusterResourceBinding` embeds the same spec and status types
+(`work.karmada.io/v1alpha2`).
+
+**Spec.** The detector copies the policy's `rolloutStrategy`, as it
+does `Failover` and `ConflictResolution`. Users don't set it on
+bindings, and the binding controller never writes binding spec.
+
+```go
+type ResourceBindingSpec struct {
+    // ... existing fields ...
+
+    // RolloutStrategy is copied from the PropagationPolicy or
+    // ClusterPropagationPolicy by the detector.
+    // +optional
+    RolloutStrategy *policyv1alpha1.RolloutStrategy `json:"rolloutStrategy,omitempty"`
+}
+```
+
+**Status.** `status.rollout` is written only by the binding controller,
+only while the strategy is `Staged`, and cleared when it isn't.
 
 ```go
 type ResourceBindingStatus struct {
     // ... existing fields ...
+
+    // Rollout is the progress of a Staged rollout. nil when the binding's
+    // rolloutStrategy is not Staged.
+    // +optional
     Rollout *RolloutStatus `json:"rollout,omitempty"`
 }
 
 type RolloutStatus struct {
+    // Phase summarizes the rollout.
     // +kubebuilder:validation:Enum=Pending;Progressing;Succeeded;Failed
     Phase RolloutPhase `json:"phase"`
-    // CurrentCluster is the cluster being gated; when Failed, the one that failed.
+
+    // CurrentCluster is the cluster being gated; when Phase is Failed, the
+    // cluster that failed. Empty when Pending or Succeeded. It is also the
+    // position the next pass searches from (see Rollout order).
+    // +optional
     CurrentCluster string `json:"currentCluster,omitempty"`
+
+    // Clusters holds one entry per target cluster that has been through
+    // the rollout. A target with no entry has never passed the gate.
     // +listType=map
     // +listMapKey=name
+    // +optional
     Clusters []ClusterRolloutStatus `json:"clusters,omitempty"`
 
-    // Persisted so MinSuccessTime and Timeout survive restarts.
-    GateSatisfiedSince      *metav1.Time `json:"gateSatisfiedSince,omitempty"`
+    // CurrentClusterStartedAt is when CurrentCluster was released; its
+    // Timeout is measured from here.
+    // +optional
     CurrentClusterStartedAt *metav1.Time `json:"currentClusterStartedAt,omitempty"`
-    StartedAt               *metav1.Time `json:"startedAt,omitempty"`
-    CompletedAt             *metav1.Time `json:"completedAt,omitempty"`
-    Conditions              []metav1.Condition `json:"conditions,omitempty"`
-    Message                 string             `json:"message,omitempty"`
+
+    // GateSatisfiedSince is when CurrentCluster began passing every gate
+    // check continuously; nil while any check fails. MinSuccessTime is
+    // measured from here.
+    // +optional
+    GateSatisfiedSince *metav1.Time `json:"gateSatisfiedSince,omitempty"`
+
+    // StartedAt and CompletedAt cover the whole rollout of this binding,
+    // not a single cluster. StartedAt is set when Phase becomes
+    // Progressing from Pending, Succeeded, or Failed; a change arriving
+    // mid-rollout doesn't reset it (the NewRevision reason records it).
+    // CompletedAt is when Phase last became Succeeded.
+    // +optional
+    StartedAt *metav1.Time `json:"startedAt,omitempty"`
+    // +optional
+    CompletedAt *metav1.Time `json:"completedAt,omitempty"`
 }
 
+type RolloutPhase string
+
+const (
+    // RolloutPhasePending: the binding has no target clusters yet.
+    RolloutPhasePending RolloutPhase = "Pending"
+    // RolloutPhaseProgressing: some target is not up to date.
+    RolloutPhaseProgressing RolloutPhase = "Progressing"
+    // RolloutPhaseSucceeded: every target is up to date.
+    RolloutPhaseSucceeded RolloutPhase = "Succeeded"
+    // RolloutPhaseFailed: CurrentCluster failed the gate under Pause.
+    RolloutPhaseFailed RolloutPhase = "Failed"
+)
+
 type ClusterRolloutStatus struct {
+    // Name is the cluster name.
     Name string `json:"name"`
-    // Display only: Verified | Gating | Suspended | Failed.
+
+    // State summarizes the cluster for display; Compute never reads it.
+    // +kubebuilder:validation:Enum=Verified;Gating;Suspended;Failed
+    // +optional
     State ClusterRolloutState `json:"state,omitempty"`
-    // Last rendered hash; used to detect a new change while Failed.
+
+    // DesiredHash is the manifest hash last rendered for this cluster.
+    // Compute recomputes it every reconcile; the recorded value is used
+    // only to detect a new change while Phase is Failed.
+    // +optional
     DesiredHash string `json:"desiredHash,omitempty"`
-    // Last hash that passed the gate (or was forced past by Continue).
+
+    // VerifiedHash is the last manifest hash that passed the gate on this
+    // cluster (or was forced past by onFailure: Continue). The cluster is
+    // up to date when DesiredHash equals VerifiedHash.
+    // +optional
     VerifiedHash string `json:"verifiedHash,omitempty"`
-    // Hash that failed the gate under Pause; cleared when the cluster passes.
+
+    // FailedHash is the manifest hash that failed the gate on this
+    // cluster under onFailure: Pause. Cleared when the cluster passes.
+    // +optional
     FailedHash string `json:"failedHash,omitempty"`
+}
+
+type ClusterRolloutState string
+
+const (
+    // Verified: up to date; released.
+    ClusterRolloutVerified ClusterRolloutState = "Verified"
+    // Gating: CurrentCluster; released and being gated.
+    ClusterRolloutGating ClusterRolloutState = "Gating"
+    // Suspended: not up to date; held on the version it already runs.
+    ClusterRolloutSuspended ClusterRolloutState = "Suspended"
+    // Failed: failed the gate under Pause; released (it already applied
+    // the failing version).
+    ClusterRolloutFailed ClusterRolloutState = "Failed"
+)
+```
+
+**Condition and events.** The binding controller maintains one
+condition, `RolloutProgressing`, in the binding's existing
+`status.conditions` (alongside `Scheduled` and `FullyApplied`), so
+standard tooling such as `kubectl wait --for=condition=...` works. It
+is removed when the binding leaves `Staged` mode. The binding
+controller also emits events on the binding and its resource template:
+
+| `RolloutProgressing` status | Reason | When |
+| --- | --- | --- |
+| `True` | `ClusterGating` | a cluster is released and being gated |
+| `True` | `NewRevision` | a new change arrived mid-rollout or after `Succeeded` / `Failed` |
+| `False` | `RolloutSucceeded` | every target is up to date |
+| `False` | `GateFailed` | `CurrentCluster` failed under `Pause` (message names the cluster and cause: `Timeout` or `ApplicationFailure` eviction) |
+
+| Event | Type | When |
+| --- | --- | --- |
+| `RolloutClusterReleased` | Normal | a cluster becomes `CurrentCluster` |
+| `RolloutClusterPassed` | Normal | a cluster passes the gate |
+| `RolloutClusterFailed` | Warning | a cluster fails the gate (message names the `onFailure` action taken) |
+| `RolloutSucceeded` | Normal | the phase becomes `Succeeded` |
+
+#### Work
+
+The binding controller writes the desired hash as the annotation
+`work.karmada.io/manifest-hash` in the Work's manifest (only for
+`Staged` bindings). It is added to `util.ManagedResourceAnnotations`,
+so it is stripped when a resource stops being managed. The
+work-status controller reads it back, with the generations, from the
+member object:
+
+```go
+// workv1alpha1.ManifestStatus
+type ManifestStatus struct {
+    // ... existing fields (Identifier, Status, Health) ...
+
+    // ManifestHash is the work.karmada.io/manifest-hash annotation on the
+    // member object: the hash of the manifest the member is running.
+    // +optional
+    ManifestHash string `json:"manifestHash,omitempty"`
+
+    // MemberGeneration is the member object's metadata.generation;
+    // 0 for kinds that don't track generation.
+    // +optional
+    MemberGeneration int64 `json:"memberGeneration,omitempty"`
+
+    // MemberObservedGeneration is the member object's
+    // status.observedGeneration; nil if the object doesn't report it.
+    // +optional
+    MemberObservedGeneration *int64 `json:"memberObservedGeneration,omitempty"`
 }
 ```
 
-Phases: `Pending` (no targets yet), `Progressing`, `Succeeded` (every
-cluster up to date), `Failed` (a cluster failed under `Pause`). A
-cluster is **up to date** when its desired hash equals its
-`VerifiedHash`.
+#### AggregatedStatusItem
+
+`workv1alpha2.AggregatedStatusItem` gains the same three fields, with
+the same meaning. `assembleWorkStatus` copies them from the Work (see
+Status freshness).
+
+#### Example
+
+A policy for Story 1 with every field set explicitly:
+
+```yaml
+apiVersion: policy.karmada.io/v1alpha1
+kind: PropagationPolicy
+metadata:
+  name: trino-coordinator
+spec:
+  resourceSelectors:
+    - {apiVersion: apps/v1, kind: Deployment, name: trino-coordinator}
+  placement:
+    clusterAffinity:
+      clusterNames: [member-a, member-b, member-c]
+  rolloutStrategy:
+    type: Staged
+    staged:
+      gate:
+        requireHealthy: true
+        requiredConditions:
+          - {type: Available, status: "True"}
+        minSuccessTime: 60s
+      timeout: 30m
+      onFailure: {action: Pause}
+```
+
+The binding while `member-b` is being gated, after `member-a` passed
+the new version:
+
+```yaml
+status:
+  conditions:
+    - {type: Scheduled, status: "True", ...}
+    - {type: FullyApplied, status: "True", ...}
+    - {type: RolloutProgressing, status: "True", reason: ClusterGating, message: "member-b released; gate satisfied since 10:03:10"}
+  aggregatedStatus:
+    - {clusterName: member-a, health: Healthy, manifestHash: "v1:9c2e…", memberGeneration: 6, memberObservedGeneration: 6}
+    - {clusterName: member-b, health: Healthy, manifestHash: "v1:9c2e…", memberGeneration: 6, memberObservedGeneration: 6}
+    - {clusterName: member-c, health: Healthy, manifestHash: "v1:1b7d…", memberGeneration: 5, memberObservedGeneration: 5}
+  rollout:
+    phase: Progressing
+    currentCluster: member-b
+    currentClusterStartedAt: "2026-11-24T10:02:00Z"
+    gateSatisfiedSince: "2026-11-24T10:03:10Z"
+    startedAt: "2026-11-24T09:58:00Z"
+    clusters:
+      - {name: member-a, state: Verified,  desiredHash: "v1:9c2e…", verifiedHash: "v1:9c2e…"}
+      - {name: member-b, state: Gating,    desiredHash: "v1:9c2e…", verifiedHash: "v1:1b7d…"}
+      - {name: member-c, state: Suspended, desiredHash: "v1:9c2e…", verifiedHash: "v1:1b7d…"}
+```
+
+`member-b`'s reported hash matches its desired hash and its
+generations are equal, so its status is fresh; it passes at 10:04:10.
+`member-c` still reports the old hash because its Work is suspended.
+Had `member-b` timed out instead:
+
+```yaml
+status:
+  conditions:
+    - {type: RolloutProgressing, status: "False", reason: GateFailed, message: "member-b did not pass the gate within 30m"}
+  rollout:
+    phase: Failed
+    currentCluster: member-b
+    clusters:
+      - {name: member-a, state: Verified,  desiredHash: "v1:9c2e…", verifiedHash: "v1:9c2e…"}
+      - {name: member-b, state: Failed,    desiredHash: "v1:9c2e…", verifiedHash: "v1:1b7d…", failedHash: "v1:9c2e…"}
+      - {name: member-c, state: Suspended, desiredHash: "v1:9c2e…", verifiedHash: "v1:1b7d…"}
+```
+
+`member-c` stays on the old version until a new change (gated on
+`member-b` first) or removal of `rolloutStrategy`.
 
 ### Manifest hash
 
@@ -331,15 +623,9 @@ stops being managed.
 
 `Health` and conditions carry no revision, so right after a change
 they still describe the old manifest. When reflecting status, the
-work-status controller also records, from the same member-object
-snapshot:
-
-```go
-// Added to workv1alpha1.ManifestStatus and workv1alpha2.AggregatedStatusItem.
-ManifestHash             string `json:"manifestHash,omitempty"`             // work.karmada.io/manifest-hash
-MemberGeneration         int64  `json:"memberGeneration,omitempty"`         // metadata.generation
-MemberObservedGeneration *int64 `json:"memberObservedGeneration,omitempty"` // status.observedGeneration
-```
+work-status controller also records `ManifestHash`, `MemberGeneration`,
+and `MemberObservedGeneration` (see API changes) from the same
+member-object snapshot.
 
 These are read from object metadata, not through the interpreter
 (only four native reflectors report generations). `assembleWorkStatus`
@@ -575,6 +861,8 @@ recovers). Outside a rollout it is released immediately.
   rollout); the predicate fires on `aggregatedStatus` only; restarts
   and crashes between writes never release an unverified cluster.
 - Reflectors keep `Conditions` for the four replica-based kinds.
+- Each transition sets the documented `RolloutProgressing` reason and emits
+  the documented event.
 
 **Integration & E2E:**
 
