@@ -156,9 +156,11 @@ template is in git, so Karmada does not need to roll back.
 - **Suspension is a union.** User suspension (`spec.suspension`) and
   rollout suspension combine; rollout progress never releases a
   user-suspended cluster. Overlap emits a warning, not a rejection.
-- **v1alpha2 only.** `spec.rolloutStrategy` and `status.rollout` exist
-  only in `work/v1alpha2`, like `spec.suspension`; writing a binding
-  through `v1alpha1` drops them.
+- **Binding API version.** The policy field is in `policy/v1alpha1`.
+  On bindings, the copied `spec.rolloutStrategy` and `status.rollout`
+  exist only in `work/v1alpha2` (the storage version), like
+  `spec.suspension`; writing a binding through `work/v1alpha1` drops
+  them.
 
 ### Risks and Mitigations
 
@@ -291,15 +293,18 @@ The template's `metadata.generation` misses OverridePolicy edits
 generation (ConfigMap, Secret). The rollout is therefore keyed on a
 hash of each cluster's rendered manifest.
 
-`rollout.ManifestHash` takes the manifest after `ReviseReplica`, Job
-completions, and `ApplyOverridePolicies`, then:
+`rollout.ManifestHash` is a single function, applied identically to a
+freshly rendered manifest (after `ReviseReplica`, Job completions, and
+`ApplyOverridePolicies`) and, during adoption, to a manifest stored in
+a Work. It:
 
 1. applies the same pruning `CreateOrUpdateWork` does
    (`prune.RemoveIrrelevantFields`: `status`, `resourceVersion`, `uid`,
    ...). Without this, every status update Karmada writes back to the
-   template would change the hash. It also makes a rendered manifest
-   hash identically to its stored copy in the Work;
-2. zeroes replica fields through the interpreter's `ReviseReplica`;
+   template would change the hash;
+2. zeroes the fields Karmada sets per cluster from the scheduling
+   result: the replica field via `ReviseReplica(copy, 0)`, and
+   `spec.completions` for Jobs (set by `applyJobCompletions`);
 3. drops Karmada-managed metadata (`util.ManagedResourceLabels`,
    `util.ManagedResourceAnnotations`, the hash annotation itself);
 4. returns a version-prefixed SHA-256 of the JSON, e.g. `v1:9c2e…`.
@@ -314,7 +319,10 @@ Each cluster has three values:
 | verified | last hash that passed the gate | `status.rollout.clusters[].verifiedHash` |
 
 Desired needs no storage: it is a deterministic function of the
-template, OverridePolicies, and binding spec. The annotation is added
+template, OverridePolicies, and binding spec. Reported is the
+annotation value read back from the member, not a hash recomputed
+there, so desired and reported always come from the same function.
+The annotation is added
 only for `Staged` bindings and is listed in
 `util.ManagedResourceAnnotations`, so it is stripped when a resource
 stops being managed.
@@ -334,19 +342,33 @@ MemberObservedGeneration *int64 `json:"memberObservedGeneration,omitempty"` // s
 ```
 
 These are read from object metadata, not through the interpreter
-(only four native reflectors report generations). A cluster is fresh
-when:
+(only four native reflectors report generations). `assembleWorkStatus`
+(`pkg/util/helper/workstatus.go`), which today copies only `Status`
+and `Health` from the Work into `AggregatedStatusItem`, also copies
+the three new fields; otherwise `Compute` would always see an empty
+hash. A cluster is fresh when:
 
 - `ManifestHash == desired` (the new manifest reached the member), and
 - `MemberObservedGeneration >= MemberGeneration` (the member's
   controller processed it). Skipped when `MemberObservedGeneration` is
   unset or `MemberGeneration` is 0 (kinds that don't track generation).
 
-Because the hash and health come from one snapshot, a matching hash
-means the health describes the new manifest. An empty hash is never
-fresh. The gate and its `MinSuccessTime` clock start only once a
-cluster is fresh. Operators that never set `observedGeneration` leave
-a short window after apply; `MinSuccessTime` covers it.
+An empty hash is never fresh. The gate and its `MinSuccessTime` clock
+start only once a cluster is fresh. A `RequiredConditions` entry
+whose matching condition carries `observedGeneration` (as
+`metav1.Condition` does) matches only if it is `>= MemberGeneration`.
+
+A matching hash proves the new manifest was written, not that the
+object's controller has reacted. If the object is processed by a
+controller (`MemberGeneration > 0`) but reports no sign of having
+processed the new spec (no `status.observedGeneration`, and no
+matching required condition carrying `observedGeneration`), the gate
+waits at least 30s, or half of `timeout` if that is shorter
+(`max(minSuccessTime, min(30s, timeout/2))`), so status left over from
+the previous version can't pass immediately and the floor never makes
+the gate unpassable. Otherwise `minSuccessTime` applies as written.
+Kinds that don't track generation (ConfigMap, Secret) have no
+controller and no status to go stale.
 
 ### Interpreter contract for `RequiredConditions`
 
@@ -475,7 +497,12 @@ it to the next cluster and to each replacement. The webhook rejects
 the combination. As a safety net, an `ApplicationFailure` eviction of
 `CurrentCluster` (`spec.gracefulEvictionTasks`) counts as a gate
 failure. Cluster failover can't be excluded this way, since it is
-triggered by cluster taints rather than a policy opt-in.
+triggered by cluster taints rather than a policy opt-in. A workload
+that prefers no failover can tolerate the `cluster.karmada.io/not-ready`
+and `cluster.karmada.io/unreachable` `NoExecute` taints in
+`placement.clusterTolerations` (without `tolerationSeconds`); a failed
+cluster then stays a target, and `Timeout` and `Pause` handle it as a
+stalled cluster.
 
 **Known limitation.** A failover replacement has nothing running, so
 holding it means no workload. Mid-rollout, a replacement runs nothing
@@ -499,6 +526,12 @@ recovers). Outside a rollout it is released immediately.
 
 - Feature gate `StagedPropagation` (alpha). When disabled, the webhook
   rejects `type: Staged`.
+- `type: Staged` requires `staged`; `type: AllAtOnce` must not set
+  `staged`, so gate, timeout, and failure settings are never silently
+  ignored.
+- Durations: `timeout > 0`, `minSuccessTime >= 0`, and
+  `minSuccessTime < timeout` (using defaults for unset values), so a
+  healthy cluster can always pass the gate before it times out.
 - The webhook rejects `Staged` together with `failover.application`,
   alongside the existing rule that `failover.application` requires
   `propagateDeps`.
@@ -510,19 +543,27 @@ recovers). Outside a rollout it is released immediately.
 
 **Unit** (`pkg/rollout`, webhook, detector, work-status controller):
 
-- Validation, defaults, and rejection of `Staged` +
-  `failover.application` on create and update.
+- Validation and defaults: `Staged` without `staged` and `AllAtOnce`
+  with `staged` are rejected; zero/negative `timeout`, negative
+  `minSuccessTime`, and `minSuccessTime >= timeout` (including against
+  the default `timeout`) are rejected; `Staged` +
+  `failover.application` is rejected on create and update.
 - `ManifestHash`: deterministic; changes on template, OverridePolicy,
-  and ConfigMap data edits; unchanged by replicas, Karmada metadata,
-  and template `status` / `resourceVersion`; equal for a rendered
-  manifest and its stored Work copy.
+  and ConfigMap data edits; unchanged by replicas, divided Job
+  `completions`, Karmada metadata, and template `status` /
+  `resourceVersion`; equal for a rendered manifest and its stored Work
+  copy.
 - Transitions and order: sort order from `Succeeded`; mid-rollout
   change keeps `CurrentCluster` and wraps; fix after `Failed` starts at
   the failed cluster; an OverridePolicy on one cluster re-gates only
   that cluster.
 - Freshness: mismatched or empty hash, or `observedGeneration <
   generation`, neither passes nor starts the clock; skip rules for
-  unset values.
+  unset values. A condition with an older `observedGeneration` doesn't
+  match. A kind with `MemberGeneration > 0` and no generation signal
+  waits at least 30s even with `minSuccessTime: 0`; a Deployment and a
+  ConfigMap don't. The work-status controller records the three fields,
+  and `assembleWorkStatus` carries them from the Work to the binding.
 - Failure: `Failed` persists without re-gating; evicting the failed
   cluster or adding a replacement doesn't resume it; a new hash does.
   `Continue` sets `VerifiedHash`.
