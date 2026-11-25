@@ -17,15 +17,114 @@ limitations under the License.
 package util
 
 import (
+	"context"
+	"fmt"
 	"reflect"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
+
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 )
+
+func TestCreateOrUpdateSecret(t *testing.T) {
+	for _, tc := range []struct {
+		name                          string
+		exists, same, conflict, retry bool
+		owner                         string
+	}{
+		{name: "create"},
+		{name: "unchanged", exists: true, same: true},
+		{name: "orphan", exists: true},
+		{name: "same cluster", exists: true, owner: "member1"},
+		{name: "other cluster", exists: true, owner: "member2", conflict: true},
+		{name: "other cluster unchanged", exists: true, same: true, owner: "member2", conflict: true},
+		{name: "retry update conflict", exists: true, retry: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			desired := makeSecret("member1")
+			desired.Data = map[string][]byte{"token": []byte("new"), "caBundle": []byte("new-ca")}
+			old := desired.DeepCopy()
+			old.Type = corev1.SecretTypeOpaque
+			old.Labels = map[string]string{"preserve": "label"}
+			old.Annotations = map[string]string{"preserve": "annotation"}
+			old.ResourceVersion = "1"
+			if !tc.same {
+				old.Data = map[string][]byte{"token": []byte("old")}
+			}
+			if tc.owner != "" {
+				old.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(&clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: tc.owner, UID: "owner-uid"}}, clusterResourceKind)}
+			}
+			client := fake.NewClientset()
+			if tc.exists {
+				client = fake.NewClientset(old)
+				var err error
+				old, err = GetSecret(client, old.Namespace, old.Name)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			updates := 0
+			client.PrependReactor("update", "secrets", func(clienttesting.Action) (bool, runtime.Object, error) {
+				updates++
+				if tc.retry && updates == 1 {
+					return true, nil, apierrors.NewConflict(schema.GroupResource{Resource: "secrets"}, desired.Name, fmt.Errorf("concurrent update"))
+				}
+				return false, nil, nil
+			})
+			got, created, err := CreateOrUpdateSecret(client, desired, "member1")
+			if tc.conflict {
+				if !apierrors.IsConflict(err) {
+					t.Fatalf("error = %v, want conflict", err)
+				}
+				stored, getErr := GetSecret(client, old.Namespace, old.Name)
+				if getErr != nil || !reflect.DeepEqual(stored, old) {
+					t.Fatalf("conflicting secret changed: %v", getErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if created != !tc.exists {
+				t.Errorf("created = %v", created)
+			}
+			want := desired.DeepCopy()
+			if tc.exists {
+				want = old.DeepCopy()
+				want.Data = desired.Data
+			}
+			// Match fields populated by the fake API server separately from the
+			// credential data and user-managed metadata being verified.
+			want.TypeMeta = got.TypeMeta
+			want.UID = got.UID
+			want.ResourceVersion = got.ResourceVersion
+			want.Generation = got.Generation
+			want.ManagedFields = got.ManagedFields
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("secret = %#v, want %#v", got, want)
+			}
+			stored, err := client.CoreV1().Secrets(desired.Namespace).Get(context.TODO(), desired.Name, metav1.GetOptions{})
+			if err != nil || !reflect.DeepEqual(stored, want) {
+				t.Errorf("stored secret differs: %v", err)
+			}
+			if tc.same && updates != 0 {
+				t.Error("unchanged data caused update")
+			}
+			if tc.retry && updates != 2 {
+				t.Errorf("updates = %d, want 2", updates)
+			}
+		})
+	}
+}
 
 func TestCreateSecret(t *testing.T) {
 	type args struct {

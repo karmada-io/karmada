@@ -17,14 +17,17 @@ limitations under the License.
 package util
 
 import (
+	"context"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -147,6 +150,17 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 	impersonatorSecret := &corev1.Secret{}
 	secret := &corev1.Secret{}
 	var err error
+	var created bool
+	var createdSecrets []*corev1.Secret
+	cleanupSecrets := func() {
+		for _, s := range createdSecrets {
+			// Preconditions protect a replacement or concurrently updated secret.
+			deleteOptions := metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &s.UID, ResourceVersion: &s.ResourceVersion}}
+			if deleteErr := controlPlaneKubeClient.CoreV1().Secrets(s.Namespace).Delete(context.TODO(), s.Name, deleteOptions); deleteErr != nil && !apierrors.IsNotFound(deleteErr) {
+				klog.Errorf("Failed to roll back secret %s/%s: %v", s.Namespace, s.Name, deleteErr)
+			}
+		}
+	}
 
 	if opts.IsKubeImpersonatorEnabled() {
 		// create secret to store impersonation info in control plane
@@ -160,11 +174,14 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 				clusterv1alpha1.SecretTokenKey: opts.ImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
 			},
 		}
-		impersonatorSecret, err = CreateSecret(controlPlaneKubeClient, impersonatorSecret)
+		impersonatorSecret, created, err = CreateOrUpdateSecret(controlPlaneKubeClient, impersonatorSecret, opts.ClusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
 		}
 		opts.ImpersonatorSecret = *impersonatorSecret
+		if created {
+			createdSecrets = append(createdSecrets, impersonatorSecret)
+		}
 	}
 
 	if opts.IsKubeCredentialsEnabled() {
@@ -180,14 +197,19 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 			},
 		}
 
-		secret, err = CreateSecret(controlPlaneKubeClient, secret)
+		secret, created, err = CreateOrUpdateSecret(controlPlaneKubeClient, secret, opts.ClusterName)
 		if err != nil {
+			cleanupSecrets()
 			return fmt.Errorf("failed to create secret in control plane. error: %v", err)
 		}
 		opts.Secret = *secret
+		if created {
+			createdSecrets = append(createdSecrets, secret)
+		}
 	}
 	cluster, err := generateClusterInControllerPlane(opts)
 	if err != nil {
+		cleanupSecrets()
 		return err
 	}
 	patchSecretBody := &corev1.Secret{

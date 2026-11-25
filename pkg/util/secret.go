@@ -19,12 +19,16 @@ package util
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
 )
 
@@ -44,6 +48,38 @@ func CreateSecret(client kubeclient.Interface, secret *corev1.Secret) (*corev1.S
 	}
 
 	return st, nil
+}
+
+// CreateOrUpdateSecret refreshes credential data without changing existing metadata or type.
+// The boolean reports whether this call created the secret.
+func CreateOrUpdateSecret(client kubeclient.Interface, secret *corev1.Secret, expectedClusterName string) (*corev1.Secret, bool, error) {
+	secrets := client.CoreV1().Secrets(secret.Namespace)
+	result, err := secrets.Create(context.TODO(), secret, metav1.CreateOptions{})
+	if err == nil {
+		return result, true, nil
+	}
+	if !apierrors.IsAlreadyExists(err) {
+		return nil, false, err
+	}
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		existing, getErr := secrets.Get(context.TODO(), secret.Name, metav1.GetOptions{})
+		if getErr != nil {
+			return getErr
+		}
+		// Check even unchanged data: registration will subsequently attach an owner.
+		if owner := metav1.GetControllerOf(existing); owner != nil && (owner.APIVersion != clusterResourceKind.GroupVersion().String() || owner.Kind != clusterResourceKind.Kind || owner.Name != expectedClusterName) {
+			return apierrors.NewConflict(schema.GroupResource{Resource: "secrets"}, secret.Name, fmt.Errorf("secret is controlled by %s %s, expected Cluster %s", owner.Kind, owner.Name, expectedClusterName))
+		}
+		if reflect.DeepEqual(existing.Data, secret.Data) {
+			result = existing
+			return nil
+		}
+		existing = existing.DeepCopy()
+		existing.Data = secret.DeepCopy().Data
+		result, getErr = secrets.Update(context.TODO(), existing, metav1.UpdateOptions{})
+		return getErr
+	})
+	return result, false, err
 }
 
 // PatchSecret just try to patch the secret.

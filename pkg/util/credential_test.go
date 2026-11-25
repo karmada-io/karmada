@@ -18,6 +18,8 @@ package util
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"testing"
@@ -32,6 +34,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	karmadafake "github.com/karmada-io/karmada/pkg/generated/clientset/versioned/fake"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -292,6 +295,84 @@ func TestRegisterClusterInControllerPlane(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := RegisterClusterInControllerPlane(tt.args.opts, tt.args.controlPlaneKubeClient, tt.args.generateClusterInControllerPlane); (err != nil) != tt.wantErr {
 				t.Errorf("RegisterClusterInControllerPlane() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRegisterClusterCredentials(t *testing.T) {
+	for _, existingCluster := range []bool{false, true} {
+		t.Run(fmt.Sprint("existing cluster=", existingCluster), func(t *testing.T) {
+			cluster := &clusterv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Name: "member1", UID: "cluster-uid"}}
+			clusters := karmadafake.NewClientset()
+			old := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: "karmada-cluster", Name: "member1"}, Data: map[string][]byte{"token": []byte("old"), "caBundle": []byte("old-ca")}}
+			if existingCluster {
+				old.OwnerReferences = []metav1.OwnerReference{*metav1.NewControllerRef(cluster, clusterResourceKind)}
+				if _, err := clusters.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			impersonator := old.DeepCopy()
+			impersonator.Name = names.GenerateImpersonationSecretName("member1")
+			client := fake.NewClientset(old, impersonator)
+			opts := ClusterRegisterOption{ClusterName: "member1", ClusterNamespace: "karmada-cluster", ReportSecrets: []string{KubeCredentials, KubeImpersonator}, Secret: corev1.Secret{Data: map[string][]byte{"token": []byte("new"), "ca.crt": []byte("new-ca")}}, ImpersonatorSecret: corev1.Secret{Data: map[string][]byte{"token": []byte("new-impersonator")}}}
+			err := RegisterClusterInControllerPlane(opts, client, func(got ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) {
+				if string(got.Secret.Data["token"]) != "new" || string(got.Secret.Data["caBundle"]) != "new-ca" || string(got.ImpersonatorSecret.Data["token"]) != "new-impersonator" {
+					t.Error("generator received stale credentials")
+				}
+				if existingCluster {
+					return clusters.ClusterV1alpha1().Clusters().Get(context.TODO(), "member1", metav1.GetOptions{})
+				}
+				return clusters.ClusterV1alpha1().Clusters().Create(context.TODO(), cluster, metav1.CreateOptions{})
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for name, token := range map[string]string{"member1": "new", impersonator.Name: "new-impersonator"} {
+				got, err := GetSecret(client, "karmada-cluster", name)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if string(got.Data["token"]) != token {
+					t.Errorf("%s token = %q, want %q", name, got.Data["token"], token)
+				}
+				if name == "member1" && string(got.Data["caBundle"]) != "new-ca" {
+					t.Errorf("CA = %q, want new-ca", got.Data["caBundle"])
+				}
+				if !reflect.DeepEqual(got.OwnerReferences, []metav1.OwnerReference{*metav1.NewControllerRef(cluster, clusterResourceKind)}) {
+					t.Errorf("unexpected owners: %v", got.OwnerReferences)
+				}
+			}
+			if _, err := clusters.ClusterV1alpha1().Clusters().Get(context.TODO(), "member1", metav1.GetOptions{}); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestRegisterClusterCredentialsRollback(t *testing.T) {
+	for _, preset := range []string{"", "member1", names.GenerateImpersonationSecretName("member1")} {
+		t.Run("preset="+preset, func(t *testing.T) {
+			client := fake.NewClientset()
+			if preset != "" {
+				if _, err := client.CoreV1().Secrets("karmada-cluster").Create(context.TODO(), &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: preset}, Data: map[string][]byte{"token": []byte("old")}}, metav1.CreateOptions{}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			failure := errors.New("cluster generation failed")
+			err := RegisterClusterInControllerPlane(ClusterRegisterOption{ClusterName: "member1", ClusterNamespace: "karmada-cluster", ReportSecrets: []string{KubeCredentials, KubeImpersonator}}, client, func(ClusterRegisterOption) (*clusterv1alpha1.Cluster, error) { return nil, failure })
+			if !errors.Is(err, failure) {
+				t.Fatalf("error = %v, want original error", err)
+			}
+			for _, name := range []string{"member1", names.GenerateImpersonationSecretName("member1")} {
+				_, err := GetSecret(client, "karmada-cluster", name)
+				if name == preset {
+					if err != nil {
+						t.Errorf("preset secret removed: %v", err)
+					}
+				} else if !apierrors.IsNotFound(err) {
+					t.Errorf("new secret %s remains, err=%v", name, err)
+				}
 			}
 		})
 	}
