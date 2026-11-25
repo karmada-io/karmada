@@ -18,8 +18,11 @@ package resourceinterpreter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"reflect"
 
+	apicorev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,6 +81,13 @@ type ResourceInterpreter interface {
 	InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error)
 
 	// other common method
+}
+
+// PlacementAwareStatusInterpreter is an optional extension for callers that
+// know whether a Pod has exactly one applied target member. Existing
+// ResourceInterpreter implementations can continue using AggregateStatus.
+type PlacementAwareStatusInterpreter interface {
+	AggregateStatusWithPlacement(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, preserveSingleMemberPodStatus bool) (*unstructured.Unstructured, error)
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
@@ -273,6 +283,12 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	return i.AggregateStatusWithPlacement(object, aggregatedStatusItems, false)
+}
+
+// AggregateStatusWithPlacement preserves a single member's full PodStatus only
+// after allowing custom interpreters to override the built-in behavior.
+func (i *customResourceInterpreterImpl) AggregateStatusWithPlacement(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, preserveSingleMemberPodStatus bool) (*unstructured.Unstructured, error) {
 	obj, hookEnabled, err := i.configurableInterpreter.AggregateStatus(object, aggregatedStatusItems)
 	if err != nil {
 		return nil, err
@@ -300,7 +316,31 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 		return obj, nil
 	}
 
+	if preserveSingleMemberPodStatus &&
+		object.GroupVersionKind() == apicorev1.SchemeGroupVersion.WithKind("Pod") &&
+		len(aggregatedStatusItems) == 1 && aggregatedStatusItems[0].Status != nil {
+		return copySingleMemberPodStatus(object, aggregatedStatusItems[0].Status)
+	}
+
 	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
+}
+
+// copySingleMemberPodStatus retains all Kubernetes PodStatus fields when there
+// is no need to combine multiple physical Pods.
+func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.RawExtension) (*unstructured.Unstructured, error) {
+	pod := &apicorev1.Pod{}
+	if err := helper.ConvertToTypedObject(object, pod); err != nil {
+		return nil, err
+	}
+	var memberStatus apicorev1.PodStatus
+	if err := json.Unmarshal(raw.Raw, &memberStatus); err != nil {
+		return nil, err
+	}
+	if reflect.DeepEqual(pod.Status, memberStatus) {
+		return object, nil
+	}
+	pod.Status = memberStatus
+	return helper.ToUnstructured(pod)
 }
 
 // GetDependencies returns the dependent resources of the given object.

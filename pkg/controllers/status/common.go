@@ -39,6 +39,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -151,9 +152,10 @@ func updateResourceStatus(
 	restMapper meta.RESTMapper,
 	interpreter resourceinterpreter.ResourceInterpreter,
 	eventRecorder record.EventRecorder,
-	objRef workv1alpha2.ObjectReference,
+	bindingSpec workv1alpha2.ResourceBindingSpec,
 	bindingStatus workv1alpha2.ResourceBindingStatus,
 ) error {
+	objRef := bindingSpec.Resource
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK(%s/%s), Error: %v", objRef.APIVersion, objRef.Kind, err)
@@ -183,7 +185,13 @@ func updateResourceStatus(
 			return err
 		}
 
-		newObj, err := interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
+		var newObj *unstructured.Unstructured
+		if aware, ok := interpreter.(resourceinterpreter.PlacementAwareStatusInterpreter); ok {
+			newObj, err = aware.AggregateStatusWithPlacement(resource, bindingStatus.AggregatedStatus,
+				canPreserveSingleMemberPodStatus(bindingSpec, bindingStatus))
+		} else {
+			newObj, err = interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
+		}
 		if err != nil {
 			klog.Errorf("Failed to aggregate status for resource template(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 			return err
@@ -212,4 +220,16 @@ func updateResourceStatus(
 	}
 
 	return nil
+}
+
+// canPreserveSingleMemberPodStatus verifies that the one observed status also
+// corresponds to the sole target in the binding spec. Counting aggregated
+// statuses alone is insufficient: a Work for another target might not exist yet.
+func canPreserveSingleMemberPodStatus(spec workv1alpha2.ResourceBindingSpec, status workv1alpha2.ResourceBindingStatus) bool {
+	clusters := helper.ObtainBindingSpecExistingClusters(spec)
+	if len(clusters) != 1 || len(status.AggregatedStatus) != 1 {
+		return false
+	}
+	item := status.AggregatedStatus[0]
+	return item.Applied && item.Status != nil && clusters.Has(item.ClusterName)
 }
