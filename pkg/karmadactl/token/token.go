@@ -200,6 +200,10 @@ func NewCmdTokenDelete(f util.Factory, out io.Writer, tokenOpts *CommandTokenOpt
 // runCreateToken generates a new bootstrap token and stores it as a secret on the server.
 func (o *CommandTokenOptions) runCreateToken(out io.Writer, client kubeclient.Interface) error {
 	klog.V(1).Infoln("[token] creating token")
+	// A negative TTL would be silently treated as "never expire", so refuse it.
+	if o.TTL != nil && o.TTL.Duration < 0 {
+		return fmt.Errorf("--ttl must not be negative, got %v; use 0 for a token that never expires", o.TTL.Duration)
+	}
 	bootstrapToken, err := tokenutil.GenerateRandomBootstrapToken(o.TTL, o.Description, o.Groups, o.Usages)
 	if err != nil {
 		return err
@@ -301,7 +305,7 @@ func (o *CommandTokenOptions) runDeleteTokens(out io.Writer, client kubeclient.I
 			bts, err := tokenutil.NewToken(tokenIDOrToken)
 			if err != nil {
 				return fmt.Errorf("given token didn't match pattern %q or %q",
-					bootstrapapi.BootstrapTokenIDPattern, bootstrapapi.BootstrapTokenIDPattern)
+					bootstrapapi.BootstrapTokenIDPattern, bootstrapapi.BootstrapTokenPattern)
 			}
 			id = bts.ID
 		}
