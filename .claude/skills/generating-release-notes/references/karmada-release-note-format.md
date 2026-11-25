@@ -20,14 +20,16 @@ Classify versions as follows:
 
 - Patch: `vX.Y.Z` where `Z > 0`. The base is `vX.Y.(Z-1)`, and the head is `release-X.Y`.
 - Minor: `vX.Y.0`. Use `vX.Y.0-alpha.0` as the base and `master` as the head.
-- Preview: `vX.Y.0-alpha.1`, `vX.Y.0-alpha.2`, `vX.Y.0-beta.0`, or `vX.Y.0-rc.0`. Use the previous preview tag and `master` as the head.
+- Preview: `vX.Y.0-alpha.1`, `vX.Y.0-alpha.2`, `vX.Y.0-alpha.3`, `vX.Y.0-beta.0`, `vX.Y.0-rc.0` or `vX.Y.0-rc.1`. Use the previous preview tag and `master` as the head.
 
 The expected preview sequence is:
 
 1. `vX.Y.0-alpha.1`, based on `vX.Y.0-alpha.0`
 2. `vX.Y.0-alpha.2`, based on `vX.Y.0-alpha.1`
-3. `vX.Y.0-beta.0`, based on `vX.Y.0-alpha.2`
-4. `vX.Y.0-rc.0`, based on `vX.Y.0-beta.0`
+3. `vX.Y.0-alpha.3`, based on `vX.Y.0-alpha.2`
+4. `vX.Y.0-beta.0`, based on `vX.Y.0-alpha.3`
+5. `vX.Y.0-rc.0`, based on `vX.Y.0-beta.0`
+6. `vX.Y.0-rc.1`, based on `vX.Y.0-rc.0`
 
 Confirm unusual or skipped preview sequences with the user.
 
