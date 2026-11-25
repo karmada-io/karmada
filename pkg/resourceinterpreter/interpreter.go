@@ -332,15 +332,65 @@ func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.R
 	if err := helper.ConvertToTypedObject(object, pod); err != nil {
 		return nil, err
 	}
-	var memberStatus apicorev1.PodStatus
-	if err := json.Unmarshal(raw.Raw, &memberStatus); err != nil {
+	var reflected native.WrappedPodStatus
+	if err := json.Unmarshal(raw.Raw, &reflected); err != nil {
 		return nil, err
 	}
+
+	memberStatus := reflected.PodStatus
+	// A member's observedGeneration does not refer to the generation of
+	// the Karmada resource template. Claim the current template generation
+	// only when the member has observed its latest spec and that template
+	// has reached the member; otherwise retain the prior known generation.
+	memberStatus.ObservedGeneration = translatePodObservedGeneration(
+		memberStatus.ObservedGeneration, reflected.FederatedGeneration, pod.Generation)
+	// The Kubernetes Pod status strategy preserves the previous value when an
+	// update sends observedGeneration=0. Match that behavior here so a stale
+	// reflection does not cause repeated, ineffective UpdateStatus calls.
+	if memberStatus.ObservedGeneration == 0 {
+		memberStatus.ObservedGeneration = pod.Status.ObservedGeneration
+	}
+
+	// Match conditions by type and occurrence, as Kubernetes does. Distinct
+	// conditions can observe different generations, and duplicate types are
+	// permitted by the API.
+	oldConditionGenerations := make(map[apicorev1.PodConditionType][]int64, len(pod.Status.Conditions))
+	for _, condition := range pod.Status.Conditions {
+		oldConditionGenerations[condition.Type] = append(oldConditionGenerations[condition.Type], condition.ObservedGeneration)
+	}
+	for i := range memberStatus.Conditions {
+		condition := &memberStatus.Conditions[i]
+		condition.ObservedGeneration = translatePodObservedGeneration(
+			condition.ObservedGeneration, reflected.FederatedGeneration, pod.Generation)
+		previous := oldConditionGenerations[condition.Type]
+		if len(previous) > 0 {
+			if condition.ObservedGeneration == 0 {
+				condition.ObservedGeneration = previous[0]
+			}
+			oldConditionGenerations[condition.Type] = previous[1:]
+		}
+	}
+
 	if reflect.DeepEqual(pod.Status, memberStatus) {
 		return object, nil
 	}
 	pod.Status = memberStatus
 	return helper.ToUnstructured(pod)
+}
+
+// translatePodObservedGeneration maps a member-local observation to the
+// template generation only when the reflection proves it is up to date.
+// Zero is used when the feature is disabled, generation metadata is missing,
+// or the observed status/condition is stale. A condition is evaluated
+// independently of the Pod-level observation.
+func translatePodObservedGeneration(observed int64, member native.FederatedGeneration, templateGeneration int64) int64 {
+	if observed == 0 || member.Generation <= 0 || member.ResourceTemplateGeneration <= 0 || templateGeneration <= 0 {
+		return 0
+	}
+	if observed < member.Generation || member.ResourceTemplateGeneration < templateGeneration {
+		return 0
+	}
+	return templateGeneration
 }
 
 // GetDependencies returns the dependent resources of the given object.

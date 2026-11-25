@@ -16,7 +16,10 @@ limitations under the License.
 
 package native
 
-import appsv1 "k8s.io/api/apps/v1"
+import (
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+)
 
 // FederatedGeneration holds the generation of the same resource in the member cluster and the Karmada control plane.
 type FederatedGeneration struct {
@@ -50,4 +53,11 @@ type WrappedReplicaSetStatus struct {
 type WrappedStatefulSetStatus struct {
 	FederatedGeneration      `json:",inline"`
 	appsv1.StatefulSetStatus `json:",inline"`
+}
+
+// WrappedPodStatus includes the member and template generations needed to
+// translate Pod observedGeneration fields into control-plane coordinates.
+type WrappedPodStatus struct {
+	FederatedGeneration `json:",inline"`
+	corev1.PodStatus    `json:",inline"`
 }

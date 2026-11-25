@@ -31,6 +31,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
@@ -65,6 +66,77 @@ func TestCanPreserveSingleMemberPodStatus(t *testing.T) {
 			status := workv1alpha2.ResourceBindingStatus{AggregatedStatus: tc.statuses}
 			assert.Equal(t, tc.want, canPreserveSingleMemberPodStatus(tc.spec, status))
 		})
+	}
+}
+
+func TestShouldEnqueueBindingUpdateOnPlacementChange(t *testing.T) {
+	now := metav1.Now()
+	testCases := []struct {
+		name       string
+		mutate     func(*workv1alpha2.ResourceBindingSpec)
+		unschedule bool
+		want       bool
+	}{
+		{name: "no effective change"},
+		{name: "second cluster planned", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.Clusters = append(s.Clusters, workv1alpha2.TargetCluster{Name: "member-b"})
+		}, want: true},
+		{name: "cluster changed", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.Clusters = []workv1alpha2.TargetCluster{{Name: "member-b"}}
+		}, want: true},
+		{name: "dependent cluster planned", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.RequiredBy = []workv1alpha2.BindingSnapshot{{Clusters: []workv1alpha2.TargetCluster{{Name: "member-b"}}}}
+		}, want: true},
+		{name: "graceful eviction target", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.GracefulEvictionTasks = []workv1alpha2.GracefulEvictionTask{{FromCluster: "member-b"}}
+		}, want: true},
+		{name: "duplicate target does not change effective placement", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.RequiredBy = []workv1alpha2.BindingSnapshot{{Clusters: []workv1alpha2.TargetCluster{{Name: "member-a"}}}}
+		}},
+		{name: "resource version changed", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.Resource.ResourceVersion = "new-version"
+		}, want: true},
+		{name: "unscheduled change is ignored", mutate: func(s *workv1alpha2.ResourceBindingSpec) {
+			s.Clusters = append(s.Clusters, workv1alpha2.TargetCluster{Name: "member-b"})
+		}, unschedule: true},
+	}
+	for _, kind := range []string{"ResourceBinding", "ClusterResourceBinding"} {
+		for _, tc := range testCases {
+			t.Run(kind+"/"+tc.name, func(t *testing.T) {
+				spec := workv1alpha2.ResourceBindingSpec{
+					Resource: workv1alpha2.ObjectReference{APIVersion: "v1", Kind: "Pod", ResourceVersion: "original-version"},
+					Clusters: []workv1alpha2.TargetCluster{{Name: "member-a"}},
+				}
+				status := workv1alpha2.ResourceBindingStatus{
+					LastScheduledTime: &now,
+					AggregatedStatus:  []workv1alpha2.AggregatedStatusItem{{ClusterName: "member-a", Applied: true}},
+				}
+				var oldObject event.UpdateEvent
+				switch kind {
+				case "ResourceBinding":
+					old := &workv1alpha2.ResourceBinding{Spec: spec, Status: status}
+					newBinding := old.DeepCopy()
+					if tc.mutate != nil {
+						tc.mutate(&newBinding.Spec)
+					}
+					if tc.unschedule {
+						newBinding.Status.LastScheduledTime = nil
+					}
+					oldObject = event.UpdateEvent{ObjectOld: old, ObjectNew: newBinding}
+				case "ClusterResourceBinding":
+					old := &workv1alpha2.ClusterResourceBinding{Spec: spec, Status: status}
+					newBinding := old.DeepCopy()
+					if tc.mutate != nil {
+						tc.mutate(&newBinding.Spec)
+					}
+					if tc.unschedule {
+						newBinding.Status.LastScheduledTime = nil
+					}
+					oldObject = event.UpdateEvent{ObjectOld: old, ObjectNew: newBinding}
+				}
+				assert.Equal(t, tc.want, shouldEnqueueBindingUpdate(oldObject))
+			})
+		}
 	}
 }
 
