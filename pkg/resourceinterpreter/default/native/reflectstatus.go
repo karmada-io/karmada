@@ -160,8 +160,7 @@ func reflectReplicaSetStatus(object *unstructured.Unstructured) (*runtime.RawExt
 	return grabStatusRaw, nil
 }
 
-// reflectPodStatus includes generation metadata alongside the Pod status so that
-// the control plane can interpret member-local observedGeneration values.
+// reflectPodStatus includes member/template generations for status translation.
 func reflectPodStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
 	raw, err := reflectWholeStatus(object)
 	if err != nil || raw == nil {

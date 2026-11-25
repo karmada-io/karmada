@@ -106,8 +106,7 @@ func TestCopySingleMemberPodObservedGenerationLegacyStatus(t *testing.T) {
 	require.Equal(t, corev1.ConditionTrue, copied.Status.Conditions[0].Status)
 }
 
-// Ensure the standard status reflection and placement-aware copy use the
-// same generation metadata format across the two interpreter layers.
+// Verify that reflection and aggregation agree on generation metadata.
 func TestPodObservedGenerationReflectionRoundTrip(t *testing.T) {
 	memberPod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
@@ -142,9 +141,7 @@ func TestPodObservedGenerationReflectionRoundTrip(t *testing.T) {
 	require.Equal(t, corev1.PodRunning, got.Status.Phase)
 }
 
-// A Pod status update cannot clear an existing nonzero observedGeneration:
-// Kubernetes preserves both Pod-level and per-condition values on the server.
-// The client-side result must already match this behavior to avoid write loops.
+// Preserve nonzero generations as Kubernetes does to avoid repeat writes.
 func TestCopySingleMemberPodObservedGenerationPreservesExisting(t *testing.T) {
 	pod := &corev1.Pod{
 		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
@@ -161,9 +158,7 @@ func TestCopySingleMemberPodObservedGenerationPreservesExisting(t *testing.T) {
 	object, err := helper.ToUnstructured(pod)
 	require.NoError(t, err)
 
-	// Member Pod has processed only generation 1 of its own generation 2,
-	// while its Ready condition is also stale. Initialized is already current.
-	// The reflected order differs from the control-plane order.
+	// Only Initialized is current; condition order differs from the template.
 	status := corev1.PodStatus{
 		Phase:              corev1.PodRunning,
 		ObservedGeneration: 1,
@@ -184,8 +179,8 @@ func TestCopySingleMemberPodObservedGenerationPreservesExisting(t *testing.T) {
 	require.NoError(t, helper.ConvertToTypedObject(first, &got))
 	require.Equal(t, corev1.PodRunning, got.Status.Phase)
 	require.Equal(t, int64(2), got.Status.ObservedGeneration)
-	require.Equal(t, int64(3), got.Status.Conditions[0].ObservedGeneration) // Initialized
-	require.Equal(t, int64(2), got.Status.Conditions[1].ObservedGeneration) // Ready
+	require.Equal(t, int64(3), got.Status.Conditions[0].ObservedGeneration)
+	require.Equal(t, int64(2), got.Status.Conditions[1].ObservedGeneration)
 
 	second, err := copySingleMemberPodStatus(first, raw)
 	require.NoError(t, err)

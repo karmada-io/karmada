@@ -72,8 +72,7 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 	DeleteFunc: func(event.DeleteEvent) bool { return false },
 })
 
-// shouldEnqueueBindingUpdate handles placement-only changes even when the Work
-// statuses and the referenced resource version have not changed.
+// shouldEnqueueBindingUpdate also reacts to changes in effective placement.
 func shouldEnqueueBindingUpdate(e event.UpdateEvent) bool {
 	// Ignore the ResourceBinding/ClusterResourceBinding if it has not been scheduled.
 	// Relies on status.lastScheduledTime as the reliable indicator of successful scheduling because
@@ -120,9 +119,7 @@ func shouldEnqueueBindingUpdate(e event.UpdateEvent) bool {
 		return false
 	}
 
-	// The status aggregation behavior now depends on the placement. A binding
-	// can gain another target before its Work exists or reports any status.
-	// Enqueue this change even if the resource version and Work status are unchanged.
+	// A new target may exist before its Work produces any status.
 	return oldSpec.Resource.ResourceVersion != newSpec.Resource.ResourceVersion ||
 		!helper.ObtainBindingSpecExistingClusters(oldSpec).Equal(helper.ObtainBindingSpecExistingClusters(newSpec))
 }

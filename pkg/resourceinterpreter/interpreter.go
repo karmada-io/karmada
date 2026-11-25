@@ -325,8 +325,7 @@ func (i *customResourceInterpreterImpl) AggregateStatusWithPlacement(object *uns
 	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
 }
 
-// copySingleMemberPodStatus retains all Kubernetes PodStatus fields when there
-// is no need to combine multiple physical Pods.
+// copySingleMemberPodStatus preserves the full status of a single member Pod.
 func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.RawExtension) (*unstructured.Unstructured, error) {
 	pod := &apicorev1.Pod{}
 	if err := helper.ConvertToTypedObject(object, pod); err != nil {
@@ -338,22 +337,15 @@ func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.R
 	}
 
 	memberStatus := reflected.PodStatus
-	// A member's observedGeneration does not refer to the generation of
-	// the Karmada resource template. Claim the current template generation
-	// only when the member has observed its latest spec and that template
-	// has reached the member; otherwise retain the prior known generation.
+	// Translate member-local generations only when the template was observed.
 	memberStatus.ObservedGeneration = translatePodObservedGeneration(
 		memberStatus.ObservedGeneration, reflected.FederatedGeneration, pod.Generation)
-	// The Kubernetes Pod status strategy preserves the previous value when an
-	// update sends observedGeneration=0. Match that behavior here so a stale
-	// reflection does not cause repeated, ineffective UpdateStatus calls.
+	// Match Kubernetes status strategy: zero must not clear a prior observation.
 	if memberStatus.ObservedGeneration == 0 {
 		memberStatus.ObservedGeneration = pod.Status.ObservedGeneration
 	}
 
-	// Match conditions by type and occurrence, as Kubernetes does. Distinct
-	// conditions can observe different generations, and duplicate types are
-	// permitted by the API.
+	// Preserve prior observations per condition type and occurrence.
 	oldConditionGenerations := make(map[apicorev1.PodConditionType][]int64, len(pod.Status.Conditions))
 	for _, condition := range pod.Status.Conditions {
 		oldConditionGenerations[condition.Type] = append(oldConditionGenerations[condition.Type], condition.ObservedGeneration)
@@ -378,11 +370,8 @@ func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.R
 	return helper.ToUnstructured(pod)
 }
 
-// translatePodObservedGeneration maps a member-local observation to the
-// template generation only when the reflection proves it is up to date.
-// Zero is used when the feature is disabled, generation metadata is missing,
-// or the observed status/condition is stale. A condition is evaluated
-// independently of the Pod-level observation.
+// translatePodObservedGeneration returns zero unless the member has observed
+// the current template generation.
 func translatePodObservedGeneration(observed int64, member native.FederatedGeneration, templateGeneration int64) int64 {
 	if observed == 0 || member.Generation <= 0 || member.ResourceTemplateGeneration <= 0 || templateGeneration <= 0 {
 		return 0
