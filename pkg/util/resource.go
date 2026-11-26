@@ -283,17 +283,32 @@ func (r *Resource) AddPodTemplateRequest(podSpec *corev1.PodSpec) *Resource {
 }
 
 // AddPodRequest add the effective request resource of a pod to the origin resource.
-// The Pod's effective request is the higher of:
-// - the sum of all app containers(spec.Containers) request for a resource.
-// - the effective init containers(spec.InitContainers) request for a resource.
-// The effective init containers request is the highest request on all init containers.
+// As in Kubernetes, the Pod's effective request is the higher of:
+//   - the sum of all app containers(spec.Containers) and sidecar containers (init containers
+//     with restartPolicy Always) request for a resource, since sidecars keep running next to
+//     the app containers.
+//   - the highest request of an init container while it runs, together with the sidecars
+//     started before it.
 func (r *Resource) AddPodRequest(podSpec *corev1.PodSpec) *Resource {
+	podRequest := EmptyResource()
 	for _, container := range podSpec.Containers {
-		r.Add(container.Resources.Requests)
+		podRequest.Add(container.Resources.Requests)
 	}
+	sidecars := EmptyResource()
+	initPeak := EmptyResource()
 	for _, container := range podSpec.InitContainers {
-		r.SetMaxResource(container.Resources.Requests)
+		if container.RestartPolicy != nil && *container.RestartPolicy == corev1.ContainerRestartPolicyAlways {
+			podRequest.Add(container.Resources.Requests)
+			sidecars.Add(container.Resources.Requests)
+			initPeak.SetMaxResource(sidecars.ResourceList())
+			continue
+		}
+		running := sidecars.Clone()
+		running.Add(container.Resources.Requests)
+		initPeak.SetMaxResource(running.ResourceList())
 	}
+	podRequest.SetMaxResource(initPeak.ResourceList())
+	r.Add(podRequest.ResourceList())
 	// If Overhead is being utilized, add to the total requests for the pod.
 	// We assume the EnablePodOverhead feature gate of member cluster is set (it is on by default since 1.18).
 	if podSpec.Overhead != nil {

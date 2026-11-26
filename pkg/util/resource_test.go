@@ -22,6 +22,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/utils/ptr"
 )
 
 func TestNewResource(t *testing.T) {
@@ -583,6 +584,57 @@ func TestResource_AddPodTemplateRequest(t *testing.T) {
 					"test.karmada.io/baz": 25,
 				},
 			},
+		},
+		{
+			name: "sidecar container runs next to the app containers",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(1000, resource.DecimalSI)},
+							},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(500, resource.DecimalSI)},
+							},
+						},
+					},
+				},
+			},
+			want: &Resource{MilliCPU: 1500},
+		},
+		{
+			name: "init container runs next to the sidecars started before it",
+			args: args{
+				podSpec: &corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(1000, resource.DecimalSI)},
+							},
+						},
+					},
+					InitContainers: []corev1.Container{
+						{
+							RestartPolicy: ptr.To(corev1.ContainerRestartPolicyAlways),
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(500, resource.DecimalSI)},
+							},
+						},
+						{
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{corev1.ResourceCPU: *resource.NewMilliQuantity(2000, resource.DecimalSI)},
+							},
+						},
+					},
+				},
+			},
+			want: &Resource{MilliCPU: 2500},
 		},
 	}
 	for _, tt := range tests {
