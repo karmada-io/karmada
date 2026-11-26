@@ -310,6 +310,11 @@ func Test_getAllDefaultReflectStatusInterpreter(t *testing.T) {
 			wantFn: true,
 		},
 		{
+			name:   "Pod interpreter exists",
+			gvk:    corev1.SchemeGroupVersion.WithKind(util.PodKind),
+			wantFn: true,
+		},
+		{
 			name:   "Ingress interpreter exists",
 			gvk:    networkingv1.SchemeGroupVersion.WithKind(util.IngressKind),
 			wantFn: true,
@@ -362,7 +367,7 @@ func Test_getAllDefaultReflectStatusInterpreter(t *testing.T) {
 	}
 
 	// Verify total number of interpreters
-	assert.Len(t, interpreters, 9, "unexpected number of interpreters")
+	assert.Len(t, interpreters, 10, "unexpected number of interpreters")
 
 	// Verify map is not nil
 	assert.NotNil(t, interpreters, "interpreters map should not be nil")

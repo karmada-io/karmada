@@ -18,8 +18,11 @@ package resourceinterpreter
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"reflect"
 
+	apicorev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -78,6 +81,13 @@ type ResourceInterpreter interface {
 	InterpretHealth(object *unstructured.Unstructured) (healthy bool, err error)
 
 	// other common method
+}
+
+// PlacementAwareStatusInterpreter is an optional extension for callers that
+// know whether a Pod has exactly one applied target member. Existing
+// ResourceInterpreter implementations can continue using AggregateStatus.
+type PlacementAwareStatusInterpreter interface {
+	AggregateStatusWithPlacement(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, preserveSingleMemberPodStatus bool) (*unstructured.Unstructured, error)
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
@@ -273,6 +283,12 @@ func (i *customResourceInterpreterImpl) Retain(desired *unstructured.Unstructure
 
 // AggregateStatus returns the objects that based on the 'object' but with status aggregated.
 func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
+	return i.AggregateStatusWithPlacement(object, aggregatedStatusItems, false)
+}
+
+// AggregateStatusWithPlacement preserves a single member's full PodStatus only
+// after allowing custom interpreters to override the built-in behavior.
+func (i *customResourceInterpreterImpl) AggregateStatusWithPlacement(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem, preserveSingleMemberPodStatus bool) (*unstructured.Unstructured, error) {
 	obj, hookEnabled, err := i.configurableInterpreter.AggregateStatus(object, aggregatedStatusItems)
 	if err != nil {
 		return nil, err
@@ -300,7 +316,70 @@ func (i *customResourceInterpreterImpl) AggregateStatus(object *unstructured.Uns
 		return obj, nil
 	}
 
+	if preserveSingleMemberPodStatus &&
+		object.GroupVersionKind() == apicorev1.SchemeGroupVersion.WithKind("Pod") &&
+		len(aggregatedStatusItems) == 1 && aggregatedStatusItems[0].Status != nil {
+		return copySingleMemberPodStatus(object, aggregatedStatusItems[0].Status)
+	}
+
 	return i.defaultInterpreter.AggregateStatus(object, aggregatedStatusItems)
+}
+
+// copySingleMemberPodStatus preserves the full status of a single member Pod.
+func copySingleMemberPodStatus(object *unstructured.Unstructured, raw *runtime.RawExtension) (*unstructured.Unstructured, error) {
+	pod := &apicorev1.Pod{}
+	if err := helper.ConvertToTypedObject(object, pod); err != nil {
+		return nil, err
+	}
+	var reflected native.WrappedPodStatus
+	if err := json.Unmarshal(raw.Raw, &reflected); err != nil {
+		return nil, err
+	}
+
+	memberStatus := reflected.PodStatus
+	// Translate member-local generations only when the template was observed.
+	memberStatus.ObservedGeneration = translatePodObservedGeneration(
+		memberStatus.ObservedGeneration, reflected.FederatedGeneration, pod.Generation)
+	// Match Kubernetes status strategy: zero must not clear a prior observation.
+	if memberStatus.ObservedGeneration == 0 {
+		memberStatus.ObservedGeneration = pod.Status.ObservedGeneration
+	}
+
+	// Preserve prior observations per condition type and occurrence.
+	oldConditionGenerations := make(map[apicorev1.PodConditionType][]int64, len(pod.Status.Conditions))
+	for _, condition := range pod.Status.Conditions {
+		oldConditionGenerations[condition.Type] = append(oldConditionGenerations[condition.Type], condition.ObservedGeneration)
+	}
+	for i := range memberStatus.Conditions {
+		condition := &memberStatus.Conditions[i]
+		condition.ObservedGeneration = translatePodObservedGeneration(
+			condition.ObservedGeneration, reflected.FederatedGeneration, pod.Generation)
+		previous := oldConditionGenerations[condition.Type]
+		if len(previous) > 0 {
+			if condition.ObservedGeneration == 0 {
+				condition.ObservedGeneration = previous[0]
+			}
+			oldConditionGenerations[condition.Type] = previous[1:]
+		}
+	}
+
+	if reflect.DeepEqual(pod.Status, memberStatus) {
+		return object, nil
+	}
+	pod.Status = memberStatus
+	return helper.ToUnstructured(pod)
+}
+
+// translatePodObservedGeneration returns zero unless the member has observed
+// the current template generation.
+func translatePodObservedGeneration(observed int64, member native.FederatedGeneration, templateGeneration int64) int64 {
+	if observed == 0 || member.Generation <= 0 || member.ResourceTemplateGeneration <= 0 || templateGeneration <= 0 {
+		return 0
+	}
+	if observed < member.Generation || member.ResourceTemplateGeneration < templateGeneration {
+		return 0
+	}
+	return templateGeneration
 }
 
 // GetDependencies returns the dependent resources of the given object.

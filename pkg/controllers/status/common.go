@@ -39,6 +39,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
+	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
@@ -67,56 +68,61 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 
 		return scheduled
 	},
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		// Ignore the ResourceBinding/ClusterResourceBinding if it has not been scheduled.
-		// Relies on status.lastScheduledTime as the reliable indicator of successful scheduling because
-		// it is only set by the scheduler after successful scheduling.
-		// TODO(@RainbowMango): Currently the Scheduled condition is misleading as it may change during
-		// re-scheduling attempts, we need to revisit the design and provide a standard helper method to
-		// represents the schedule status.
-		var scheduled bool
-		switch bindingObj := e.ObjectNew.(type) {
-		case *workv1alpha2.ResourceBinding:
-			scheduled = bindingObj.Status.LastScheduledTime != nil
-		case *workv1alpha2.ClusterResourceBinding:
-			scheduled = bindingObj.Status.LastScheduledTime != nil
-		default:
-			return false
-		}
-		if !scheduled {
-			return false
-		}
-
-		var oldResourceVersion, newResourceVersion string
-
-		// NOTE: We add this logic to prevent the situation as following:
-		// 1. Create Deployment and HPA.
-		// 2. Propagate Deployment with divided policy and propagate HPA with duplicated policy.
-		// 3. HPA scaled up the Deployment in member clusters
-		// 4. deploymentreplicassyncer update Deployment's replicas based on Deployment's status in Kamarda control plane.
-		// 5. It will cause the Deployment.status.observedGeneration != Deployment.metadata.generation(this is needed in some workflow cases)
-		switch oldBinding := e.ObjectOld.(type) {
-		case *workv1alpha2.ResourceBinding:
-			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
-		case *workv1alpha2.ClusterResourceBinding:
-			oldResourceVersion = oldBinding.Spec.Resource.ResourceVersion
-		default:
-			return false
-		}
-
-		switch newBinding := e.ObjectNew.(type) {
-		case *workv1alpha2.ResourceBinding:
-			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
-		case *workv1alpha2.ClusterResourceBinding:
-			newResourceVersion = newBinding.Spec.Resource.ResourceVersion
-		default:
-			return false
-		}
-
-		return oldResourceVersion != newResourceVersion
-	},
+	UpdateFunc: shouldEnqueueBindingUpdate,
 	DeleteFunc: func(event.DeleteEvent) bool { return false },
 })
+
+// shouldEnqueueBindingUpdate also reacts to changes in effective placement.
+func shouldEnqueueBindingUpdate(e event.UpdateEvent) bool {
+	// Ignore the ResourceBinding/ClusterResourceBinding if it has not been scheduled.
+	// Relies on status.lastScheduledTime as the reliable indicator of successful scheduling because
+	// it is only set by the scheduler after successful scheduling.
+	// TODO(@RainbowMango): Currently the Scheduled condition is misleading as it may change during
+	// re-scheduling attempts, we need to revisit the design and provide a standard helper method to
+	// represents the schedule status.
+	var scheduled bool
+	switch bindingObj := e.ObjectNew.(type) {
+	case *workv1alpha2.ResourceBinding:
+		scheduled = bindingObj.Status.LastScheduledTime != nil
+	case *workv1alpha2.ClusterResourceBinding:
+		scheduled = bindingObj.Status.LastScheduledTime != nil
+	default:
+		return false
+	}
+	if !scheduled {
+		return false
+	}
+
+	var oldSpec, newSpec workv1alpha2.ResourceBindingSpec
+
+	// NOTE: We add this logic to prevent the situation as following:
+	// 1. Create Deployment and HPA.
+	// 2. Propagate Deployment with divided policy and propagate HPA with duplicated policy.
+	// 3. HPA scaled up the Deployment in member clusters
+	// 4. deploymentreplicassyncer update Deployment's replicas based on Deployment's status in Kamarda control plane.
+	// 5. It will cause the Deployment.status.observedGeneration != Deployment.metadata.generation(this is needed in some workflow cases)
+	switch oldBinding := e.ObjectOld.(type) {
+	case *workv1alpha2.ResourceBinding:
+		oldSpec = oldBinding.Spec
+	case *workv1alpha2.ClusterResourceBinding:
+		oldSpec = oldBinding.Spec
+	default:
+		return false
+	}
+
+	switch newBinding := e.ObjectNew.(type) {
+	case *workv1alpha2.ResourceBinding:
+		newSpec = newBinding.Spec
+	case *workv1alpha2.ClusterResourceBinding:
+		newSpec = newBinding.Spec
+	default:
+		return false
+	}
+
+	// A new target may exist before its Work produces any status.
+	return oldSpec.Resource.ResourceVersion != newSpec.Resource.ResourceVersion ||
+		!helper.ObtainBindingSpecExistingClusters(oldSpec).Equal(helper.ObtainBindingSpecExistingClusters(newSpec))
+}
 
 var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(event.CreateEvent) bool { return false },
@@ -151,9 +157,10 @@ func updateResourceStatus(
 	restMapper meta.RESTMapper,
 	interpreter resourceinterpreter.ResourceInterpreter,
 	eventRecorder record.EventRecorder,
-	objRef workv1alpha2.ObjectReference,
+	bindingSpec workv1alpha2.ResourceBindingSpec,
 	bindingStatus workv1alpha2.ResourceBindingStatus,
 ) error {
+	objRef := bindingSpec.Resource
 	gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(objRef.APIVersion, objRef.Kind))
 	if err != nil {
 		klog.Errorf("Failed to get GVR from GVK(%s/%s), Error: %v", objRef.APIVersion, objRef.Kind, err)
@@ -183,7 +190,13 @@ func updateResourceStatus(
 			return err
 		}
 
-		newObj, err := interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
+		var newObj *unstructured.Unstructured
+		if aware, ok := interpreter.(resourceinterpreter.PlacementAwareStatusInterpreter); ok {
+			newObj, err = aware.AggregateStatusWithPlacement(resource, bindingStatus.AggregatedStatus,
+				canPreserveSingleMemberPodStatus(bindingSpec, bindingStatus))
+		} else {
+			newObj, err = interpreter.AggregateStatus(resource, bindingStatus.AggregatedStatus)
+		}
 		if err != nil {
 			klog.Errorf("Failed to aggregate status for resource template(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 			return err
@@ -212,4 +225,16 @@ func updateResourceStatus(
 	}
 
 	return nil
+}
+
+// canPreserveSingleMemberPodStatus verifies that the one observed status also
+// corresponds to the sole target in the binding spec. Counting aggregated
+// statuses alone is insufficient: a Work for another target might not exist yet.
+func canPreserveSingleMemberPodStatus(spec workv1alpha2.ResourceBindingSpec, status workv1alpha2.ResourceBindingStatus) bool {
+	clusters := helper.ObtainBindingSpecExistingClusters(spec)
+	if len(clusters) != 1 || len(status.AggregatedStatus) != 1 {
+		return false
+	}
+	item := status.AggregatedStatus[0]
+	return item.Applied && item.Status != nil && clusters.Has(item.ClusterName)
 }

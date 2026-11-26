@@ -18,6 +18,7 @@ package native
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -43,6 +44,7 @@ func getAllDefaultReflectStatusInterpreter() map[schema.GroupVersionKind]reflect
 	s[appsv1.SchemeGroupVersion.WithKind(util.DeploymentKind)] = reflectDeploymentStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.ReplicaSetKind)] = reflectReplicaSetStatus
 	s[corev1.SchemeGroupVersion.WithKind(util.ServiceKind)] = reflectServiceStatus
+	s[corev1.SchemeGroupVersion.WithKind(util.PodKind)] = reflectPodStatus
 	s[networkingv1.SchemeGroupVersion.WithKind(util.IngressKind)] = reflectIngressStatus
 	s[batchv1.SchemeGroupVersion.WithKind(util.JobKind)] = reflectJobStatus
 	s[appsv1.SchemeGroupVersion.WithKind(util.DaemonSetKind)] = reflectDaemonSetStatus
@@ -156,6 +158,35 @@ func reflectReplicaSetStatus(object *unstructured.Unstructured) (*runtime.RawExt
 	}
 
 	return grabStatusRaw, nil
+}
+
+// reflectPodStatus includes member/template generations for status translation.
+func reflectPodStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
+	raw, err := reflectWholeStatus(object)
+	if err != nil || raw == nil {
+		return raw, err
+	}
+
+	var podStatus corev1.PodStatus
+	if err := json.Unmarshal(raw.Raw, &podStatus); err != nil {
+		return nil, fmt.Errorf("failed to decode PodStatus: %w", err)
+	}
+
+	var templateGeneration int64
+	annotation := util.GetAnnotationValue(object.GetAnnotations(), v1alpha2.ResourceTemplateGenerationAnnotationKey)
+	if annotation != "" {
+		if err := runtime.Convert_string_To_int64(&annotation, &templateGeneration, nil); err != nil {
+			return nil, fmt.Errorf("invalid Pod(%s/%s) resource template generation %q: %w", object.GetNamespace(), object.GetName(), annotation, err)
+		}
+	}
+
+	return helper.BuildStatusRawExtension(&WrappedPodStatus{
+		FederatedGeneration: FederatedGeneration{
+			Generation:                 object.GetGeneration(),
+			ResourceTemplateGeneration: templateGeneration,
+		},
+		PodStatus: podStatus,
+	})
 }
 
 func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtension, error) {
