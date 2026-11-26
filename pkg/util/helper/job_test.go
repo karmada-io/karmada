@@ -100,6 +100,41 @@ func TestParsingJobStatus(t *testing.T) {
 		"conditions":     []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue}},
 	}
 	rawJobFailed, _ := BuildStatusRawExtension(statusMapWithJobfailed)
+	statusMapWithFailureTargetAndFailed := map[string]any{
+		"active":         0,
+		"succeeded":      0,
+		"startTime":      testV1time,
+		"completionTime": testV1time,
+		"failed":         1,
+		"conditions": []batchv1.JobCondition{
+			{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: batchv1.JobReasonBackoffLimitExceeded},
+			{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: batchv1.JobReasonBackoffLimitExceeded},
+		},
+	}
+	rawJobFailedWithFailureTarget, _ := BuildStatusRawExtension(statusMapWithFailureTargetAndFailed)
+	statusMapWithFailureTargetOnly := map[string]any{
+		"active":     1,
+		"succeeded":  0,
+		"startTime":  testV1time,
+		"failed":     1,
+		"conditions": []batchv1.JobCondition{{Type: batchv1.JobFailureTarget, Status: corev1.ConditionTrue, Reason: batchv1.JobReasonBackoffLimitExceeded}},
+	}
+	rawFailureTargetOnly, _ := BuildStatusRawExtension(statusMapWithFailureTargetOnly)
+	statusMapActive := map[string]any{
+		"active":    1,
+		"succeeded": 0,
+		"startTime": testV1time,
+		"failed":    0,
+	}
+	rawActive, _ := BuildStatusRawExtension(statusMapActive)
+	existingFailureTarget := batchv1.JobCondition{
+		Type:               batchv1.JobFailureTarget,
+		Status:             corev1.ConditionTrue,
+		LastProbeTime:      testV1time,
+		LastTransitionTime: testV1time,
+		Reason:             batchv1.JobReasonBackoffLimitExceeded,
+		Message:            "Job reached failure target in member clusters memberB",
+	}
 	tests := []struct {
 		name                  string
 		job                   *batchv1.Job
@@ -156,6 +191,14 @@ func TestParsingJobStatus(t *testing.T) {
 				Failed: 2,
 				Conditions: []batchv1.JobCondition{
 					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job reached failure target in member clusters memberA,memberB",
+					},
+					{
 						Type:               batchv1.JobFailed,
 						Status:             corev1.ConditionTrue,
 						LastProbeTime:      testV1time,
@@ -166,6 +209,120 @@ func TestParsingJobStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "member reports FailureTarget and Failed",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: raw},
+				{ClusterName: "memberB", Status: rawJobFailedWithFailureTarget},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Succeeded: 1,
+				Failed:    1,
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             batchv1.JobReasonBackoffLimitExceeded,
+						Message:            "Job reached failure target in member clusters memberB",
+					},
+					{
+						Type:               batchv1.JobFailed,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberB",
+					},
+				},
+			},
+		},
+		{
+			name: "mixed states: one FailureTarget while another is active",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: rawActive},
+				{ClusterName: "memberB", Status: rawFailureTargetOnly},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Active: 2,
+				Failed: 1,
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:               batchv1.JobFailureTarget,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             batchv1.JobReasonBackoffLimitExceeded,
+						Message:            "Job reached failure target in member clusters memberB",
+					},
+				},
+			},
+		},
+		{
+			name: "preserves existing FailureTarget while transitioning to Failed",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{existingFailureTarget},
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: raw},
+				{ClusterName: "memberB", Status: rawJobFailedWithFailureTarget},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Succeeded: 1,
+				Failed:    1,
+				Conditions: []batchv1.JobCondition{
+					existingFailureTarget,
+					{
+						Type:               batchv1.JobFailed,
+						Status:             corev1.ConditionTrue,
+						LastProbeTime:      testV1time,
+						LastTransitionTime: testV1time,
+						Reason:             "JobFailed",
+						Message:            "Job executed failed in member clusters memberB",
+					},
+				},
+			},
+		},
+		{
+			name: "preserves existing FailureTarget and suppresses Complete if failing member disappears",
+			job: &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "bar",
+				},
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{existingFailureTarget},
+				},
+			},
+			aggregatedStatusItems: []workv1alpha2.AggregatedStatusItem{
+				{ClusterName: "memberA", Status: raw},
+			},
+			expectedJobStatus: &batchv1.JobStatus{
+				Succeeded: 1,
+				Conditions: []batchv1.JobCondition{
+					existingFailureTarget,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -173,6 +330,11 @@ func TestParsingJobStatus(t *testing.T) {
 			res, err := ParsingJobStatus(tt.job, tt.aggregatedStatusItems)
 			if err != nil {
 				t.Fatalf("failed to parse job status, err: %v", err)
+			}
+			if tt.name == "preserves existing FailureTarget and suppresses Complete if failing member disappears" {
+				if res.CompletionTime != nil {
+					t.Errorf("expected CompletionTime to be nil when Complete is suppressed, got: %v", res.CompletionTime)
+				}
 			}
 			// Do not compare times to avoid time errors due to processor processing
 			res.StartTime = nil
