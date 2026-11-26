@@ -91,12 +91,12 @@ func (se *SchedulerEstimator) GetUnschedulableReplicas(
 func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, cluster string, namespace string, components []workv1alpha2.Component, assumedWorkloads []AssumedWorkload) (int32, error) {
 	client, err := se.cache.GetClient(cluster)
 	if err != nil {
-		return 0, err
+		return UnauthenticReplica, err
 	}
 
 	pbComponents, err := toPBComponents(components)
 	if err != nil {
-		return 0, err
+		return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 	}
 
 	pbReq := &pb.MaxAvailableComponentSetsRequest{
@@ -110,7 +110,7 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, clu
 		for i, aw := range assumedWorkloads {
 			awComponents, err := toPBComponents(aw.Components)
 			if err != nil {
-				return 0, err
+				return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 			}
 			pbReq.AssumedWorkloads[i] = &pb.AssumedWorkload{
 				Namespace:  aw.Namespace,
@@ -121,7 +121,7 @@ func (se *SchedulerEstimator) maxAvailableComponentSets(ctx context.Context, clu
 
 	res, err := client.MaxAvailableComponentSets(ctx, pbReq)
 	if err != nil {
-		return 0, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableComponentSets: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableComponentSets: %w", cluster, err)
 	}
 	return res.MaxSets, nil
 }
@@ -192,17 +192,17 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 			PriorityClassName: replicaRequirements.PriorityClassName,
 		}
 		if err = req.ReplicaRequirements.SetResourceRequest(replicaRequirements.ResourceRequest); err != nil {
-			return UnauthenticReplica, err
+			return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 		}
 		if replicaRequirements.NodeClaim != nil {
 			req.ReplicaRequirements.NodeClaim = &pb.NodeClaim{
 				NodeSelector: replicaRequirements.NodeClaim.NodeSelector,
 			}
 			if err = req.ReplicaRequirements.NodeClaim.SetNodeAffinity(replicaRequirements.NodeClaim.HardNodeAffinity); err != nil {
-				return UnauthenticReplica, err
+				return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 			}
 			if err = req.ReplicaRequirements.NodeClaim.SetTolerations(replicaRequirements.NodeClaim.Tolerations); err != nil {
-				return UnauthenticReplica, err
+				return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 			}
 		}
 	}
@@ -211,14 +211,14 @@ func (se *SchedulerEstimator) maxAvailableReplicas(ctx context.Context, cluster 
 		for _, aw := range assumedWorkloads {
 			pbAW, err := toAssumedWorkload(aw)
 			if err != nil {
-				return UnauthenticReplica, err
+				return UnauthenticReplica, fmt.Errorf("cluster %s: %w", cluster, err)
 			}
 			req.AssumedWorkloads = append(req.AssumedWorkloads, pbAW)
 		}
 	}
 	res, err := client.MaxAvailableReplicas(ctx, req)
 	if err != nil {
-		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling MaxAvailableReplicas: %w", cluster, err)
 	}
 	return res.MaxReplicas, nil
 }
@@ -246,7 +246,7 @@ func (se *SchedulerEstimator) maxUnscheduableReplicas(
 	}
 	res, err := client.GetUnschedulableReplicas(ctx, req)
 	if err != nil {
-		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %v", cluster, err)
+		return UnauthenticReplica, fmt.Errorf("gRPC request cluster(%s) estimator error when calling UnschedulableReplicas: %w", cluster, err)
 	}
 	return res.UnschedulableReplicas, nil
 }
@@ -267,6 +267,9 @@ func getClusterReplicasConcurrently(parentCtx context.Context, clusters []string
 		funcs[index] = func() error {
 			replicas, err := getClusterReplicas(ctx, localCluster)
 			if err != nil {
+				// Keep the per-cluster contract valid even when this cluster fails:
+				// callers can still use the results of the remaining clusters.
+				clusterReplicas[localIndex] = workv1alpha2.TargetCluster{Name: localCluster, Replicas: UnauthenticReplica}
 				return err
 			}
 			clusterReplicas[localIndex] = workv1alpha2.TargetCluster{Name: localCluster, Replicas: replicas}
@@ -296,6 +299,9 @@ func getClusterComponentSetsConcurrently(
 		funcs[i] = func() error {
 			sets, err := getClusterSetsEstimation(ctx, localCluster.Name)
 			if err != nil {
+				// Keep the per-cluster contract valid even when this cluster fails:
+				// callers can still use the results of the remaining clusters.
+				results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: UnauthenticReplica}
 				return err
 			}
 			results[localIndex] = ComponentSetEstimationResponse{Name: localCluster.Name, Sets: sets}

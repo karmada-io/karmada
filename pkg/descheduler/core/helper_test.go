@@ -19,15 +19,19 @@ package core
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"testing"
 	"time"
 
+	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/estimator/client"
+	"github.com/karmada-io/karmada/pkg/estimator/pb"
+	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
 )
 
 func TestNewSchedulingResultHelper(t *testing.T) {
@@ -363,4 +367,72 @@ func (m *mockUnschedulableReplicaEstimator) GetUnschedulableReplicas(_ context.C
 		result[i] = workv1alpha2.TargetCluster{Name: cluster, Replicas: replicas}
 	}
 	return result, nil
+}
+
+// fakeAccurateEstimatorClient is a stub EstimatorClient used to exercise the real
+// SchedulerEstimator through the descheduler helper.
+type fakeAccurateEstimatorClient struct {
+	unschedulable int32
+}
+
+func (f *fakeAccurateEstimatorClient) MaxAvailableReplicas(context.Context, *pb.MaxAvailableReplicasRequest, ...grpc.CallOption) (*pb.MaxAvailableReplicasResponse, error) {
+	return &pb.MaxAvailableReplicasResponse{}, nil
+}
+
+func (f *fakeAccurateEstimatorClient) MaxAvailableComponentSets(context.Context, *pb.MaxAvailableComponentSetsRequest, ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error) {
+	return &pb.MaxAvailableComponentSetsResponse{}, nil
+}
+
+func (f *fakeAccurateEstimatorClient) GetUnschedulableReplicas(context.Context, *pb.UnschedulableReplicasRequest, ...grpc.CallOption) (*pb.UnschedulableReplicasResponse, error) {
+	return &pb.UnschedulableReplicasResponse{UnschedulableReplicas: f.unschedulable}, nil
+}
+
+var _ estimatorservice.EstimatorClient = (*fakeAccurateEstimatorClient)(nil)
+
+func TestFillUnschedulableReplicas_AccurateEstimatorPartialFailure(t *testing.T) {
+	cache := client.NewSchedulerEstimatorCache()
+	cache.AddCluster("cluster2", nil, &fakeAccurateEstimatorClient{unschedulable: 5})
+	se := client.NewSchedulerEstimator(cache, time.Second)
+
+	estimators := client.GetUnschedulableReplicaEstimators()
+	snapshot := make(map[string]client.UnschedulableReplicaEstimator, len(estimators))
+	maps.Copy(snapshot, estimators)
+	t.Cleanup(func() {
+		for name := range estimators {
+			delete(estimators, name)
+		}
+		maps.Copy(estimators, snapshot)
+	})
+	estimators["scheduler-estimator"] = se
+
+	helper := &SchedulingResultHelper{
+		ResourceBinding: &workv1alpha2.ResourceBinding{
+			Spec: workv1alpha2.ResourceBindingSpec{
+				Resource: workv1alpha2.ObjectReference{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       "test-deployment",
+					Namespace:  "default",
+				},
+			},
+		},
+		TargetClusterReplicaStatus: []*ClusterReplicaStatus{
+			{ClusterName: "cluster1", Spec: 3, Ready: 2},
+			{ClusterName: "cluster2", Spec: 2, Ready: 1},
+		},
+	}
+
+	helper.FillUnschedulableReplicas(time.Minute)
+
+	// The estimator returns a partial result together with an error because cluster1
+	// has no estimator. This is a characterization test: the descheduler must keep its
+	// conservative all-or-nothing behaviour and leave both clusters at zero
+	// unschedulable replicas, regardless of the partial result shape.
+	expected := []*ClusterReplicaStatus{
+		{ClusterName: "cluster1", Spec: 3, Ready: 2, Unschedulable: 0},
+		{ClusterName: "cluster2", Spec: 2, Ready: 1, Unschedulable: 0},
+	}
+	if !reflect.DeepEqual(helper.TargetClusterReplicaStatus, expected) {
+		t.Errorf("FillUnschedulableReplicas() = %v, want %v", helper.TargetClusterReplicaStatus, expected)
+	}
 }

@@ -18,6 +18,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -26,7 +27,9 @@ import (
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/estimator/pb"
 	estimatorservice "github.com/karmada-io/karmada/pkg/estimator/service"
@@ -50,7 +53,7 @@ func (f *fakeEstimatorClient) MaxAvailableReplicas(_ context.Context, in *pb.Max
 }
 
 func (f *fakeEstimatorClient) MaxAvailableComponentSets(_ context.Context, _ *pb.MaxAvailableComponentSetsRequest, _ ...grpc.CallOption) (*pb.MaxAvailableComponentSetsResponse, error) {
-	return nil, nil
+	return &pb.MaxAvailableComponentSetsResponse{}, nil
 }
 
 func (f *fakeEstimatorClient) GetUnschedulableReplicas(_ context.Context, _ *pb.UnschedulableReplicasRequest, _ ...grpc.CallOption) (*pb.UnschedulableReplicasResponse, error) {
@@ -220,4 +223,160 @@ func Test_maxAvailableReplicas_assumedWorkloads(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getClusterReplicasConcurrently(t *testing.T) {
+	clusters := []string{"cluster1", "cluster2"}
+	unavailable := errors.New("cluster1 unavailable")
+
+	tests := []struct {
+		name     string
+		replicas map[string]int32
+		failures map[string]error
+		want     []workv1alpha2.TargetCluster
+		wantErr  bool
+	}{
+		{
+			name:     "all clusters succeed",
+			replicas: map[string]int32{"cluster1": 3, "cluster2": 5},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 3},
+				{Name: "cluster2", Replicas: 5},
+			},
+		},
+		{
+			name:     "one cluster fails, successful results are preserved",
+			replicas: map[string]int32{"cluster2": 3},
+			failures: map[string]error{"cluster1": unavailable},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: UnauthenticReplica},
+				{Name: "cluster2", Replicas: 3},
+			},
+			wantErr: true,
+		},
+		{
+			name:     "all clusters fail",
+			failures: map[string]error{"cluster1": unavailable, "cluster2": unavailable},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: UnauthenticReplica},
+				{Name: "cluster2", Replicas: UnauthenticReplica},
+			},
+			wantErr: true,
+		},
+		{
+			name:     "zero replicas is authoritative",
+			replicas: map[string]int32{"cluster1": 0, "cluster2": 0},
+			want: []workv1alpha2.TargetCluster{
+				{Name: "cluster1", Replicas: 0},
+				{Name: "cluster2", Replicas: 0},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getClusterReplicasConcurrently(context.Background(), clusters, time.Second, func(_ context.Context, cluster string) (int32, error) {
+				if err, ok := tt.failures[cluster]; ok {
+					return UnauthenticReplica, err
+				}
+				return tt.replicas[cluster], nil
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_getClusterComponentSetsConcurrently(t *testing.T) {
+	clusters := []*clusterv1alpha1.Cluster{
+		{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "cluster2"}},
+	}
+	unavailable := errors.New("cluster1 unavailable")
+
+	tests := []struct {
+		name     string
+		sets     map[string]int32
+		failures map[string]error
+		want     []ComponentSetEstimationResponse
+		wantErr  bool
+	}{
+		{
+			name: "all clusters succeed",
+			sets: map[string]int32{"cluster1": 3, "cluster2": 5},
+			want: []ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: 3},
+				{Name: "cluster2", Sets: 5},
+			},
+		},
+		{
+			name: "zero sets are authoritative",
+			sets: map[string]int32{"cluster1": 0, "cluster2": 0},
+			want: []ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: 0},
+				{Name: "cluster2", Sets: 0},
+			},
+		},
+		{
+			name:     "one cluster fails, successful results are preserved",
+			sets:     map[string]int32{"cluster2": 3},
+			failures: map[string]error{"cluster1": unavailable},
+			want: []ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: UnauthenticReplica},
+				{Name: "cluster2", Sets: 3},
+			},
+			wantErr: true,
+		},
+		{
+			name:     "all clusters fail",
+			failures: map[string]error{"cluster1": unavailable, "cluster2": unavailable},
+			want: []ComponentSetEstimationResponse{
+				{Name: "cluster1", Sets: UnauthenticReplica},
+				{Name: "cluster2", Sets: UnauthenticReplica},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := getClusterComponentSetsConcurrently(context.Background(), clusters, time.Second, func(_ context.Context, cluster string) (int32, error) {
+				if err, ok := tt.failures[cluster]; ok {
+					// Return a value that is not the sentinel to prove the wrapper
+					// overrides it with UnauthenticReplica on error.
+					return 0, err
+				}
+				return tt.sets[cluster], nil
+			})
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestSchedulerEstimator_MaxAvailableReplicas_partialFailure(t *testing.T) {
+	cache := NewSchedulerEstimatorCache()
+	cache.AddCluster("cluster2", nil, &fakeEstimatorClient{maxReplicas: 3})
+	se := NewSchedulerEstimator(cache, time.Second)
+
+	got, err := se.MaxAvailableReplicas(context.Background(), ReplicaEstimationRequest{
+		Clusters: []*clusterv1alpha1.Cluster{
+			{ObjectMeta: metav1.ObjectMeta{Name: "cluster1"}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "cluster2"}},
+		},
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, []workv1alpha2.TargetCluster{
+		{Name: "cluster1", Replicas: UnauthenticReplica},
+		{Name: "cluster2", Replicas: 3},
+	}, got)
 }
