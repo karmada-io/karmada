@@ -38,7 +38,8 @@ func isRemedyWorkOnCluster(remedy *remedyv1alpha1.Remedy, cluster *clusterv1alph
 }
 
 func remedyDecisionMatchWithCluster(decisionMatches []remedyv1alpha1.DecisionMatch, conditions []metav1.Condition) bool {
-	if decisionMatches == nil {
+	// An explicitly empty list, which is how `decisionMatches: []` is decoded, means the same as an omitted field.
+	if len(decisionMatches) == 0 {
 		return true
 	}
 
