@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
 // ValidatingAdmission validates ClusterTaintPolicy object when creating/updating.
@@ -66,6 +67,21 @@ func validatePolicySpec(spec policyv1alpha1.ClusterTaintPolicySpec, allowNoExecu
 
 func validatePolicyTaints(taints []policyv1alpha1.Taint, fldPath *field.Path, allowNoExecute bool) field.ErrorList {
 	var allErrs field.ErrorList
+
+	// The taints are applied to Cluster objects, and the Cluster API validates its taints (key, value and effect).
+	// Apply the same validation here, otherwise a policy with an invalid taint would be admitted, but the update
+	// of a Cluster that adds this taint would be rejected, so the taint could never be applied.
+	// Duplicates are reported by the check below, so they are skipped here to avoid reporting them twice.
+	clusterTaints := make([]corev1.Taint, 0, len(taints))
+	for i := range taints {
+		clusterTaints = append(clusterTaints, corev1.Taint{Key: taints[i].Key, Value: taints[i].Value, Effect: taints[i].Effect})
+	}
+	for _, err := range lifted.ValidateClusterTaints(clusterTaints, fldPath) {
+		if err.Type != field.ErrorTypeDuplicate {
+			allErrs = append(allErrs, err)
+		}
+	}
+
 	for i := range taints {
 		if !allowNoExecute && taints[i].Effect == corev1.TaintEffectNoExecute {
 			allErrs = append(allErrs, field.Forbidden(fldPath.Index(i), "Configuring taint with NoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"))

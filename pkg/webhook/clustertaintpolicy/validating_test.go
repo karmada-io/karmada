@@ -21,11 +21,15 @@ import (
 	"errors"
 	"net/http"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	unversionedvalidation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -43,7 +47,7 @@ func TestValidatePolicyTaints(t *testing.T) {
 			name: "Non-repeating key-value pairs",
 			taints: []policyv1alpha1.Taint{
 				{Key: "key1", Effect: "NoSchedule"},
-				{Key: "key2", Effect: "PreferNoSchedule"},
+				{Key: "key2", Effect: "NoExecute"},
 			},
 			allowNoExecute: true,
 			expected:       field.ErrorList{},
@@ -63,7 +67,7 @@ func TestValidatePolicyTaints(t *testing.T) {
 			name: "Some duplicate key-value pairs",
 			taints: []policyv1alpha1.Taint{
 				{Key: "key1", Effect: "NoSchedule"},
-				{Key: "key2", Effect: "PreferNoSchedule"},
+				{Key: "key2", Effect: "NoExecute"},
 				{Key: "key1", Effect: "NoSchedule"},
 			},
 			allowNoExecute: true,
@@ -75,15 +79,15 @@ func TestValidatePolicyTaints(t *testing.T) {
 			name: "Multi duplicate key-value pairs",
 			taints: []policyv1alpha1.Taint{
 				{Key: "key1", Effect: "NoSchedule"},
-				{Key: "key2", Effect: "SelectiveNoSchedule", Value: "value1"},
+				{Key: "key2", Effect: "NoExecute", Value: "value1"},
 				{Key: "key1", Effect: "NoSchedule"},
 				{Key: "key3", Effect: "NoExecute"},
-				{Key: "key2", Effect: "SelectiveNoSchedule"},
+				{Key: "key2", Effect: "NoExecute"},
 			},
 			allowNoExecute: true,
 			expected: field.ErrorList{
 				field.Duplicate(field.NewPath("spec").Child("taints").Index(0), "Duplicate taint with the same key(key1) and effect(NoSchedule) is not allowed"),
-				field.Duplicate(field.NewPath("spec").Child("taints").Index(1), "Duplicate taint with the same key(key2) and effect(SelectiveNoSchedule) is not allowed"),
+				field.Duplicate(field.NewPath("spec").Child("taints").Index(1), "Duplicate taint with the same key(key2) and effect(NoExecute) is not allowed"),
 			},
 		},
 		{
@@ -94,6 +98,79 @@ func TestValidatePolicyTaints(t *testing.T) {
 			allowNoExecute: false,
 			expected: field.ErrorList{
 				field.Forbidden(field.NewPath("spec").Child("taints").Index(0), "Configuring taint with NoExecute effect is not allowed, this capability must be explicitly enabled by administrators through command-line flags"),
+			},
+		},
+		{
+			name: "Valid taint with a qualified key and a value",
+			taints: []policyv1alpha1.Taint{
+				{Key: "example.com/cluster-unhealthy", Value: "v1", Effect: corev1.TaintEffectNoSchedule},
+			},
+			allowNoExecute: true,
+			expected:       field.ErrorList{},
+		},
+		{
+			name: "Effect that Cluster does not support is rejected",
+			taints: []policyv1alpha1.Taint{
+				{Key: "key1", Effect: "PreferNoSchedule"},
+			},
+			allowNoExecute: true,
+			expected: field.ErrorList{
+				field.NotSupported(field.NewPath("spec").Child("taints").Index(0).Child("effect"), corev1.TaintEffect("PreferNoSchedule"),
+					[]string{string(corev1.TaintEffectNoSchedule), string(corev1.TaintEffectNoExecute)}),
+			},
+		},
+		{
+			name: "Empty effect is rejected",
+			taints: []policyv1alpha1.Taint{
+				{Key: "key1"},
+			},
+			allowNoExecute: true,
+			expected: field.ErrorList{
+				field.Required(field.NewPath("spec").Child("taints").Index(0).Child("effect"), ""),
+			},
+		},
+		{
+			name: "Invalid key is rejected",
+			taints: []policyv1alpha1.Taint{
+				{Key: "not a valid key", Effect: corev1.TaintEffectNoSchedule},
+			},
+			allowNoExecute: true,
+			expected: unversionedvalidation.ValidateLabelName("not a valid key",
+				field.NewPath("spec").Child("taints").Index(0).Child("key")),
+		},
+		{
+			name: "Empty key is rejected",
+			taints: []policyv1alpha1.Taint{
+				{Effect: corev1.TaintEffectNoSchedule},
+			},
+			allowNoExecute: true,
+			expected: unversionedvalidation.ValidateLabelName("",
+				field.NewPath("spec").Child("taints").Index(0).Child("key")),
+		},
+		{
+			name: "Invalid value is rejected",
+			taints: []policyv1alpha1.Taint{
+				{Key: "key1", Value: "not a valid value!", Effect: corev1.TaintEffectNoSchedule},
+			},
+			allowNoExecute: true,
+			expected: field.ErrorList{
+				field.Invalid(field.NewPath("spec").Child("taints").Index(0).Child("value"), "not a valid value!",
+					strings.Join(validation.IsValidLabelValue("not a valid value!"), ";")),
+			},
+		},
+		{
+			name: "Invalid taints are reported once, together with duplicates",
+			taints: []policyv1alpha1.Taint{
+				{Key: "key1", Effect: "PreferNoSchedule"},
+				{Key: "key1", Effect: "PreferNoSchedule"},
+			},
+			allowNoExecute: true,
+			expected: field.ErrorList{
+				field.NotSupported(field.NewPath("spec").Child("taints").Index(0).Child("effect"), corev1.TaintEffect("PreferNoSchedule"),
+					[]string{string(corev1.TaintEffectNoSchedule), string(corev1.TaintEffectNoExecute)}),
+				field.NotSupported(field.NewPath("spec").Child("taints").Index(1).Child("effect"), corev1.TaintEffect("PreferNoSchedule"),
+					[]string{string(corev1.TaintEffectNoSchedule), string(corev1.TaintEffectNoExecute)}),
+				field.Duplicate(field.NewPath("spec").Child("taints").Index(0), "Duplicate taint with the same key(key1) and effect(PreferNoSchedule) is not allowed"),
 			},
 		},
 	}
@@ -137,7 +214,7 @@ func TestHandle(t *testing.T) {
 				Spec: policyv1alpha1.ClusterTaintPolicySpec{
 					Taints: []policyv1alpha1.Taint{
 						{Key: "key1", Effect: "NoSchedule"},
-						{Key: "key2", Effect: "PreferNoSchedule"},
+						{Key: "key2", Effect: "NoSchedule"},
 					},
 				},
 			},
@@ -153,13 +230,28 @@ func TestHandle(t *testing.T) {
 				Spec: policyv1alpha1.ClusterTaintPolicySpec{
 					Taints: []policyv1alpha1.Taint{
 						{Key: "key1", Effect: "NoSchedule"},
-						{Key: "key2", Effect: "PreferNoSchedule"},
+						{Key: "key2", Effect: "NoSchedule"},
 						{Key: "key1", Effect: "NoSchedule"},
 					},
 				},
 			},
 			expectedCode: http.StatusForbidden,
 			expectedMsg:  "spec.taints[0]: Duplicate value: \"Duplicate taint with the same key(key1) and effect(NoSchedule) is not allowed\"",
+		},
+		{
+			name: "Validation failed for a taint that Cluster would reject",
+			decodeObj: &policyv1alpha1.ClusterTaintPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "policy1",
+				},
+				Spec: policyv1alpha1.ClusterTaintPolicySpec{
+					Taints: []policyv1alpha1.Taint{
+						{Key: "key1", Effect: "PreferNoSchedule"},
+					},
+				},
+			},
+			expectedCode: http.StatusForbidden,
+			expectedMsg:  "spec.taints[0].effect: Unsupported value: \"PreferNoSchedule\": supported values: \"NoSchedule\", \"NoExecute\"",
 		},
 	}
 
