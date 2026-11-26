@@ -27,26 +27,26 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
-// TODO(Garrybest): make it as an option
-var supportedGVKs = []schema.GroupVersionKind{
+// DefaultSupportedGVKs lists the workload types the descheduler handles when none are configured.
+var DefaultSupportedGVKs = []schema.GroupVersionKind{
 	appsv1.SchemeGroupVersion.WithKind("Deployment"),
 }
 
 // FilterBindings will filter ResourceBindings that could be descheduled
 // based on their GVK and applied placement.
-func FilterBindings(bindings []*workv1alpha2.ResourceBinding) []*workv1alpha2.ResourceBinding {
+func FilterBindings(bindings []*workv1alpha2.ResourceBinding, supportedGVKs []schema.GroupVersionKind) []*workv1alpha2.ResourceBinding {
 	var res []*workv1alpha2.ResourceBinding
 	for _, binding := range bindings {
-		if validateGVK(&binding.Spec.Resource) && validatePlacement(binding) {
+		if validateGVK(&binding.Spec.Resource, supportedGVKs) && validatePlacement(binding) {
 			res = append(res, binding)
 		}
 	}
 	return res
 }
 
-func validateGVK(reference *workv1alpha2.ObjectReference) bool {
-	gvr := schema.FromAPIVersionAndKind(reference.APIVersion, reference.Kind)
-	return slices.Contains(supportedGVKs, gvr)
+func validateGVK(reference *workv1alpha2.ObjectReference, supportedGVKs []schema.GroupVersionKind) bool {
+	gvk := schema.FromAPIVersionAndKind(reference.APIVersion, reference.Kind)
+	return slices.Contains(supportedGVKs, gvk)
 }
 
 func validatePlacement(binding *workv1alpha2.ResourceBinding) bool {

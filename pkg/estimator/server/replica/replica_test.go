@@ -26,8 +26,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	listappsv1 "k8s.io/client-go/listers/apps/v1"
 	listcorev1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/tools/cache"
 )
 
 func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
@@ -246,8 +248,8 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "unsupported workload kind",
-			// Create a StatefulSet workload which is not supported
+			name: "workload without UID",
+			// Pods of non-Deployment workloads are matched by owner UID, so a UID is required
 			workload: &unstructured.Unstructured{
 				Object: map[string]any{
 					"apiVersion": "apps/v1",
@@ -385,6 +387,7 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 			listers := &ListerWrapper{
 				PodLister:        podLister,
 				ReplicaSetLister: rsLister,
+				PodIndexer:       newPodIndexer(t, tt.pods),
 			}
 
 			result, err := GetUnschedulablePodsOfWorkload(tt.workload, tt.threshold, listers)
@@ -397,6 +400,113 @@ func TestGetUnschedulablePodsOfWorkload(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestGetUnschedulablePodsOfCustomWorkload(t *testing.T) {
+	now := time.Now()
+	controller := true
+	owner := func(apiVersion, kind, name, uid string) []metav1.OwnerReference {
+		return []metav1.OwnerReference{{APIVersion: apiVersion, Kind: kind, Name: name, UID: types.UID(uid), Controller: &controller}}
+	}
+	pod := func(name string, owners []metav1.OwnerReference, unschedulable bool) *corev1.Pod {
+		p := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default", OwnerReferences: owners}}
+		cond := corev1.PodCondition{Type: corev1.PodScheduled, Status: corev1.ConditionTrue}
+		if unschedulable {
+			cond = corev1.PodCondition{
+				Type:               corev1.PodScheduled,
+				Status:             corev1.ConditionFalse,
+				Reason:             corev1.PodReasonUnschedulable,
+				LastTransitionTime: metav1.Time{Time: now.Add(-10 * time.Minute)},
+			}
+		}
+		p.Status.Conditions = []corev1.PodCondition{cond}
+		return p
+	}
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "batch.volcano.sh/v1alpha1",
+		"kind":       "Job",
+		"metadata": map[string]any{
+			"name":      "train",
+			"namespace": "default",
+			"uid":       "job-uid",
+		},
+	}}
+
+	replicaSets := []*appsv1.ReplicaSet{
+		{ObjectMeta: metav1.ObjectMeta{Name: "train-rs", Namespace: "default", UID: "rs-uid",
+			OwnerReferences: owner("batch.volcano.sh/v1alpha1", "Job", "train", "job-uid")}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "other-rs", Namespace: "default", UID: "other-rs-uid",
+			OwnerReferences: owner("apps/v1", "Deployment", "other", "other-uid")}},
+	}
+	pods := []*corev1.Pod{
+		// owned directly by the workload
+		pod("direct-pending", owner("batch.volcano.sh/v1alpha1", "Job", "train", "job-uid"), true),
+		pod("direct-running", owner("batch.volcano.sh/v1alpha1", "Job", "train", "job-uid"), false),
+		// owned through a ReplicaSet that the workload controls
+		pod("rs-pending-1", owner("apps/v1", "ReplicaSet", "train-rs", "rs-uid"), true),
+		pod("rs-pending-2", owner("apps/v1", "ReplicaSet", "train-rs", "rs-uid"), true),
+		// not owned by the workload
+		pod("other-rs-pending", owner("apps/v1", "ReplicaSet", "other-rs", "other-rs-uid"), true),
+		pod("stale-rs-ref-pending", owner("apps/v1", "ReplicaSet", "train-rs", "old-rs-uid"), true),
+		pod("missing-rs-pending", owner("apps/v1", "ReplicaSet", "gone-rs", "gone-uid"), true),
+		pod("same-name-other-job", owner("batch.volcano.sh/v1alpha1", "Job", "train", "old-job-uid"), true),
+		pod("orphan-pending", nil, true),
+	}
+
+	listers := &ListerWrapper{
+		PodLister:        &mockPodLister{pods: map[string][]*corev1.Pod{"default": pods}},
+		ReplicaSetLister: &mockReplicaSetLister{replicaSets: map[string][]*appsv1.ReplicaSet{"default": replicaSets}},
+		PodIndexer:       newPodIndexer(t, pods),
+	}
+
+	got, err := GetUnschedulablePodsOfWorkload(workload, 5*time.Minute, listers)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(3), got)
+
+	// Pods that turned unschedulable within the threshold don't count yet.
+	got, err = GetUnschedulablePodsOfWorkload(workload, time.Hour, listers)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(0), got)
+
+	// A custom resource that is also called Deployment is matched by owner references,
+	// not through the ReplicaSets of a built-in Deployment.
+	customDeployment := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.com/v1",
+		"kind":       "Deployment",
+		"metadata":   map[string]any{"name": "custom", "namespace": "default", "uid": "custom-uid"},
+	}}
+	customPods := []*corev1.Pod{
+		pod("custom-pending", owner("example.com/v1", "Deployment", "custom", "custom-uid"), true),
+	}
+	listers.PodLister = &mockPodLister{pods: map[string][]*corev1.Pod{"default": customPods}}
+	listers.PodIndexer = newPodIndexer(t, customPods)
+	got, err = GetUnschedulablePodsOfWorkload(customDeployment, 5*time.Minute, listers)
+	assert.NoError(t, err)
+	assert.Equal(t, int32(1), got)
+}
+
+func newPodIndexer(t *testing.T, pods []*corev1.Pod) cache.Indexer {
+	t.Helper()
+	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{PodsByControllerUIDIndex: IndexPodByControllerUID})
+	for _, pod := range pods {
+		if err := indexer.Add(pod); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return indexer
+}
+
+func TestListControlledPodsNeedsIndexer(t *testing.T) {
+	workload := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "batch.volcano.sh/v1alpha1",
+		"kind":       "Job",
+		"metadata":   map[string]any{"name": "train", "namespace": "default", "uid": "job-uid"},
+	}}
+	_, err := GetUnschedulablePodsOfWorkload(workload, 0, &ListerWrapper{
+		PodLister:        &mockPodLister{},
+		ReplicaSetLister: &mockReplicaSetLister{},
+	})
+	assert.Error(t, err)
 }
 
 func TestPodUnschedulable(t *testing.T) {

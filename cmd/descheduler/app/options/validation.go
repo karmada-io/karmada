@@ -41,5 +41,10 @@ func (o *Options) Validate() field.ErrorList {
 		errs = append(errs, field.Invalid(newPath.Child("UnschedulableThreshold"), o.UnschedulableThreshold, "must be greater than or equal to 0"))
 	}
 
+	_, gvkErrs := o.SupportedWorkloadGVKs()
+	for _, err := range gvkErrs {
+		errs = append(errs, field.Invalid(newPath.Child("SupportedWorkloads"), o.SupportedWorkloads, err.Error()))
+	}
+
 	return errs
 }
