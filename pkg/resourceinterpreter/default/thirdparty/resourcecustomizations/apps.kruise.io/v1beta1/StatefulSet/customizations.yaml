@@ -178,5 +178,22 @@ spec:
         local kube = require("kube")
         function GetDependencies(desiredObj)
           refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
-          return refs
+          if refs == nil or desiredObj.spec.volumeClaimTemplates == nil then
+            return refs
+          end
+          -- PVCs named after a volumeClaimTemplate are created and managed by the
+          -- StatefulSet in member clusters, so they are not real dependencies.
+          local vctNames = {}
+          for _, vct in ipairs(desiredObj.spec.volumeClaimTemplates) do
+            if vct.metadata ~= nil and vct.metadata.name ~= nil then
+              vctNames[vct.metadata.name] = true
+            end
+          end
+          local validRefs = {}
+          for _, ref in ipairs(refs) do
+            if not (ref.kind == "PersistentVolumeClaim" and vctNames[ref.name]) then
+              table.insert(validRefs, ref)
+            end
+          end
+          return validRefs
         end
