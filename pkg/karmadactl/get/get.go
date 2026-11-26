@@ -378,8 +378,9 @@ func (g *CommandGetOptions) Run(f util.Factory, args []string) error {
 	}
 
 	if !g.IsHumanReadablePrinter {
-		// have printed objects in yaml or json format above
-		return nil
+		// objects have already been printed in yaml or json format above,
+		// but errors collected while fetching or printing must still be returned
+		return utilerrors.NewAggregate(allErrs)
 	}
 
 	// sort objects by resource kind to classify them
