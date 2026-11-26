@@ -171,6 +171,22 @@ func Test_remedyDecisionMatchWithCluster(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "empty decisionMatches",
+			args: args{
+				decisionMatches: []remedyv1alpha1.DecisionMatch{},
+				conditions:      []metav1.Condition{},
+			},
+			want: true,
+		},
+		{
+			name: "empty decisionMatches with nil conditions",
+			args: args{
+				decisionMatches: []remedyv1alpha1.DecisionMatch{},
+				conditions:      nil,
+			},
+			want: true,
+		},
+		{
 			name: "nil conditions",
 			args: args{
 				decisionMatches: []remedyv1alpha1.DecisionMatch{
