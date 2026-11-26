@@ -147,6 +147,7 @@ metadata:
   namespace: {{ .Namespace }}
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   ports:
   - name: client
     port: {{ .EtcdListenClientPort }}
