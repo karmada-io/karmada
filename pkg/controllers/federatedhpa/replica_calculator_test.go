@@ -961,9 +961,27 @@ func TestGetObjectPerPodMetricReplicas(t *testing.T) {
 			objectMetric:       30,
 			calibration:        0.5,
 			tolerance:          defaultTolerance,
-			expectedReplicas:   12,
-			expectedUsage:      15,
-			expectError:        false,
+			// usage/target/calibration = 30/10/0.5 = 6. Calibration must be applied once.
+			expectedReplicas: 6,
+			expectedUsage:    15,
+			expectError:      false,
+		},
+		{
+			name:               "No change due to tolerance with calibration",
+			statusReplicas:     3,
+			targetAverageUsage: 10,
+			metricName:         "requests_per_pod",
+			namespace:          defaultNamespace,
+			objectRef:          defaultObjectRef,
+			metricSelector:     labels.Everything(),
+			objectMetric:       32, // usageRatio 32/(10*3)=1.067, within 10% tolerance
+			calibration:        0.5,
+			tolerance:          defaultTolerance,
+			// Within tolerance means no scaling, so the current replicas are kept as-is,
+			// calibration must not change them.
+			expectedReplicas: 3,
+			expectedUsage:    11,
+			expectError:      false,
 		},
 		{
 			name:               "Error getting metric",

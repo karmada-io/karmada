@@ -269,7 +269,7 @@ func (c *ReplicaCalculator) GetObjectPerPodMetricReplicas(statusReplicas int32, 
 		replicaCount = int32(math.Ceil(float64(usage) / float64(targetAverageUsage) / calibration))
 	}
 	usage = int64(math.Ceil(float64(usage) / float64(statusReplicas)))
-	return int32(math.Ceil(float64(replicaCount) / calibration)), usage, timestamp, nil
+	return replicaCount, usage, timestamp, nil
 }
 
 // getUsageRatioReplicaCount calculates the desired replica count based on usageRatio and ready pods count.
