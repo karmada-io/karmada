@@ -12,7 +12,24 @@ spec:
         local kube = require("kube")
         function GetReplicas(obj)
           local replica = obj.spec.replicas
-          local requirement = kube.accuratePodRequirements(obj.spec.template)
+          local t = obj.spec.template
+          local requirement
+          for _, key in ipairs({"deploymentTemplate", "statefulSetTemplate", "advancedStatefulSetTemplate", "cloneSetTemplate"}) do
+            if t[key] then
+              local current = kube.accuratePodRequirements(t[key].spec.template)
+              if not requirement then
+                requirement = current
+              elseif current and current.resourceRequest then
+                requirement.resourceRequest = requirement.resourceRequest or {}
+                for name, quantity in pairs(current.resourceRequest) do
+                  local previous = requirement.resourceRequest[name]
+                  if not previous or kube.getResourceQuantity(quantity) > kube.getResourceQuantity(previous) then
+                    requirement.resourceRequest[name] = quantity
+                  end
+                end
+              end
+            end
+          end
           return replica, requirement
         end
     replicaRevision:
@@ -166,6 +183,8 @@ spec:
       luaScript: >
         local kube = require("kube")
         function GetDependencies(desiredObj)
-          local refs = kube.getPodDependencies(desiredObj.spec.template, desiredObj.metadata.namespace)
+          local t = desiredObj.spec.template
+          local subset = t.deploymentTemplate or t.statefulSetTemplate or t.advancedStatefulSetTemplate or t.cloneSetTemplate
+          local refs = kube.getPodDependencies(subset.spec.template, desiredObj.metadata.namespace)
           return refs
         end
