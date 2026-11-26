@@ -48,12 +48,21 @@ func CreateBootstrapConfigMapIfNotExists(clientSet kubernetes.Interface, file st
 		return err
 	}
 
-	adminCluster := adminConfig.Contexts[adminConfig.CurrentContext].Cluster
+	adminContext, ok := adminConfig.Contexts[adminConfig.CurrentContext]
+	if !ok {
+		return fmt.Errorf("the current context %q is not present in the admin kubeconfig", adminConfig.CurrentContext)
+	}
+
+	adminCluster, ok := adminConfig.Clusters[adminContext.Cluster]
+	if !ok {
+		return fmt.Errorf("the cluster %q referenced by context %q is not present in the admin kubeconfig", adminContext.Cluster, adminConfig.CurrentContext)
+	}
+
 	// Copy the cluster from admin.conf to the bootstrap kubeconfig, contains the CA cert and the server URL
 	klog.V(1).Infoln("[bootstrap-token] copying the cluster from admin.conf to the bootstrap kubeconfig")
 	bootstrapConfig := &clientcmdapi.Config{
 		Clusters: map[string]*clientcmdapi.Cluster{
-			"": adminConfig.Clusters[adminCluster],
+			"": adminCluster,
 		},
 	}
 	bootstrapBytes, err := clientcmd.Write(*bootstrapConfig)
