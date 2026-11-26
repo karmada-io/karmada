@@ -310,11 +310,12 @@ func reflectStatefulSetStatus(object *unstructured.Unstructured) (*runtime.RawEx
 			ResourceTemplateGeneration: resourceTemplateGenerationInt,
 		},
 		StatefulSetStatus: appsv1.StatefulSetStatus{
-			AvailableReplicas: statefulSetStatus.AvailableReplicas,
-			CurrentReplicas:   statefulSetStatus.CurrentReplicas,
-			ReadyReplicas:     statefulSetStatus.ReadyReplicas,
-			Replicas:          statefulSetStatus.Replicas,
-			UpdatedReplicas:   statefulSetStatus.UpdatedReplicas,
+			AvailableReplicas:  statefulSetStatus.AvailableReplicas,
+			CurrentReplicas:    statefulSetStatus.CurrentReplicas,
+			ReadyReplicas:      statefulSetStatus.ReadyReplicas,
+			Replicas:           statefulSetStatus.Replicas,
+			UpdatedReplicas:    statefulSetStatus.UpdatedReplicas,
+			ObservedGeneration: statefulSetStatus.ObservedGeneration,
 		},
 	}
 	return helper.BuildStatusRawExtension(grabStatus)
