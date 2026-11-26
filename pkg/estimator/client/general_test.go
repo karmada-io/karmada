@@ -1416,6 +1416,108 @@ func TestGetMaxAvailableComponentSetsGeneral(t *testing.T) {
 			// min(5, 4, 4) = 4 sets total
 			expected: 4,
 		},
+		{
+			name: "memory request in decimal SI units is compared in bytes",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "worker",
+					Replicas: 2,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("1"),
+							corev1.ResourceMemory: resource.MustParse("1G"),
+						},
+					},
+				},
+			},
+			// Per-set demand: 2 replicas × (1 CPU, 1G) = (2 CPU, 2G)
+			// Cluster allocatable: 10 CPU, 8Gi (about 8.59G)
+			// 10/2 = 5 sets (CPU), 8Gi/2G = 4 sets (Mem)
+			// min(5, 4) = 4 sets total
+			expected: 4,
+		},
+		{
+			name: "memory request given as a plain byte count is compared in bytes",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("100"),
+							corev1.ResourceCPU:    resource.MustParse("10"),
+							corev1.ResourceMemory: resource.MustParse("8Gi"),
+						},
+						Allocated: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("0"),
+							corev1.ResourceCPU:    resource.MustParse("0"),
+							corev1.ResourceMemory: resource.MustParse("2Gi"),
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "worker",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1073741824"), // 1Gi in bytes
+						},
+					},
+				},
+			},
+			// Available memory: 8Gi - 2Gi = 6Gi, each set needs 1073741824 bytes (1Gi) => 6 sets.
+			expected: 6,
+		},
+		{
+			name: "small requests whose resource bound does not fit in an int32",
+			cluster: &clusterv1alpha1.Cluster{
+				Status: clusterv1alpha1.ClusterStatus{
+					ResourceSummary: &clusterv1alpha1.ResourceSummary{
+						Allocatable: corev1.ResourceList{
+							corev1.ResourcePods:   resource.MustParse("110"),
+							corev1.ResourceCPU:    resource.MustParse("8"),
+							corev1.ResourceMemory: resource.MustParse("16Gi"),
+						},
+					},
+				},
+			},
+			components: []workv1alpha2.Component{
+				{
+					Name:     "jobmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("50m"),
+							corev1.ResourceMemory: resource.MustParse("100m"),
+						},
+					},
+				},
+				{
+					Name:     "taskmanager",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceCPU:    resource.MustParse("100m"),
+							corev1.ResourceMemory: resource.MustParse("100m"),
+						},
+					},
+				},
+			},
+			// Per set: 150m CPU and 2 bytes of memory (100m rounds up to 1 byte per component).
+			// Memory alone would allow 16Gi / 2 sets, more than an int32 can hold; CPU limits it to 8000m / 150m = 53.
+			expected: 53,
+		},
 	}
 
 	estimator := NewGeneralEstimator()
@@ -1594,6 +1696,39 @@ func TestMaxAvailableComponentSets_AssumedWorkloadDeduction(t *testing.T) {
 			},
 			// Assumed total: 1 CPU + 3 CPU = 4 CPU → remaining 8 CPU / 4 per-set = 2 sets
 			expected: 2,
+		},
+		{
+			name:    "assumed workload memory in decimal SI units is deducted in bytes",
+			cluster: baseCluster("100", "8Gi"),
+			components: []workv1alpha2.Component{
+				{
+					Name:     "worker",
+					Replicas: 1,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{
+							corev1.ResourceMemory: resource.MustParse("1Gi"),
+						},
+					},
+				},
+			},
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Components: []workv1alpha2.Component{
+						{
+							Name:     "worker",
+							Replicas: 2,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("1G"),
+								},
+							},
+						},
+					},
+				},
+			},
+			// Assumed uses 2 × 1G = 2000000000 bytes → remaining 8Gi - 2000000000 = 6589934592 bytes.
+			// Each set needs 1Gi (1073741824 bytes): 6589934592 / 1073741824 = 6 sets.
+			expected: 6,
 		},
 		{
 			name:       "assumed workload with no resource requirements — only pod deduction",
