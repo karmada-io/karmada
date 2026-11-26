@@ -21,7 +21,8 @@ package v1alpha2
 import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	v1alpha1 "github.com/karmada-io/karmada/pkg/generated/applyconfigurations/policy/v1alpha1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
 // ResourceBindingSpecApplyConfiguration represents a declarative configuration of the ResourceBindingSpec type for use
@@ -48,6 +49,10 @@ type ResourceBindingSpecApplyConfiguration struct {
 	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
 	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
 	Components []ComponentApplyConfiguration `json:"components,omitempty"`
+	// PodSelectors contains label selectors used to find the Pods belonging to
+	// this binding when evaluating it as a preemption victim.
+	// A Pod matches if it satisfies any one of the selectors.
+	PodSelectors []v1.LabelSelectorApplyConfiguration `json:"podSelectors,omitempty"`
 	// Clusters represents target member clusters where the resource to be deployed.
 	Clusters []TargetClusterApplyConfiguration `json:"clusters,omitempty"`
 	// Placement represents the rule for select clusters to propagate resources.
@@ -88,7 +93,7 @@ type ResourceBindingSpecApplyConfiguration struct {
 	// status.lastScheduledTime will the rescheduling actually execute, otherwise, ignored.
 	//
 	// It is represented in RFC3339 form (like '2006-01-02T15:04:05Z') and is in UTC.
-	RescheduleTriggeredAt *v1.Time `json:"rescheduleTriggeredAt,omitempty"`
+	RescheduleTriggeredAt *metav1.Time `json:"rescheduleTriggeredAt,omitempty"`
 	// Suspension declares the policy for suspending different aspects of propagation.
 	// nil means no suspension. no default values.
 	Suspension *SuspensionApplyConfiguration `json:"suspension,omitempty"`
@@ -157,6 +162,19 @@ func (b *ResourceBindingSpecApplyConfiguration) WithComponents(values ...*Compon
 			panic("nil value passed to WithComponents")
 		}
 		b.Components = append(b.Components, *values[i])
+	}
+	return b
+}
+
+// WithPodSelectors adds the given value to the PodSelectors field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, values provided by each call will be appended to the PodSelectors field.
+func (b *ResourceBindingSpecApplyConfiguration) WithPodSelectors(values ...*v1.LabelSelectorApplyConfiguration) *ResourceBindingSpecApplyConfiguration {
+	for i := range values {
+		if values[i] == nil {
+			panic("nil value passed to WithPodSelectors")
+		}
+		b.PodSelectors = append(b.PodSelectors, *values[i])
 	}
 	return b
 }
@@ -235,7 +253,7 @@ func (b *ResourceBindingSpecApplyConfiguration) WithConflictResolution(value pol
 // WithRescheduleTriggeredAt sets the RescheduleTriggeredAt field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the RescheduleTriggeredAt field is set to the value of the last call.
-func (b *ResourceBindingSpecApplyConfiguration) WithRescheduleTriggeredAt(value v1.Time) *ResourceBindingSpecApplyConfiguration {
+func (b *ResourceBindingSpecApplyConfiguration) WithRescheduleTriggeredAt(value metav1.Time) *ResourceBindingSpecApplyConfiguration {
 	b.RescheduleTriggeredAt = &value
 	return b
 }
