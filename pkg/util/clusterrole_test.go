@@ -219,3 +219,115 @@ func makeClusterRoleBinding(name string) *rbacv1.ClusterRoleBinding {
 		},
 	}
 }
+
+func TestBuildRoleBindingSubjects(t *testing.T) {
+	tests := []struct {
+		name                    string
+		serviceAccountName      string
+		serviceAccountNamespace string
+		want                    []rbacv1.Subject
+	}{
+		{
+			name:                    "valid service account and namespace",
+			serviceAccountName:      "test-sa",
+			serviceAccountNamespace: "test-ns",
+			want: []rbacv1.Subject{
+				{
+					Kind:      rbacv1.ServiceAccountKind,
+					Name:      "test-sa",
+					Namespace: "test-ns",
+				},
+			},
+		},
+		{
+			name:                    "empty namespace",
+			serviceAccountName:      "test-sa",
+			serviceAccountNamespace: "",
+			want: []rbacv1.Subject{
+				{
+					Kind:      rbacv1.ServiceAccountKind,
+					Name:      "test-sa",
+					Namespace: "",
+				},
+			},
+		},
+		{
+			name:                    "karmada agent service account in karmada-system namespace",
+			serviceAccountName:      "karmada-agent",
+			serviceAccountNamespace: "karmada-system",
+			want: []rbacv1.Subject{
+				{
+					Kind:      rbacv1.ServiceAccountKind,
+					Name:      "karmada-agent",
+					Namespace: "karmada-system",
+				},
+			},
+		},
+		{
+			name:                    "both service account name and namespace empty",
+			serviceAccountName:      "",
+			serviceAccountNamespace: "",
+			want: []rbacv1.Subject{
+				{
+					Kind:      rbacv1.ServiceAccountKind,
+					Name:      "",
+					Namespace: "",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildRoleBindingSubjects(tt.serviceAccountName, tt.serviceAccountNamespace)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildRoleBindingSubjects() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuildClusterRoleReference(t *testing.T) {
+	tests := []struct {
+		name     string
+		roleName string
+		want     rbacv1.RoleRef
+	}{
+		{
+			name:     "valid cluster role name",
+			roleName: "karmada-admin",
+			want: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     "karmada-admin",
+			},
+		},
+		{
+			name:     "empty cluster role name",
+			roleName: "",
+			want: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     "",
+			},
+		},
+		{
+			name:     "system cluster role name",
+			roleName: "system:controller:karmada",
+			want: rbacv1.RoleRef{
+				APIGroup: rbacv1.GroupName,
+				Kind:     "ClusterRole",
+				Name:     "system:controller:karmada",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildClusterRoleReference(tt.roleName)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildClusterRoleReference() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
