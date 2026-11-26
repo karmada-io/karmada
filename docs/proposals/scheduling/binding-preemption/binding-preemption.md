@@ -149,12 +149,11 @@ spec:
 1. **Multi-cluster preemption**: Coordinated victim eviction across multiple clusters. Requires iterative recalculation.
 2. **Duplicated mode preemption**: Cluster selection ignores available resources for Duplicated mode, so it does not return an insufficient-capacity result.
 3. **StaticWeight preemption**: StaticWeight placement does not check available capacity, so it does not return an insufficient-capacity result.
-4. **Component scheduling preemption**: Multi-component workloads are supported as victims, but supporting them as preemptors requires component-set feasibility and claim accounting. See [Component Scheduling Path](#component-scheduling-path) for the future extension path.
-5. Preemption for ClusterResourceBinding.
-6. Gang preemption.
-7. Cross-scheduler preemption coordination.
-8. PodDisruptionBudget-aware preemption at the Karmada level.
-9. **ClusterAffinities preemption**: See [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded).
+4. Preemption for ClusterResourceBinding.
+5. Gang preemption.
+6. Cross-scheduler preemption coordination.
+7. PodDisruptionBudget-aware preemption at the Karmada level.
+8. **ClusterAffinities preemption**: See [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded).
 
 ## Background
 
@@ -297,17 +296,85 @@ type VictimBinding struct {
 }
 ```
 
-### Add `PodSelectors` to `ResourceBindingSpec`
+### Add `PodSelector` to `ResourceBindingSpec`
 
 ```go
 type ResourceBindingSpec struct {
-    // PodSelectors identifies the Pods derived from the bound workload.
-    // Multiple selectors are ORed.
-    PodSelectors []metav1.LabelSelector `json:"podSelectors,omitempty"`
+    // PodSelector is the label selector that identifies the Pods derived from
+    // the referenced workload in member clusters.
+    //
+    // It is used to locate the Pods of the binding, for example, when the
+    // scheduler evaluates the binding as a preemption victim. The Pods are
+    // looked up in the namespace of the binding.
+    //
+    // It only applies to workloads with a single pod template (e.g. Deployment),
+    // that is, workloads described by the Replicas and ReplicaRequirements fields.
+    // It is discovered by the 'InterpretPodSelector' operation of the resource
+    // interpreter. Workloads with multiple pod templates declare the selector
+    // on each entry of Components instead.
+    //
+    // If not set, the Pods of the binding can not be located. The binding is
+    // still scheduled as usual and may still preempt other bindings, but it is
+    // never selected as a preemption victim.
+    //
+    // It is only populated when the PriorityBasedPreemptiveScheduling feature
+    // gate is enabled.
+    // +optional
+    PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
 }
 ```
 
-The ResourceDetector obtains these selectors through the Resource Interpreter when it creates or updates the binding. If no selector is available, the binding can still be scheduled but is not eligible as a preemption victim.
+`PodSelector`, like the existing `Replicas` and `ReplicaRequirements`, describes a single-template workload. All three fields will eventually be consolidated into `Components`. The new field is still added at the top level for now, so that preemption is not coupled with the `MultiplePodTemplatesScheduling` feature.
+
+### Add `InterpretPodSelector` to the Resource Interpreter
+
+```go
+const (
+    // InterpreterOperationInterpretPodSelector indicates that karmada wants to figure out
+    // the label selector that identifies the Pods derived from a specific object.
+    // Only necessary for resource types with a single pod template, that is, those
+    // whose replicas are interpreted by 'InterpretReplica'.
+    // This operation is only used when the feature gate 'PriorityBasedPreemptiveScheduling' is enabled.
+    InterpreterOperationInterpretPodSelector InterpreterOperation = "InterpretPodSelector"
+)
+
+type ResourceInterpreterResponse struct {
+    // PodSelector is the label selector that identifies the Pods derived from the object.
+    // It is only read when InterpreterOperation is InterpreterOperationInterpretPodSelector.
+    // A webhook that can not identify the Pods should leave it unset.
+    // +optional
+    PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
+}
+
+type CustomizationRules struct {
+    // PodSelector describes the rules for Karmada to discover the label selector
+    // that identifies the Pods derived from the resource.
+    // It is intended for CRD resources with a single pod template whose replicas
+    // are discovered by ReplicaResource.
+    // It is usually not needed for Kubernetes native resources (e.g. Deployment)
+    // as Karmada knows how to discover it. If set, the built-in rule is ignored.
+    // +optional
+    PodSelector *PodSelectorInterpretation `json:"podSelector,omitempty"`
+}
+
+// PodSelectorInterpretation holds the script for discovering the label selector
+// that identifies the Pods derived from a resource with a single pod template.
+type PodSelectorInterpretation struct {
+    // LuaScript holds the Lua script that is used to discover the label selector.
+    //
+    // The script should implement a function as follows:
+    //
+    //   function GetPodSelector(desiredObj)
+    //       return desiredObj.spec.selector
+    //   end
+    //
+    // The parameter 'desiredObj' is the object to be applied to the member cluster.
+    // The function returns one value: a table with the same schema as
+    // metav1.LabelSelector, or nil if the Pods can not be identified.
+    // +required
+    LuaScript string `json:"luaScript"`
+}
+```
 
 ## Preemption Framework
 
@@ -316,28 +383,9 @@ The ResourceDetector obtains these selectors through the Resource Interpreter wh
 Preemption is attempted only when **all** of the following hold:
 
 1. The binding is a workload (`IsWorkload() == true`).
-2. The binding is single-component (`len(Components) <= 1`). Multi-component bindings can be victims, but component-set preemptors are deferred. See [Component Scheduling Path](#component-scheduling-path).
-3. The binding uses `ClusterAffinity`, not `ClusterAffinities`. See [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded).
-4. The binding explicitly targets one cluster via `SpreadConstraints` (`MaxGroups == 1`).
-5. Cluster selection returns a typed `InsufficientCapacityError` after non-capacity filters and placement constraints have passed.
-
-```go
-func isPreemptionApplicable(spec *workv1alpha2.ResourceBindingSpec) bool {
-    if !spec.IsWorkload() { return false }
-    if len(spec.Components) > 1 { return false }
-    if spec.Placement == nil { return false }
-    if spec.Placement.ClusterAffinities != nil { return false }
-    for _, sc := range spec.Placement.SpreadConstraints {
-        if sc.SpreadByField == policyv1alpha1.SpreadByFieldCluster &&
-            sc.MaxGroups == 1 {
-            return true
-        }
-    }
-    return false
-}
-```
-
-The full preemption gate (`preemptionEnabled`) combines feature gates + `PreemptionPolicy != nil && *PreemptionPolicy == PreemptLowerPriority` + `isPreemptionApplicable`.
+2. The binding uses `ClusterAffinity`, not `ClusterAffinities`. See [Why ClusterAffinities Is Excluded](#why-clusteraffinities-is-excluded).
+3. The binding explicitly targets one cluster via `SpreadConstraints` (`MaxGroups == 1`).
+4. Cluster selection returns a typed `InsufficientCapacityError` after non-capacity filters and placement constraints have passed.
 
 ### Modified Schedule() Flow
 
@@ -385,7 +433,7 @@ function Schedule(spec):
 
 ### Victim Selection Algorithm
 
-The algorithm uses the **"remove all, then reprieve"** pattern from Kubernetes. The scheduler sends the estimator only candidates that are assigned to the target cluster, have lower effective priority than the preemptor, are not suspended, and are not already in graceful eviction.
+The algorithm uses the **"remove all, then reprieve"** pattern from Kubernetes. The scheduler sends the estimator only candidates that are assigned to the target cluster, have lower effective priority than the preemptor, have a Pod selector, are not suspended, and are not already in graceful eviction.
 
 A binding with `SchedulePriority == nil` has effective priority `0`. It can be a victim when its priority is lower than the preemptor, but it cannot initiate preemption because it has not opted into `PreemptLowerPriority`. Victim eligibility depends on relative priority, not on the victim's own preemption policy.
 
@@ -512,14 +560,28 @@ rpc SelectVictims(SelectVictimsRequest) returns (SelectVictimsResponse) {}
 
 message SelectVictimsRequest {
     string cluster = 1;
-    ReplicaRequirements preemptorReplicaRequirements = 2;
-    int32 preemptorReplicas = 3;
+    // preemptorComponents describes what the preemptor needs on the cluster, as
+    // one full set of components. Each component carries its name, its replicas,
+    // and the requirements of each replica (see the existing Component message).
+    // The preemptor fits if one full set can be placed.
+    // A single-template preemptor is sent as exactly one component, whose replicas
+    // is the number of replicas the preemptor needs on the cluster.
+    repeated Component preemptorComponents = 2;
+    // preemptorNamespace is the namespace of the preemptor. Estimation plugins
+    // that work per namespace (e.g. resource quota) need it.
+    string preemptorNamespace = 3;
     repeated VictimCandidate candidates = 4;  // ordered by reprieve priority
 }
 
 message VictimCandidate {
     string bindingPermanentID = 1;  // ResourceBindingPermanentIDLabel value
     string namespace = 2;
+    // podSelectors identify the Pods of the candidate. A Pod belongs to the
+    // candidate if it matches any one of the selectors; a Pod matched by several
+    // selectors is counted once.
+    // It is a list so that the estimator does not need to know the shape of the
+    // workload: a single-template workload carries one selector, a multi-template
+    // workload carries one per component.
     repeated LabelSelector podSelectors = 3;
 }
 
@@ -551,8 +613,8 @@ function SelectVictims(request):
 
     // Feasibility check: does preemptor fit with all candidates removed?
     modifiedSnapshot = NewFromNodeInfoMap(clonedNodes)
-    maxReplicas = estimateReplicas(modifiedSnapshot, request.preemptor_requirements)
-    if maxReplicas < request.preemptor_replicas:
+    maxSets = estimateComponentSets(modifiedSnapshot, request.preemptor_components)
+    if maxSets < 1:
         return {feasible: false}
 
     // Step 2: Reprieve in given order (candidates arrive sorted by scheduler)
@@ -561,8 +623,8 @@ function SelectVictims(request):
             clonedNodes[pod.nodeName].AddPod(pod)  // try adding back
 
         checkSnapshot = NewFromNodeInfoMap(clonedNodes)
-        maxReplicas = estimateReplicas(checkSnapshot, request.preemptor_requirements)
-        if maxReplicas < request.preemptor_replicas:
+        maxSets = estimateComponentSets(checkSnapshot, request.preemptor_components)
+        if maxSets < 1:
             // Cannot reprieve — undo and mark as victim
             for each pod: clonedNodes[pod.nodeName].RemovePod(pod)
         // else: reprieved (pods stay added back)
@@ -570,29 +632,49 @@ function SelectVictims(request):
     return {feasible: true, selected_victims: un-reprieved candidates}
 ```
 
-The `estimateReplicas` function reuses the existing estimation framework (`RunEstimateReplicasPlugins`) including the `noderesource` plugin for per-node capacity with affinity/toleration filtering. Snapshot manipulation uses `CloneNodes()` and `NewFromNodeInfoMap()` helpers added to `pkg/util/lifted/scheduler/cache/snapshot.go`.
+The `estimateComponentSets` function reuses the existing component-set estimation framework (the one behind `MaxAvailableComponentSets`) including the `noderesource` plugin for per-node capacity with affinity/toleration filtering. Snapshot manipulation uses `CloneNodes()` and `NewFromNodeInfoMap()` helpers added to `pkg/util/lifted/scheduler/cache/snapshot.go`.
 
 ### What Changes in the Estimator
 
 1. **Mutable snapshot clone**: `CloneNodes()` deep-clones all `NodeInfo` objects. `NewFromNodeInfoMap()` reconstructs a `Snapshot` from the modified map.
 
-2. **Selector-based Pod lookup**: The estimator uses its Pod informer cache to list Pods in the candidate's namespace with each interpreted selector. If more than one selector is matched to a single Pod, that pod is counted only once.
+2. **Selector-based Pod lookup**: The estimator uses its Pod informer cache to list Pods in the candidate's namespace with each selector of the candidate. If more than one selector is matched to a single Pod, that pod is counted only once.
 
 3. **`SelectVictims` RPC**: Clones the snapshot, removes candidate pods, checks preemptor feasibility, and runs the reprieve loop.
 
 ### Locating Candidate Pods (Prerequisite)
 
-A new read-only Resource Interpreter operation, `GetPodSelectors`, returns the label selectors for Pods derived from a workload. It returns a list because a workload could manage more than one Pod template. Default native interpreters return the workload's existing selectors.
+A new read-only Resource Interpreter operation, `InterpretPodSelector`, returns the label selector for the Pods derived from a workload with a single pod template. The ResourceDetector calls it for workloads interpreted by `InterpretReplica` when it creates or updates the binding, and records the result in `ResourceBindingSpec.PodSelector`. The built-in interpreter returns `spec.selector` for Deployment; other native workloads are added incrementally.
 
-The ResourceDetector records the returned selectors in `ResourceBindingSpec.PodSelectors`. The scheduler includes them, in addition to the binding namespace, in each `VictimCandidate`. The estimator will then evaluate each selector against its Pod informer cache in that namespace.
+The scheduler includes the selector, in addition to the binding namespace, in each `VictimCandidate`. The estimator evaluates it against its Pod informer cache in that namespace.
 
-An unavailable operation, an interpreter error, or an empty selector leaves the binding ineligible as a victim. A selector lookup error will result in the estimator request to return no victims. This avoids changing the workload or its Pod templates and keeps selector failures from causing speculative eviction.
+An unavailable operation, an interpreter error, or an empty selector leaves the field unset and the binding ineligible as a victim. An empty selector (`{}`) is not stored because, by Kubernetes convention, it matches every Pod in the namespace. A selector lookup error will result in the estimator request to return no victims. This avoids changing the workload or its Pod templates and keeps selector failures from causing speculative eviction.
 
 ### Component Scheduling Path
 
-When `MultiplePodTemplatesScheduling` is enabled, scheduling results for multi-component workloads are recorded in `spec.clusters[*].components`. This feature gate is alpha and disabled by default, and must be enabled on both `karmada-controller-manager` and `karmada-scheduler` for component interpretation and assignment recording. Multi-component workloads can be victims because the estimator selects victims from their Pods instead of relying on `spec.clusters[*].replicas`.
+When `MultiplePodTemplatesScheduling` is enabled, multi-component workloads are described by `spec.components`. This feature gate is alpha and disabled by default. Phase 1 does not depend on it; phase 2 lets multi-component workloads take both roles.
 
-For now, this proposal only covers single-component preemptors. The estimator can handle component sets, but `SelectVictims` still takes one set of replica requirements and one replica count. We would need to add component support to victim selection and preemption claims.
+**As victims.** Each component declares its own selector, returned by `InterpretComponent` together with the rest of the component, so no extra interpreter operation is needed:
+
+```go
+type Component struct {
+    // PodSelector is the label selector that identifies the Pods derived from
+    // the pod template of this component in member clusters.
+    //
+    // It is used to locate the Pods of the component, for example, when the
+    // scheduler evaluates the binding as a preemption victim. The Pods are
+    // looked up in the namespace of the binding.
+    //
+    // If not set, the Pods of the component can not be located, and the whole
+    // binding is never selected as a preemption victim.
+    // +optional
+    PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
+}
+```
+
+A multi-component binding is eligible as a victim only if every component has a selector; otherwise the estimator would under-count what an eviction frees. The scheduler passes the selectors of all components in `VictimCandidate.podSelectors`. The estimator selects victims from their Pods instead of relying on `spec.clusters[*].replicas`, so it needs no change.
+
+**As preemptors.** A preemptor needs no Pod selector, and most of the machinery already fits: multi-component scheduling goes through the same cluster selection and gets the same `InsufficientCapacityError`, `SelectVictimsRequest` already carries components, and a claim records the summed resources of the components. What remains is dropping the `len(Components) > 1` check in `isPreemptionApplicable`.
 
 ## Why ClusterAffinities Is Excluded
 
@@ -613,6 +695,8 @@ These issues require deliberate design (e.g., two-phase preemption, multi-claim 
 | Preempt entire bindings across all clusters | Rejected. Massive blast radius. Per-cluster preemption minimizes disruption. |
 | NominatedCluster (persistent on binding) | Rejected. Informer cache lag creates race conditions. In-memory claims provide equivalent functionality without API changes. |
 | Cooldown-only (no resource accounting) | Rejected. Does not prevent victims from consuming resources reserved for the preemptor. |
+| `PodSelectors` list on `ResourceBindingSpec`, filled by one operation for all workloads | Rejected. Once single- and multi-template workloads converge on `Components`, the natural home of a selector is the component. A flat list would sit beside it, lose the component mapping, and need a second interpreter call for workloads that already describe their components. |
+| Mirror single-template workloads into one component now and store the selector there | Rejected for now. It ties preemption to `MultiplePodTemplatesScheduling` and changes how the scheduler tells the two kinds of workload apart. |
 
 ## Risks and Limitations
 
@@ -655,7 +739,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 ## Backward Compatibility
 
 1. **Feature-gated**: `PriorityBasedPreemptiveScheduling` defaults to `false`. No behavior change when disabled.
-2. **API additive**: `PreemptionPolicy` and `PodSelectors` are new optional fields. They default to unset.
+2. **API additive**: `PreemptionPolicy` and `PodSelector` are new optional fields. They default to unset.
 3. **Hard dependency**: Requires `PriorityBasedScheduling`. Preemption is a no-op if that gate is disabled.
 4. **Cluster-to-bindings index**: Only initialized when feature gate is enabled.
 5. **Composable**: Works alongside PolicyPreemption, GracefulEviction, Failover, SpreadConstraints.
@@ -665,7 +749,8 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 | Phase | Release | Scope | Feature Gate |
 |---|---|---|---|
 | 0 | v1.13 (done) | Priority-based scheduling (queue ordering) | `PriorityBasedScheduling` (beta, default on since v1.19) |
-| 1 | v1.20 | Estimator-based single-cluster preemption | `PriorityBasedPreemptiveScheduling` (alpha, default off) |
+| 1 | v1.20 | Estimator-based single-cluster preemption for single-template workloads, as preemptor and as victim | `PriorityBasedPreemptiveScheduling` (alpha, default off) |
+| 2 | TBD | Multi-component workloads, as preemptor and as victim | Also requires `MultiplePodTemplatesScheduling` |
 
 ## Test Plan
 
@@ -674,7 +759,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 - Priority handling: nil victim priority is treated as `0`; a binding without `PreemptLowerPriority` cannot initiate preemption.
 - `PreemptionPolicy` resolution: feature gate disabled → `nil`; PriorityClass `PreemptLowerPriority` → set; PriorityClass `Never` or `nil` → `nil`.
 - Trigger handling: typed insufficient-capacity results trigger preemption; affinity, taint, spread, and other failures do not.
-- Applicability checks: `MaxGroups == 1`, non-workload, multi-component preemptor, ClusterAffinities exclusions.
+- Applicability checks: `MaxGroups == 1`, non-workload, multi-component preemptor (phase 1), ClusterAffinities exclusions.
 - Victim scope: same namespace by default; cross-namespace victims require `--enable-cross-namespace-preemption=true`.
 - Estimator failure: absence, timeout, error, infeasibility, or a selector lookup error produces no victims.
 - Pod selectors: unavailable operation, interpreter error, or empty selector makes a binding ineligible as a victim; Pods matched by multiple selectors are counted once.
@@ -684,7 +769,8 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 ### Integration Tests
 - End-to-end: high-priority binding preempts low-priority binding on single cluster.
 - No preemption when PreemptionPolicy is `nil` or when the feature gate is disabled.
-- With `MultiplePodTemplatesScheduling` enabled, multi-component bindings can be selected as victims.
+- A binding without a Pod selector is never selected as a victim.
+- Phase 2: with `MultiplePodTemplatesScheduling` enabled, multi-component bindings can preempt and can be selected as victims.
 - Cross-namespace victims require `--enable-cross-namespace-preemption=true`; same-namespace behavior remains the default.
 - Preempted binding reschedules to another cluster.
 - Claim prevents victim from returning to claimed cluster.
@@ -693,7 +779,7 @@ When the feature gate is enabled but no preemption is occurring (common case), t
 - Fill a cluster with low-priority bindings, submit high-priority binding, verify preemption.
 - Verify events on both preemptor and victim.
 - Verify estimator failure causes no eviction.
-- Verify no preemption for Duplicated, StaticWeight, multi-component preemptors, ClusterAffinities, multi-cluster.
+- Verify no preemption for Duplicated, StaticWeight, multi-component preemptors (phase 1), ClusterAffinities, multi-cluster.
 
 ## Observability
 
