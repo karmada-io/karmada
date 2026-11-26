@@ -159,7 +159,9 @@ func (o *CommandApplyOptions) Validate() error {
 				errs = append(errs, fmt.Errorf("cluster %s does not exist", cluster))
 			}
 		}
-		return utilerrors.NewAggregate(errs)
+		if err = utilerrors.NewAggregate(errs); err != nil {
+			return err
+		}
 	}
 	return o.kubectlApplyOptions.Validate()
 }
