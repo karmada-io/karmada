@@ -215,10 +215,10 @@ func validateScalingPolicy(policy autoscalingv2.HPAScalingPolicy, fldPath *field
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L241-L245
 // +lifted:changed
 
-// TODO: Karmada do not support ExternalMetricSourceType currently
 var validMetricSourceTypes = sets.NewString(
 	string(autoscalingv2.ObjectMetricSourceType), string(autoscalingv2.PodsMetricSourceType),
-	string(autoscalingv2.ResourceMetricSourceType), string(autoscalingv2.ContainerResourceMetricSourceType))
+	string(autoscalingv2.ResourceMetricSourceType), string(autoscalingv2.ExternalMetricSourceType),
+	string(autoscalingv2.ContainerResourceMetricSourceType))
 var validMetricSourceTypesList = validMetricSourceTypes.List()
 
 // +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L247-L339
@@ -257,6 +257,13 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 		}
 	}
 
+	if spec.External != nil {
+		typesPresent.Insert("external")
+		if typesPresent.Len() == 1 {
+			allErrs = append(allErrs, validateExternalSource(spec.External, fldPath.Child("external"))...)
+		}
+	}
+
 	if spec.ContainerResource != nil {
 		typesPresent.Insert("containerResource")
 		if typesPresent.Len() == 1 {
@@ -281,6 +288,11 @@ func validateMetricSpec(spec autoscalingv2.MetricSpec, fldPath *field.Path) fiel
 			allErrs = append(allErrs, field.Required(fldPath.Child("resource"), "must populate information for the given metric source"))
 		}
 		expectedField = "resource"
+	case autoscalingv2.ExternalMetricSourceType:
+		if spec.External == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("external"), "must populate information for the given metric source"))
+		}
+		expectedField = "external"
 	case autoscalingv2.ContainerResourceMetricSourceType:
 		if spec.ContainerResource == nil {
 			// In K8s, there is a feature gate:HPAContainerMetrics, but we don't know about member clusters, so we enable it by default.
@@ -312,6 +324,39 @@ func validateObjectSource(src *autoscalingv2.ObjectMetricSource, fldPath *field.
 
 	if src.Target.Value == nil && src.Target.AverageValue == nil {
 		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set either a target value or averageValue"))
+	}
+
+	return allErrs
+}
+
+// +lifted:source=https://github.com/kubernetes/kubernetes/blob/release-1.27/pkg/apis/autoscaling/validation/validation.go#L354-L368
+
+func validateExternalSource(src *autoscalingv2.ExternalMetricSource, fldPath *field.Path) field.ErrorList {
+	allErrs := field.ErrorList{}
+
+	allErrs = append(allErrs, validateMetricIdentifier(src.Metric, fldPath.Child("metric"))...)
+	allErrs = append(allErrs, validateMetricTarget(src.Target, fldPath.Child("target"))...)
+
+	if src.Target.Value == nil && src.Target.AverageValue == nil {
+		allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set either a target value for metric or a per-pod target"))
+	}
+
+	if src.Target.Value != nil && src.Target.AverageValue != nil {
+		allErrs = append(allErrs, field.Forbidden(fldPath.Child("target").Child("value"), "may not set both a target value for metric and a per-pod target"))
+	}
+
+	// The controller reads the field that matches the target type, so the two have to agree.
+	switch src.Target.Type {
+	case autoscalingv2.ValueMetricType:
+		if src.Target.Value == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("value"), "must set value when the target type is Value"))
+		}
+	case autoscalingv2.AverageValueMetricType:
+		if src.Target.AverageValue == nil {
+			allErrs = append(allErrs, field.Required(fldPath.Child("target").Child("averageValue"), "must set averageValue when the target type is AverageValue"))
+		}
+	case autoscalingv2.UtilizationMetricType:
+		allErrs = append(allErrs, field.Invalid(fldPath.Child("target").Child("type"), src.Target.Type, "Utilization is not supported for external metrics"))
 	}
 
 	return allErrs

@@ -1318,3 +1318,77 @@ func TestValidateMetricIdentifier(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateMetricSpecExternal(t *testing.T) {
+	externalSpec := func(target autoscalingv2.MetricTarget) autoscalingv2.MetricSpec {
+		return autoscalingv2.MetricSpec{
+			Type: autoscalingv2.ExternalMetricSourceType,
+			External: &autoscalingv2.ExternalMetricSource{
+				Metric: autoscalingv2.MetricIdentifier{Name: "queue_length"},
+				Target: target,
+			},
+		}
+	}
+
+	tests := []struct {
+		name    string
+		spec    autoscalingv2.MetricSpec
+		wantErr bool
+	}{
+		{
+			name:    "value target",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.ValueMetricType, Value: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: false,
+		},
+		{
+			name:    "average value target",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.AverageValueMetricType, AverageValue: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: false,
+		},
+		{
+			name: "both value and average value",
+			spec: externalSpec(autoscalingv2.MetricTarget{
+				Type:         autoscalingv2.ValueMetricType,
+				Value:        resource.NewQuantity(10, resource.DecimalSI),
+				AverageValue: resource.NewQuantity(10, resource.DecimalSI),
+			}),
+			wantErr: true,
+		},
+		{
+			name:    "no target value",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.ValueMetricType}),
+			wantErr: true,
+		},
+		{
+			name:    "value type with only average value",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.ValueMetricType, AverageValue: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
+			name:    "average value type with only value",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.AverageValueMetricType, Value: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
+			name:    "utilization type",
+			spec:    externalSpec(autoscalingv2.MetricTarget{Type: autoscalingv2.UtilizationMetricType, AverageValue: resource.NewQuantity(10, resource.DecimalSI)}),
+			wantErr: true,
+		},
+		{
+			name:    "external type without external source",
+			spec:    autoscalingv2.MetricSpec{Type: autoscalingv2.ExternalMetricSourceType},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			errs := validateMetricSpec(tt.spec, field.NewPath("spec").Child("metrics").Index(0))
+			if tt.wantErr {
+				assert.NotEmpty(t, errs)
+			} else {
+				assert.Empty(t, errs, "Expected no validation errors, but got: %v", errs)
+			}
+		})
+	}
+}
