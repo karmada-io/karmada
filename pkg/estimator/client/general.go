@@ -382,7 +382,7 @@ func sumAssumedWorkloadDemands(assumedWorkloads []AssumedWorkload) (pods int64, 
 				continue
 			}
 			for resName, qty := range c.ReplicaRequirements.ResourceRequest {
-				resources[resName] += quantityAsInt64(qty) * replicas
+				resources[resName] += quantityAsInt64(resName, qty) * replicas
 			}
 		}
 	}
@@ -398,7 +398,7 @@ func perSetRequirement(components []workv1alpha2.Component) map[corev1.ResourceN
 		}
 		replicas := int64(c.Replicas)
 		for resName, qty := range c.ReplicaRequirements.ResourceRequest {
-			baseAmount := quantityAsInt64(qty)
+			baseAmount := quantityAsInt64(resName, qty)
 			resourceRequirements[resName] += baseAmount * replicas
 		}
 	}
@@ -416,21 +416,21 @@ func availableResourceMap(resourceSummary *clusterv1alpha1.ResourceSummary) map[
 		if allocating, ok := resourceSummary.Allocating[key]; ok {
 			a.Sub(allocating)
 		}
-		available[key] = quantityAsInt64(a)
+		available[key] = quantityAsInt64(key, a)
 	}
 	return available
 }
 
-// Converts quantity into an int representation depending on format
-func quantityAsInt64(q resource.Quantity) int64 {
-	switch q.Format {
-	case resource.DecimalSI, resource.DecimalExponent:
+// quantityAsInt64 converts a quantity to an int64 using a unit that is consistent
+// for the given resource, regardless of the quantity's original format. CPU is
+// measured in millicores; every other resource is measured in whole units. Mixing
+// MilliValue for DecimalSI with Value for BinarySI made "1G" represent 1,000,000,000,000
+// while "8Gi" represented 8,589,934,592, undercounting available component sets.
+func quantityAsInt64(resName corev1.ResourceName, q resource.Quantity) int64 {
+	if resName == corev1.ResourceCPU {
 		return q.MilliValue()
-	case resource.BinarySI:
-		return q.Value()
-	default:
-		return q.Value()
 	}
+	return q.Value()
 }
 
 func allZero(m map[corev1.ResourceName]int64) bool {
