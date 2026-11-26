@@ -13,20 +13,24 @@ This page provides instructions on how to install, upgrade, and uninstall Karmad
 
 | Repository | Name | Version |
 |------------|------|---------|
-| https://charts.bitnami.com/bitnami | common | 1.x.x |
+| https://charts.bitnami.com/bitnami | common | 2.x.x |
 
 ## Installing or upgrading the Chart
 
-Go to the root directory of the `karmada-io/karmada` repo. To install or upgrade the Helm Chart with
-the release name `karmada-operator` in the `karmada-system` namespace.
+From the repository root, build the chart dependencies, then install or upgrade the
+`karmada-operator` release in the `karmada-system` namespace. Replace the placeholders
+with your settings.
 
 ```bash
-helm upgrade --install karmada-operator --create-namespace ./charts/karmada-operator \
---set operator.replicaCount=<replica_count> \
---set operator.image.registry=<image_registry> \
---set operator.image.repository=<image_repository> \
---set operator.image.tag=<image_tag>
--n karmada-system --version <chart_version>
+helm repo add bitnami https://charts.bitnami.com/bitnami
+helm dependency build ./charts/karmada-operator
+
+helm upgrade --install karmada-operator ./charts/karmada-operator \
+  --namespace karmada-system --create-namespace \
+  --set operator.replicaCount="<replica_count>" \
+  --set-string operator.image.registry="<image_registry>" \
+  --set-string operator.image.repository="<image_repository>" \
+  --set-string operator.image.tag="<image_tag>"
 ```
 
 For example, you can simply run the helm command:
