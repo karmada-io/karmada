@@ -137,6 +137,7 @@ var (
 		{Group: "metrics.k8s.io", Version: "v1beta1"},
 		{Group: "custom.metrics.k8s.io", Version: "v1beta1"},
 		{Group: "custom.metrics.k8s.io", Version: "v1beta2"},
+		{Group: "external.metrics.k8s.io", Version: "v1beta1"},
 	}
 
 	// KarmadaSearchAPIServices defines the GroupVersions of all karmada-search APIServices
