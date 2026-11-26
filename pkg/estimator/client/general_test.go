@@ -19,6 +19,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -861,6 +862,32 @@ func TestDeductAssumedWorkloadsFromSummary(t *testing.T) {
 			},
 		},
 		{
+			// Validates that an extended-resource product overflowing int64 is clamped to
+			// math.MaxInt64 rather than wrapping around to a negative value. A wrapped negative
+			// value would let getMaximumReplicasBasedOnClusterSummary add it back to the available
+			// capacity, making a larger assumed workload appear to free up room instead of using it.
+			name:    "extended resource product overflowing int64 is clamped, not wrapped",
+			summary: clusterv1alpha1.ResourceSummary{},
+			assumedWorkloads: []AssumedWorkload{
+				{
+					Components: []workv1alpha2.Component{
+						{
+							Replicas: 3,
+							ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+								ResourceRequest: corev1.ResourceList{
+									"example.com/device": resource.MustParse("4Ei"),
+								},
+							},
+						},
+					},
+				},
+			},
+			wantAllocating: corev1.ResourceList{
+				corev1.ResourcePods:  resource.MustParse("3"),
+				"example.com/device": *resource.NewQuantity(math.MaxInt64, resource.DecimalSI),
+			},
+		},
+		{
 			name: "existing Allocating values are accumulated, not replaced",
 			summary: clusterv1alpha1.ResourceSummary{
 				Allocating: corev1.ResourceList{
@@ -904,6 +931,48 @@ func TestDeductAssumedWorkloadsFromSummary(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAssumedWorkloadDeductionIsMonotonic validates that folding an assumed in-flight workload
+// into a ResourceSummary never raises the maximum-replicas estimate computed from it, even when
+// the per-replica resource request is large enough that replicas × request overflows int64.
+func TestAssumedWorkloadDeductionIsMonotonic(t *testing.T) {
+	const extendedResource = corev1.ResourceName("example.com/device")
+
+	newSummary := func() *clusterv1alpha1.ResourceSummary {
+		return &clusterv1alpha1.ResourceSummary{
+			Allocatable: corev1.ResourceList{
+				extendedResource:    resource.MustParse("64"),
+				corev1.ResourcePods: resource.MustParse("110"),
+			},
+			Allocated: corev1.ResourceList{},
+		}
+	}
+	replicaRequirements := &workv1alpha2.ReplicaRequirements{
+		ResourceRequest: corev1.ResourceList{extendedResource: resource.MustParse("1")},
+	}
+
+	baseline := getMaximumReplicasBasedOnClusterSummary(newSummary(), replicaRequirements)
+	assert.Equal(t, int64(64), baseline)
+
+	withAssumed := newSummary()
+	deductAssumedWorkloadsFromSummary(withAssumed, []AssumedWorkload{
+		{
+			Components: []workv1alpha2.Component{
+				{
+					Replicas: 3,
+					ReplicaRequirements: &workv1alpha2.ComponentReplicaRequirements{
+						ResourceRequest: corev1.ResourceList{extendedResource: resource.MustParse("4Ei")},
+					},
+				},
+			},
+		},
+	})
+	got := getMaximumReplicasBasedOnClusterSummary(withAssumed, replicaRequirements)
+
+	assert.LessOrEqual(t, got, baseline,
+		"assuming an in-flight workload must not raise the estimate: got %d with the workload assumed, %d without it", got, baseline)
+	assert.Equal(t, int64(0), got, "a cluster with 64 devices and 3×4Ei assumed has no room left")
 }
 
 func TestMaxAvailableReplicasGeneral(t *testing.T) {
