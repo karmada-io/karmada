@@ -23,8 +23,8 @@ package v1alpha2
 
 import (
 	v1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -141,6 +141,11 @@ func (in *Component) DeepCopyInto(out *Component) {
 		*out = new(ComponentReplicaRequirements)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.PodSelector != nil {
+		in, out := &in.PodSelector, &out.PodSelector
+		*out = new(v1.LabelSelector)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -164,7 +169,7 @@ func (in *ComponentReplicaRequirements) DeepCopyInto(out *ComponentReplicaRequir
 	}
 	if in.ResourceRequest != nil {
 		in, out := &in.ResourceRequest, &out.ResourceRequest
-		*out = make(v1.ResourceList, len(*in))
+		*out = make(corev1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
 		}
@@ -234,7 +239,7 @@ func (in *NodeClaim) DeepCopyInto(out *NodeClaim) {
 	*out = *in
 	if in.HardNodeAffinity != nil {
 		in, out := &in.HardNodeAffinity, &out.HardNodeAffinity
-		*out = new(v1.NodeSelector)
+		*out = new(corev1.NodeSelector)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.NodeSelector != nil {
@@ -246,7 +251,7 @@ func (in *NodeClaim) DeepCopyInto(out *NodeClaim) {
 	}
 	if in.Tolerations != nil {
 		in, out := &in.Tolerations, &out.Tolerations
-		*out = make([]v1.Toleration, len(*in))
+		*out = make([]corev1.Toleration, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
@@ -290,7 +295,7 @@ func (in *ReplicaRequirements) DeepCopyInto(out *ReplicaRequirements) {
 	}
 	if in.ResourceRequest != nil {
 		in, out := &in.ResourceRequest, &out.ResourceRequest
-		*out = make(v1.ResourceList, len(*in))
+		*out = make(corev1.ResourceList, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val.DeepCopy()
 		}
@@ -462,7 +467,7 @@ func (in *ResourceBindingStatus) DeepCopyInto(out *ResourceBindingStatus) {
 	}
 	if in.Conditions != nil {
 		in, out := &in.Conditions, &out.Conditions
-		*out = make([]metav1.Condition, len(*in))
+		*out = make([]v1.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

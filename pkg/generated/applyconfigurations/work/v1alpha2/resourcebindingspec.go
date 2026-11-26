@@ -47,6 +47,8 @@ type ResourceBindingSpecApplyConfiguration struct {
 	//
 	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
 	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// For single pod template workloads, it holds exactly one component named 'default'
+	// (see DefaultComponentName), which mirrors the legacy Replicas and ReplicaRequirements fields.
 	Components []ComponentApplyConfiguration `json:"components,omitempty"`
 	// Clusters represents target member clusters where the resource to be deployed.
 	Clusters []TargetClusterApplyConfiguration `json:"clusters,omitempty"`

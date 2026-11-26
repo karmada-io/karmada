@@ -48,6 +48,18 @@ type CustomizationRulesApplyConfiguration struct {
 	// If not implemented, the controller will fall back to ReplicaResource for backward compatibility.
 	// This will only be used when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
 	ComponentResource *ComponentResourceRequirementApplyConfiguration `json:"componentResource,omitempty"`
+	// PodSelector describes the rules for Karmada to discover the label selector
+	// that identifies the Pods derived from the resource.
+	// It is intended for CRD resources with a single pod template whose replicas are
+	// discovered by ReplicaResource. For resources discovered by ComponentResource,
+	// the selector should be declared on each component instead.
+	// It is usually not needed for Kubernetes native resources(Deployment) as
+	// Karmada knows how to discover info from them. But if it is set, the built-in
+	// discovery rules will be ignored.
+	// The selector is stored in the 'components' field of ResourceBinding or ClusterResourceBinding,
+	// which is only populated when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	// Therefore, this will only be used when that feature gate is enabled.
+	PodSelector *PodSelectorInterpretationApplyConfiguration `json:"podSelector,omitempty"`
 	// ReplicaRevision describes the rules for Karmada to revise the resource's replica.
 	// It would be useful for those CRD resources that declare workload types like
 	// Deployment.
@@ -104,6 +116,14 @@ func (b *CustomizationRulesApplyConfiguration) WithReplicaResource(value *Replic
 // If called multiple times, the ComponentResource field is set to the value of the last call.
 func (b *CustomizationRulesApplyConfiguration) WithComponentResource(value *ComponentResourceRequirementApplyConfiguration) *CustomizationRulesApplyConfiguration {
 	b.ComponentResource = value
+	return b
+}
+
+// WithPodSelector sets the PodSelector field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the PodSelector field is set to the value of the last call.
+func (b *CustomizationRulesApplyConfiguration) WithPodSelector(value *PodSelectorInterpretationApplyConfiguration) *CustomizationRulesApplyConfiguration {
+	b.PodSelector = value
 	return b
 }
 

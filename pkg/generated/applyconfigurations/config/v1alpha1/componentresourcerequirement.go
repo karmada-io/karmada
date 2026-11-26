@@ -44,7 +44,12 @@ type ComponentResourceRequirementApplyConfiguration struct {
 	//
 	// local taskManagerComponent = {
 	// name = "taskmanager",
-	// replicas = desiredObj.spec.taskManager.replicas
+	// replicas = desiredObj.spec.taskManager.replicas,
+	// podSelector = {
+	// matchLabels = {
+	// component = "taskmanager"
+	// }
+	// }
 	// }
 	// table.insert(components, taskManagerComponent)
 	//
@@ -60,7 +65,8 @@ type ComponentResourceRequirementApplyConfiguration struct {
 	// to the member cluster.
 	//
 	// The function expects one return value:
-	// - components: the resource requirements for each component.
+	// - components: the resource requirements for each component. Each component
+	// may optionally carry a 'podSelector' that identifies its Pods.
 	// The returned value will be set into a ResourceBinding or ClusterResourceBinding.
 	LuaScript *string `json:"luaScript,omitempty"`
 }

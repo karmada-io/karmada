@@ -94,6 +94,8 @@ type ResourceBindingSpec struct {
 	//
 	// Note: This field is intended to replace the legacy ReplicaRequirements and Replicas fields above.
 	// It is only populated when the MultiplePodTemplatesScheduling feature gate is enabled.
+	// For single pod template workloads, it holds exactly one component named 'default'
+	// (see DefaultComponentName), which mirrors the legacy Replicas and ReplicaRequirements fields.
 	// +optional
 	Components []Component `json:"components,omitempty"`
 
@@ -249,6 +251,13 @@ type Component struct {
 	// ReplicaRequirements represents the resource and scheduling requirements for each replica.
 	// +optional
 	ReplicaRequirements *ComponentReplicaRequirements `json:"replicaRequirements,omitempty"`
+
+	// PodSelector identifies the Pods derived from this component's pod template.
+	// It is used to locate the Pods of the component in member clusters, for example,
+	// when evaluating the binding as a preemption victim.
+	// If not set, the Pods of this component can not be located.
+	// +optional
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
 }
 
 // ComponentReplicaRequirements represents the resource and scheduling requirements for each replica.

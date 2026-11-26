@@ -128,6 +128,11 @@ type ResourceInterpreterResponse struct {
 	// +optional
 	Components []workv1alpha2.Component `json:"components,omitempty"`
 
+	// PodSelector identifies the Pods derived from the referencing object's pod template.
+	// Required if InterpreterOperation is InterpreterOperationInterpretPodSelector.
+	// +optional
+	PodSelector *metav1.LabelSelector `json:"podSelector,omitempty"`
+
 	// Dependencies represents the reference of dependencies object.
 	// Required if InterpreterOperation is InterpreterOperationInterpretDependency.
 	// +optional

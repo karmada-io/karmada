@@ -108,6 +108,20 @@ type CustomizationRules struct {
 	// +optional
 	ComponentResource *ComponentResourceRequirement `json:"componentResource,omitempty"`
 
+	// PodSelector describes the rules for Karmada to discover the label selector
+	// that identifies the Pods derived from the resource.
+	// It is intended for CRD resources with a single pod template whose replicas are
+	// discovered by ReplicaResource. For resources discovered by ComponentResource,
+	// the selector should be declared on each component instead.
+	// It is usually not needed for Kubernetes native resources(Deployment) as
+	// Karmada knows how to discover info from them. But if it is set, the built-in
+	// discovery rules will be ignored.
+	// The selector is stored in the 'components' field of ResourceBinding or ClusterResourceBinding,
+	// which is only populated when the feature gate 'MultiplePodTemplatesScheduling' is enabled.
+	// Therefore, this will only be used when that feature gate is enabled.
+	// +optional
+	PodSelector *PodSelectorInterpretation `json:"podSelector,omitempty"`
+
 	// ReplicaRevision describes the rules for Karmada to revise the resource's replica.
 	// It would be useful for those CRD resources that declare workload types like
 	// Deployment.
@@ -237,7 +251,12 @@ type ComponentResourceRequirement struct {
 	//
 	//           local taskManagerComponent = {
 	//               name = "taskmanager",
-	//               replicas = desiredObj.spec.taskManager.replicas
+	//               replicas = desiredObj.spec.taskManager.replicas,
+	//               podSelector = {
+	//                   matchLabels = {
+	//                       component = "taskmanager"
+	//                   }
+	//               }
 	//           }
 	//           table.insert(components, taskManagerComponent)
 	//
@@ -253,7 +272,38 @@ type ComponentResourceRequirement struct {
 	//       to the member cluster.
 	//
 	// The function expects one return value:
-	//   - components: the resource requirements for each component.
+	//   - components: the resource requirements for each component. Each component
+	//       may optionally carry a 'podSelector' that identifies its Pods.
+	// The returned value will be set into a ResourceBinding or ClusterResourceBinding.
+	// +required
+	LuaScript string `json:"luaScript"`
+}
+
+// PodSelectorInterpretation holds the scripts for discovering the label selector that
+// identifies the Pods derived from a resource with a single pod template.
+type PodSelectorInterpretation struct {
+	// LuaScript holds the Lua script that is used to discover the label selector of the Pods.
+	//
+	// The script should implement a function as follows:
+	//
+	// ```
+	//   luaScript: >
+	//       function GetPodSelector(desiredObj)
+	//           return desiredObj.spec.selector
+	//       end
+	// ```
+	//
+	// The content of the LuaScript needs to be a whole function including both
+	// declaration and implementation.
+	//
+	// The parameters will be supplied by the system:
+	//   - desiredObj: the object represents the configuration to be applied
+	//       to the member cluster.
+	//
+	// The function expects one return value:
+	//   - podSelector: a label selector(same schema as metav1.LabelSelector) that
+	//       identifies the Pods derived from the resource. Return nil if the
+	//       Pods can not be identified.
 	// The returned value will be set into a ResourceBinding or ClusterResourceBinding.
 	// +required
 	LuaScript string `json:"luaScript"`
