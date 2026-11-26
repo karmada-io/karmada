@@ -14,7 +14,9 @@ limitations under the License.
 package search
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -226,6 +228,53 @@ func TestInstallKarmadaSearchWithTolerationsAndAffinity(t *testing.T) {
 	}
 	if terms[0].MatchExpressions[0].Key != "kubernetes.io/os" {
 		t.Errorf("expected match expression key 'kubernetes.io/os', but got '%s'", terms[0].MatchExpressions[0].Key)
+	}
+}
+
+func TestInstallKarmadaSearchAppliesNodeSelectorFromKarmadaSpec(t *testing.T) {
+	tests := []struct {
+		name string
+		// spec is the karmadaSearch component spec as a user writes it in the Karmada CR.
+		spec             string
+		wantNodeSelector map[string]string
+	}{
+		{
+			name:             "nodeSelector set is rendered on the pod template",
+			spec:             `{"imageRepository":"docker.io/karmada/karmada-search","imageTag":"latest","replicas":1,"nodeSelector":{"nodepool":"large-vm"}}`,
+			wantNodeSelector: map[string]string{"nodepool": "large-vm"},
+		},
+		{
+			name:             "empty nodeSelector leaves the pod template unchanged",
+			spec:             `{"imageRepository":"docker.io/karmada/karmada-search","imageTag":"latest","replicas":1,"nodeSelector":{}}`,
+			wantNodeSelector: nil,
+		},
+		{
+			name:             "unset nodeSelector leaves the pod template unchanged",
+			spec:             `{"imageRepository":"docker.io/karmada/karmada-search","imageTag":"latest","replicas":1}`,
+			wantNodeSelector: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &operatorv1alpha1.KarmadaSearch{}
+			if err := json.Unmarshal([]byte(tt.spec), cfg); err != nil {
+				t.Fatalf("failed to decode karmadaSearch spec: %v", err)
+			}
+
+			fakeClient := fakeclientset.NewClientset()
+			etcdCfg := &operatorv1alpha1.Etcd{Local: &operatorv1alpha1.LocalEtcd{}}
+			if err := installKarmadaSearch(fakeClient, cfg, etcdCfg, "karmada-demo", "test", map[string]bool{}); err != nil {
+				t.Fatalf("failed to install karmada search: %v", err)
+			}
+
+			deployment, err := verifyDeploymentCreation(fakeClient)
+			if err != nil {
+				t.Fatalf("failed to verify karmada search deployment creation: %v", err)
+			}
+			if got := deployment.Spec.Template.Spec.NodeSelector; !reflect.DeepEqual(got, tt.wantNodeSelector) {
+				t.Errorf("expected pod nodeSelector %v, but got %v", tt.wantNodeSelector, got)
+			}
+		})
 	}
 }
 

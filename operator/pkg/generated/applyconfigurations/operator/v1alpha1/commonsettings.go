@@ -59,6 +59,10 @@ type CommonSettingsApplyConfiguration struct {
 	Tolerations []corev1.TolerationApplyConfiguration `json:"tolerations,omitempty"`
 	// Affinity to apply to the pods for this component.
 	Affinity *corev1.AffinityApplyConfiguration `json:"affinity,omitempty"`
+	// NodeSelector is a map of key-value pairs that must match a node's labels for the
+	// pod to be scheduled on that node. This is the simplest form of node selection.
+	// More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // CommonSettingsApplyConfiguration constructs a declarative configuration of the CommonSettings type for use with
@@ -169,5 +173,19 @@ func (b *CommonSettingsApplyConfiguration) WithTolerations(values ...*corev1.Tol
 // If called multiple times, the Affinity field is set to the value of the last call.
 func (b *CommonSettingsApplyConfiguration) WithAffinity(value *corev1.AffinityApplyConfiguration) *CommonSettingsApplyConfiguration {
 	b.Affinity = value
+	return b
+}
+
+// WithNodeSelector puts the entries into the NodeSelector field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the NodeSelector field,
+// overwriting an existing map entries in NodeSelector field with the same key.
+func (b *CommonSettingsApplyConfiguration) WithNodeSelector(entries map[string]string) *CommonSettingsApplyConfiguration {
+	if b.NodeSelector == nil && len(entries) > 0 {
+		b.NodeSelector = make(map[string]string, len(entries))
+	}
+	for k, v := range entries {
+		b.NodeSelector[k] = v
+	}
 	return b
 }

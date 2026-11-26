@@ -149,7 +149,7 @@ func getKubeControllerManagerManifest(name, namespace string, cfg *operatorv1alp
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithLabels(cfg.Labels).WithExtraArgs(cfg.ExtraArgs).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(kcm)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).WithNodeSelector(cfg.CommonSettings.NodeSelector).ForDeployment(kcm)
 	return kcm, nil
 }
 
@@ -180,7 +180,7 @@ func getKarmadaControllerManagerManifest(name, namespace string, featureGates ma
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(kcm)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).WithNodeSelector(cfg.CommonSettings.NodeSelector).ForDeployment(kcm)
 	return kcm, nil
 }
 
@@ -212,7 +212,7 @@ func getKarmadaSchedulerManifest(name, namespace string, featureGates map[string
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(scheduler)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).WithNodeSelector(cfg.CommonSettings.NodeSelector).ForDeployment(scheduler)
 	return scheduler, nil
 }
 
@@ -244,7 +244,7 @@ func getKarmadaDeschedulerManifest(name, namespace string, featureGates map[stri
 	patcher.NewPatcher().WithAnnotations(cfg.Annotations).WithLabels(cfg.Labels).
 		WithPriorityClassName(cfg.CommonSettings.PriorityClassName).
 		WithExtraArgs(cfg.ExtraArgs).WithFeatureGates(featureGates).WithResources(cfg.Resources).
-		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).ForDeployment(descheduler)
+		WithTolerations(cfg.CommonSettings.Tolerations).WithAffinity(cfg.CommonSettings.Affinity).WithNodeSelector(cfg.CommonSettings.NodeSelector).ForDeployment(descheduler)
 
 	return descheduler, nil
 }

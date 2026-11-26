@@ -150,6 +150,20 @@ func (b *LocalEtcdApplyConfiguration) WithAffinity(value *corev1.AffinityApplyCo
 	return b
 }
 
+// WithNodeSelector puts the entries into the NodeSelector field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the NodeSelector field,
+// overwriting an existing map entries in NodeSelector field with the same key.
+func (b *LocalEtcdApplyConfiguration) WithNodeSelector(entries map[string]string) *LocalEtcdApplyConfiguration {
+	if b.CommonSettingsApplyConfiguration.NodeSelector == nil && len(entries) > 0 {
+		b.CommonSettingsApplyConfiguration.NodeSelector = make(map[string]string, len(entries))
+	}
+	for k, v := range entries {
+		b.CommonSettingsApplyConfiguration.NodeSelector[k] = v
+	}
+	return b
+}
+
 // WithVolumeData sets the VolumeData field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the VolumeData field is set to the value of the last call.

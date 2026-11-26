@@ -1001,6 +1001,14 @@ spec:
                                 and services.
                                 More info: http://kubernetes.io/docs/user-guide/labels
                               type: object
+                            nodeSelector:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                NodeSelector is a map of key-value pairs that must match a node's labels for the
+                                pod to be scheduled on that node. This is the simplest form of node selection.
+                                More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                              type: object
                             peerCertSANs:
                               description: PeerCertSANs sets extra Subject Alternative Names for the etcd peer signing cert.
                               items:
@@ -4421,6 +4429,14 @@ spec:
                             "internal-vip" or "example.com/internal-vip".
                             More info: https://kubernetes.io/docs/concepts/services-networking/service/#load-balancer-class
                           type: string
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -7050,6 +7066,14 @@ spec:
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
                           type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -8148,6 +8172,14 @@ spec:
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
                           type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -9219,6 +9251,14 @@ spec:
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
                           type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -10289,6 +10329,14 @@ spec:
                             (scope and select) objects. May match selectors of replication controllers
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
+                          type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
                           type: object
                         podDisruptionBudgetConfig:
                           description: |-
@@ -11369,6 +11417,14 @@ spec:
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
                           type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -12440,6 +12496,14 @@ spec:
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
                           type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+                          type: object
                         podDisruptionBudgetConfig:
                           description: |-
                             PodDisruptionBudgetConfig specifies the PodDisruptionBudget configuration
@@ -13510,6 +13574,14 @@ spec:
                             (scope and select) objects. May match selectors of replication controllers
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
+                          type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
                           type: object
                         podDisruptionBudgetConfig:
                           description: |-
@@ -14627,6 +14699,14 @@ spec:
                             (scope and select) objects. May match selectors of replication controllers
                             and services.
                             More info: http://kubernetes.io/docs/user-guide/labels
+                          type: object
+                        nodeSelector:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            NodeSelector is a map of key-value pairs that must match a node's labels for the
+                            pod to be scheduled on that node. This is the simplest form of node selection.
+                            More info: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
                           type: object
                         podDisruptionBudgetConfig:
                           description: |-

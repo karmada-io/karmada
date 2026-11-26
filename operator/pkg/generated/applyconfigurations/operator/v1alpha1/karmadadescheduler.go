@@ -157,6 +157,20 @@ func (b *KarmadaDeschedulerApplyConfiguration) WithAffinity(value *corev1.Affini
 	return b
 }
 
+// WithNodeSelector puts the entries into the NodeSelector field in the declarative configuration
+// and returns the receiver, so that objects can be build by chaining "With" function invocations.
+// If called multiple times, the entries provided by each call will be put on the NodeSelector field,
+// overwriting an existing map entries in NodeSelector field with the same key.
+func (b *KarmadaDeschedulerApplyConfiguration) WithNodeSelector(entries map[string]string) *KarmadaDeschedulerApplyConfiguration {
+	if b.CommonSettingsApplyConfiguration.NodeSelector == nil && len(entries) > 0 {
+		b.CommonSettingsApplyConfiguration.NodeSelector = make(map[string]string, len(entries))
+	}
+	for k, v := range entries {
+		b.CommonSettingsApplyConfiguration.NodeSelector[k] = v
+	}
+	return b
+}
+
 // WithExtraArgs puts the entries into the ExtraArgs field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, the entries provided by each call will be put on the ExtraArgs field,

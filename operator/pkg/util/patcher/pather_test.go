@@ -519,3 +519,34 @@ func TestPatchForStatefulSet(t *testing.T) {
 		})
 	}
 }
+
+func TestPatchAppliesNodeSelectorToPodTemplate(t *testing.T) {
+	tests := []struct {
+		name         string
+		nodeSelector map[string]string
+		want         map[string]string
+	}{
+		{name: "nodeSelector set is used as-is", nodeSelector: map[string]string{"nodepool": "large-vm"}, want: map[string]string{"nodepool": "large-vm"}},
+		{name: "empty nodeSelector leaves the pod template unchanged", nodeSelector: map[string]string{}, want: nil},
+		{name: "nil nodeSelector leaves the pod template unchanged", nodeSelector: nil, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deployment := &appsv1.Deployment{Spec: appsv1.DeploymentSpec{Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test-container", Command: []string{"cmd"}}}},
+			}}}
+			NewPatcher().WithNodeSelector(tt.nodeSelector).ForDeployment(deployment)
+			if got := deployment.Spec.Template.Spec.NodeSelector; !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("deployment nodeSelector = %v, want %v", got, tt.want)
+			}
+
+			sts := &appsv1.StatefulSet{Spec: appsv1.StatefulSetSpec{Template: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Name: "test-container", Command: []string{"cmd"}}}},
+			}}}
+			NewPatcher().WithNodeSelector(tt.nodeSelector).ForStatefulSet(sts)
+			if got := sts.Spec.Template.Spec.NodeSelector; !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("statefulset nodeSelector = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
