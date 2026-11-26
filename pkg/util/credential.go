@@ -17,14 +17,19 @@ limitations under the License.
 package util
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/uuid"
 	kubeclient "k8s.io/client-go/kubernetes"
+	"k8s.io/klog/v2"
 
 	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util/names"
@@ -147,6 +152,10 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 	impersonatorSecret := &corev1.Secret{}
 	secret := &corev1.Secret{}
 	var err error
+	var created bool
+	var createdSecrets []*corev1.Secret
+	attemptID := string(uuid.NewUUID())
+	cleanupSecrets := func() { rollbackRegistrationSecrets(controlPlaneKubeClient, createdSecrets) }
 
 	if opts.IsKubeImpersonatorEnabled() {
 		// create secret to store impersonation info in control plane
@@ -160,11 +169,14 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 				clusterv1alpha1.SecretTokenKey: opts.ImpersonatorSecret.Data[clusterv1alpha1.SecretTokenKey],
 			},
 		}
-		impersonatorSecret, err = CreateSecret(controlPlaneKubeClient, impersonatorSecret)
+		impersonatorSecret, created, err = claimRegistrationSecret(controlPlaneKubeClient, impersonatorSecret, opts.ClusterName, attemptID)
 		if err != nil {
-			return fmt.Errorf("failed to create impersonator secret in control plane. error: %v", err)
+			return fmt.Errorf("failed to create impersonator secret in control plane. error: %w", err)
 		}
 		opts.ImpersonatorSecret = *impersonatorSecret
+		if created {
+			createdSecrets = append(createdSecrets, impersonatorSecret)
+		}
 	}
 
 	if opts.IsKubeCredentialsEnabled() {
@@ -180,14 +192,19 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 			},
 		}
 
-		secret, err = CreateSecret(controlPlaneKubeClient, secret)
+		secret, created, err = claimRegistrationSecret(controlPlaneKubeClient, secret, opts.ClusterName, attemptID)
 		if err != nil {
-			return fmt.Errorf("failed to create secret in control plane. error: %v", err)
+			cleanupSecrets()
+			return fmt.Errorf("failed to create secret in control plane. error: %w", err)
 		}
 		opts.Secret = *secret
+		if created {
+			createdSecrets = append(createdSecrets, secret)
+		}
 	}
 	cluster, err := generateClusterInControllerPlane(opts)
 	if err != nil {
+		cleanupSecrets()
 		return err
 	}
 	patchSecretBody := &corev1.Secret{
@@ -211,4 +228,51 @@ func RegisterClusterInControllerPlane(opts ClusterRegisterOption, controlPlaneKu
 		}
 	}
 	return nil
+}
+
+// claimRegistrationSecret advances the version even when credentials are unchanged.
+// Never retry a stale claim: another registration may already be using this version.
+func claimRegistrationSecret(client kubeclient.Interface, desired *corev1.Secret, clusterName, attemptID string) (*corev1.Secret, bool, error) {
+	const attemptAnnotation = "karmada.io/registration-attempt"
+	desired.Annotations = map[string]string{attemptAnnotation: attemptID}
+	secrets := client.CoreV1().Secrets(desired.Namespace)
+	result, err := secrets.Create(context.TODO(), desired, metav1.CreateOptions{})
+	if err == nil {
+		return result, true, nil
+	}
+	if !apierrors.IsAlreadyExists(err) {
+		return nil, false, err
+	}
+	existing, err := secrets.Get(context.TODO(), desired.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, false, err
+	}
+	if owner := metav1.GetControllerOf(existing); owner != nil && (owner.APIVersion != clusterResourceKind.GroupVersion().String() || owner.Kind != clusterResourceKind.Kind || owner.Name != clusterName) {
+		return nil, false, apierrors.NewConflict(schema.GroupResource{Resource: "secrets"}, desired.Name, fmt.Errorf("secret is controlled by %s %s, expected Cluster %s", owner.Kind, owner.Name, clusterName))
+	}
+	data := make(map[string]any, len(existing.Data)+len(desired.Data))
+	for key := range existing.Data {
+		data[key] = nil
+	}
+	for key, value := range desired.Data {
+		data[key] = value
+	}
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{"resourceVersion": existing.ResourceVersion, "annotations": desired.Annotations},
+		"data":     data,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	result, err = secrets.Patch(context.TODO(), desired.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	return result, false, err
+}
+
+func rollbackRegistrationSecrets(client kubeclient.Interface, secrets []*corev1.Secret) {
+	for _, secret := range secrets {
+		options := metav1.DeleteOptions{Preconditions: &metav1.Preconditions{UID: &secret.UID, ResourceVersion: &secret.ResourceVersion}}
+		if err := client.CoreV1().Secrets(secret.Namespace).Delete(context.TODO(), secret.Name, options); err != nil && !apierrors.IsNotFound(err) {
+			klog.Errorf("Failed to roll back secret %s/%s: %v", secret.Namespace, secret.Name, err)
+		}
+	}
 }

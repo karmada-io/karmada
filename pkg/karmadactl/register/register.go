@@ -23,9 +23,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -36,6 +38,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	k8srand "k8s.io/apimachinery/pkg/util/rand"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeclient "k8s.io/client-go/kubernetes"
@@ -43,6 +46,7 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/client-go/util/keyutil"
+	"k8s.io/client-go/util/retry"
 	bootstrapapi "k8s.io/cluster-bootstrap/token/api"
 	bootstrap "k8s.io/cluster-bootstrap/token/jws"
 	"k8s.io/klog/v2"
@@ -545,7 +549,7 @@ func (o *CommandRegisterOption) ensureAgentRBACResourcesExistInControlPlane(clie
 		if err != nil {
 			return err
 		}
-		_, err = karmadautil.CreateRole(client, o.rbacResources.Roles[i])
+		err = o.ensureAgentRole(client, o.rbacResources.Roles[i])
 		if err != nil {
 			return err
 		}
@@ -559,6 +563,65 @@ func (o *CommandRegisterOption) ensureAgentRBACResourcesExistInControlPlane(clie
 	}
 
 	return nil
+}
+
+// ensureAgentRole upgrades only the generated secret Role; other Roles retain create-only behavior.
+func (o *CommandRegisterOption) ensureAgentRole(client kubeclient.Interface, desired *rbacv1.Role) error {
+	secretRole := GenerateSecretAccessRole(o.ClusterName, o.ClusterNamespace)
+	if desired.Name != secretRole.Name || desired.Namespace != secretRole.Namespace {
+		_, err := karmadautil.CreateRole(client, desired)
+		return err
+	}
+	roles := client.RbacV1().Roles(desired.Namespace)
+	_, err := roles.Create(context.TODO(), desired, metav1.CreateOptions{})
+	if !apierrors.IsAlreadyExists(err) {
+		return err
+	}
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		current, err := roles.Get(context.TODO(), desired.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		rule := rbacv1.PolicyRule{
+			APIGroups: []string{""}, Resources: []string{"secrets"}, Verbs: []string{"delete"},
+			ResourceNames: []string{o.ClusterName, o.ClusterName + "-impersonator"},
+		}
+		if secretDeleteCovered(current.Rules, rule.ResourceNames) {
+			return nil
+		}
+		// resourceVersion makes replacing the rules conditional on the fetched version.
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]string{"resourceVersion": current.ResourceVersion},
+			"rules":    append(current.Rules, rule),
+		})
+		if err != nil {
+			return err
+		}
+		_, err = roles.Patch(context.TODO(), desired.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		return err
+	})
+}
+
+func secretDeleteCovered(rules []rbacv1.PolicyRule, secretNames []string) bool {
+	for _, name := range secretNames {
+		covered := false
+		for _, rule := range rules {
+			if ruleIncludes(rule.APIGroups, "") && ruleIncludes(rule.Resources, "secrets") && ruleIncludes(rule.Verbs, "delete") {
+				if len(rule.ResourceNames) == 0 || slices.Contains(rule.ResourceNames, name) {
+					covered = true
+					break
+				}
+			}
+		}
+		if !covered {
+			return false
+		}
+	}
+	return true
+}
+
+func ruleIncludes(values []string, value string) bool {
+	return slices.Contains(values, value) || slices.Contains(values, "*")
 }
 
 // RBACResources defines the list of rbac resources.
@@ -734,7 +797,7 @@ func GenerateSecretAccessRole(clusterName, clusterNamespace string) *rbacv1.Role
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				Verbs:         []string{"get", "patch"},
+				Verbs:         []string{"get", "patch", "delete"},
 				APIGroups:     []string{""},
 				Resources:     []string{"secrets"},
 				ResourceNames: []string{clusterName, clusterName + "-impersonator"},
