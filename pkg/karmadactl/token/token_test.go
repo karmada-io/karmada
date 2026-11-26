@@ -19,6 +19,7 @@ package token
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,6 +83,64 @@ func TestCommandTokenOptions_runCreateToken(t *testing.T) {
 	client := kubernetesfake.NewClientset()
 	if err := cmdOpt.runCreateToken(&mockIOWriter{}, client); err != nil {
 		t.Errorf("runCreateToken() want nil, but get:%v", err)
+	}
+}
+
+func TestCommandTokenOptions_runCreateToken_TTL(t *testing.T) {
+	tests := []struct {
+		name           string
+		ttl            time.Duration
+		wantErr        bool
+		wantExpiration bool
+	}{
+		{
+			name:    "negative ttl is rejected",
+			ttl:     -time.Hour,
+			wantErr: true,
+		},
+		{
+			name:           "zero ttl never expires",
+			ttl:            0,
+			wantErr:        false,
+			wantExpiration: false,
+		},
+		{
+			name:           "positive ttl sets an expiration",
+			ttl:            time.Hour,
+			wantErr:        false,
+			wantExpiration: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmdOpt := NewTestCommandTokenOptions()
+			cmdOpt.TTL = &metav1.Duration{Duration: tt.ttl}
+			client := kubernetesfake.NewClientset()
+
+			err := cmdOpt.runCreateToken(&mockIOWriter{}, client)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("runCreateToken() want error:%v, but get:%v", tt.wantErr, err)
+			}
+
+			secrets, listErr := client.CoreV1().Secrets(metav1.NamespaceSystem).List(context.Background(), metav1.ListOptions{})
+			if listErr != nil {
+				t.Fatalf("List secrets error:%v", listErr)
+			}
+			if tt.wantErr {
+				if len(secrets.Items) != 0 {
+					t.Fatalf("want no token secret to be created, but got %d", len(secrets.Items))
+				}
+				return
+			}
+			if len(secrets.Items) != 1 {
+				t.Fatalf("want 1 token secret, but got %d", len(secrets.Items))
+			}
+			_, hasExpiration := secrets.Items[0].Data[api.BootstrapTokenExpirationKey]
+			if hasExpiration != tt.wantExpiration {
+				t.Errorf("token has expiration:%v, want:%v", hasExpiration, tt.wantExpiration)
+			}
+		})
 	}
 }
 
@@ -196,6 +255,21 @@ func TestCommandTokenOptions_runDeleteTokens(t *testing.T) {
 				t.Errorf("runDeleteTokens() want:%v, but get:%v", tt.wantErr, err)
 			}
 		})
+	}
+}
+
+func TestCommandTokenOptions_runDeleteTokens_InvalidTokenMessage(t *testing.T) {
+	cmdOpt := NewTestCommandTokenOptions()
+	client := kubernetesfake.NewClientset()
+
+	err := cmdOpt.runDeleteTokens(&mockIOWriter{}, client, []string{"not-a-token"})
+	if err == nil {
+		t.Fatalf("runDeleteTokens() want an error for an invalid token, but get nil")
+	}
+	for _, pattern := range []string{api.BootstrapTokenIDPattern, api.BootstrapTokenPattern} {
+		if !strings.Contains(err.Error(), fmt.Sprintf("%q", pattern)) {
+			t.Errorf("error %q does not mention pattern %q", err.Error(), pattern)
+		}
 	}
 }
 
