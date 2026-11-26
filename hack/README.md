@@ -33,28 +33,30 @@ ensures development quality.
 ```
   The usage of `remote-up-karmada.sh`:
 ```
-# hack/remote-up-karmada.sh <kubeconfig> <context_name>
+# hack/remote-up-karmada.sh <kubeconfig> <context_name> [load_balancer]
 ```
 `kubeconfig` is your cluster's kubeconfig that you want to install to
 
 `context_name` is the name of context in 'kubeconfig'
 
+`load_balancer` is optional: pass `true` to create the `LoadBalancer` type service, like `export LOAD_BALANCER=true` (default `false`)
+
 - [`deploy-karmada-agent.sh`](deploy-karmada-agent.sh) This script will install Karmada Agent to the specific cluster.
 
 - [`deploy-scheduler-estimator.sh`](deploy-scheduler-estimator.sh) This script will only install Karmada Scheduler 
-  Estimator to the specific cluster. Please follow the [instruction](../docs/scheduler-estimator.md) for more details.
+  Estimator to the specific cluster. Please follow the [instruction](https://karmada.io/docs/userguide/scheduling/scheduler-estimator) for more details.
 
 - [`deploy-agent-and-estimator.sh`](deploy-agent-and-estimator.sh) This script will install Karmada Agent and Karmada 
   Scheduler Estimator to the specific cluster together. If applied, there is no need to use the extra `deploy-karmada-agent.sh`
   and `deploy-scheduler-estimator.sh` script.
 
 - [`undeploy-karmada.sh`](undeploy-karmada.sh) This script will uninstall Karmada from the specific cluster.
-  It will uninstall Karmada from your local environment default. If you installed Karmada with `remote-up-karmada.sh`,
-  please use it like this: `hack/undeploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>`, the same parameters as you input at
-  the installing step.
+  Use it like this: `hack/undeploy-karmada.sh <KUBECONFIG> <CONTEXT_NAME>`. Both parameters are required: for an environment
+  set up by `local-up-karmada.sh`, use `hack/undeploy-karmada.sh ~/.kube/karmada.config karmada-host`; if you installed
+  Karmada with `remote-up-karmada.sh`, use the same parameters as you input at the installing step.
 
 - [`delete-cluster.sh`](delete-cluster.sh) This script delete a kube cluster by kind,
-  please use it like this: `hack/delete-cluster.sh.sh <CLUSTER_NAME> <KUBECONFIG>`
+  please use it like this: `hack/delete-cluster.sh <CLUSTER_NAME> <KUBECONFIG>`
 
 ## For CI pipeline
 - [`local-up-karmada.sh`](local-up-karmada.sh) This script also used for testing.
