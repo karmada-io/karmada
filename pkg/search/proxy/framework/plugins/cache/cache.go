@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured/unstructuredscheme"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	jsonserializer "k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/handlers"
 	"k8s.io/apiserver/pkg/registry/rest"
@@ -130,9 +131,27 @@ func (c *Cache) Connect(_ context.Context, request framework.ProxyRequest) (http
 var (
 	cacheSerializer = &customSerializer{
 		NegotiatedSerializer: scheme.Codecs.WithoutConversion(),
-		supportedMediaTypes:  unstructuredscheme.NewUnstructuredNegotiatedSerializer().SupportedMediaTypes(),
+		supportedMediaTypes:  newCacheMediaTypes(),
 	}
 )
+
+func newCacheMediaTypes() []runtime.SerializerInfo {
+	mediaTypes := unstructuredscheme.NewUnstructuredNegotiatedSerializer().SupportedMediaTypes()
+	for i := range mediaTypes {
+		if mediaTypes[i].MediaType != "application/json" {
+			continue
+		}
+		// Stream LIST items instead of buffering the entire JSON response. Keep
+		// the upstream pretty, YAML, and watch serializers unchanged.
+		mediaTypes[i].Serializer = jsonserializer.NewSerializerWithOptions(
+			jsonserializer.DefaultMetaFactory,
+			unstructuredscheme.NewUnstructuredCreator(),
+			unstructuredscheme.NewUnstructuredObjectTyper(),
+			jsonserializer.SerializerOptions{StreamingCollectionsEncoding: true},
+		)
+	}
+	return mediaTypes
+}
 
 type customSerializer struct {
 	runtime.NegotiatedSerializer
