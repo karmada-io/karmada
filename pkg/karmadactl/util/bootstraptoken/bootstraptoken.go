@@ -159,6 +159,11 @@ func GetClusterFromKubeConfig(config *clientcmdapi.Config, karmadaContext string
 
 // GenerateRandomBootstrapToken generate random bootstrap token
 func GenerateRandomBootstrapToken(ttl *metav1.Duration, description string, groups, usages []string) (*BootstrapToken, error) {
+	// A negative TTL would produce no expiration key, making the token never expire.
+	if ttl != nil && ttl.Duration < 0 {
+		return nil, fmt.Errorf("the token TTL must not be negative, got %s", ttl.Duration)
+	}
+
 	tokenStr, err := bootstraputil.GenerateBootstrapToken()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't generate random token, err: %w", err)
